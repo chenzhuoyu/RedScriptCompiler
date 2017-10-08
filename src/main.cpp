@@ -1,13 +1,13 @@
 #include <stdio.h>
-#include "Tokenizer.h"
+#include "compiler/Tokenizer.h"
 
 int main()
 {
-    Tokenizer tk(R"source(
+    RedScript::Compiler::Tokenizer tk(R"source(
         a.x = 1
     )source");
 
-    while (!tk.peekOrLine()->is<Token::Eof>())
+    while (!tk.peekOrLine()->is<RedScript::Compiler::Token::Eof>())
         printf("%s\n", tk.nextOrLine()->toString().c_str());
 
     return 0;

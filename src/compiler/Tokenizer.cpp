@@ -1,6 +1,8 @@
 #include <unordered_map>
-#include "Tokenizer.h"
+#include "compiler/Tokenizer.h"
 
+namespace RedScript::Compiler
+{
 static const std::unordered_map<std::string, Token::Keyword> Keywords = {
     { "if"      , Token::If         },
     { "for"     , Token::For        },
@@ -331,14 +333,14 @@ Token::Ptr Tokenizer::readString(void)
     while (start != remains)
     {
         if (!remains)
-            throw CompilationError(_state->row, _state->col, "Unexpected EOF when scanning strings");
+            throw Runtime::SyntaxError(_state->row, _state->col, "Unexpected EOF when scanning strings");
 
         if (remains == '\\')
         {
             switch ((remains = nextChar()))
             {
                 case 0:
-                    throw CompilationError(_state->row, _state->col, "Unexpected EOF when parsing escape sequence in strings");
+                    throw Runtime::SyntaxError(_state->row, _state->col, "Unexpected EOF when parsing escape sequence in strings");
 
                 case '\'':
                 case '\"':
@@ -360,7 +362,7 @@ Token::Ptr Tokenizer::readString(void)
                     char lsb = nextChar();
 
                     if (!isHex(msb) || !isHex(lsb))
-                        throw CompilationError(_state->row, _state->col, "Invalid '\\x' escape sequence");
+                        throw Runtime::SyntaxError(_state->row, _state->col, "Invalid '\\x' escape sequence");
 
                     remains = (char)((toInt(msb) << 4) | toInt(lsb));
                     break;
@@ -384,9 +386,9 @@ Token::Ptr Tokenizer::readString(void)
                 default:
                 {
                     if (isprint(remains))
-                        throw CompilationError(_state->row, _state->col, Strings::format("Invalid escape character '%c'", remains));
+                        throw Runtime::SyntaxError(_state->row, _state->col, Strings::format("Invalid escape character '%c'", remains));
                     else
-                        throw CompilationError(_state->row, _state->col, Strings::format("Invalid escape character '\\x%.2x'", remains));
+                        throw Runtime::SyntaxError(_state->row, _state->col, Strings::format("Invalid escape character '\\x%.2x'", remains));
                 }
             }
         }
@@ -511,7 +513,7 @@ Token::Ptr Tokenizer::readOperator(void)
             if (nextChar() == '=')
                 return Token::createOperator(_state->row, _state->col, Token::Neq);
             else
-                throw CompilationError(_state->row, _state->col, "Invalid operator '!'");
+                throw Runtime::SyntaxError(_state->row, _state->col, "Invalid operator '!'");
         }
 
         /* . .. */
@@ -603,9 +605,9 @@ Token::Ptr Tokenizer::readOperator(void)
         default:
         {
             if (isprint(op))
-                throw CompilationError(_state->row, _state->col, Strings::format("Invalid operator '%c'", op));
+                throw Runtime::SyntaxError(_state->row, _state->col, Strings::format("Invalid operator '%c'", op));
             else
-                throw CompilationError(_state->row, _state->col, Strings::format("Invalid character '\\x%.2x'", (uint8_t)op));
+                throw Runtime::SyntaxError(_state->row, _state->col, Strings::format("Invalid character '\\x%.2x'", (uint8_t)op));
         }
     }
 }
@@ -686,4 +688,5 @@ Token::Ptr Tokenizer::peekOrLine(void)
 
     /* preserve cache */
     return _state->cache;
+}
 }

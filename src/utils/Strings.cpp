@@ -1,9 +1,11 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "Strings.h"
+#include "utils/Strings.h"
 
-std::string Strings::repr(const void *data, size_t size)
+namespace RedScript::Strings
+{
+std::string repr(const void *data, size_t size)
 {
     if (!data)
         return "(nullptr)";
@@ -64,7 +66,7 @@ std::string Strings::repr(const void *data, size_t size)
     return result;
 }
 
-std::string Strings::hexdump(const void *data, size_t size)
+std::string hexdump(const void *data, size_t size)
 {
     char buffer[26] = {0};
     std::string result;
@@ -119,4 +121,5 @@ std::string Strings::hexdump(const void *data, size_t size)
     }
 
     return result;
+}
 }
