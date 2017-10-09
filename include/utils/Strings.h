@@ -1,10 +1,10 @@
-#ifndef STRINGS_H
-#define STRINGS_H
+#ifndef REDSCRIPT_UTILS_STRINGS_H
+#define REDSCRIPT_UTILS_STRINGS_H
 
 #include <string>
-#include <fmt/format.h>
+#include <fmt/printf.h>
 
-namespace Strings
+namespace RedScript::Strings
 {
 std::string repr(const void *data, size_t size);
 std::string hexdump(const void *data, size_t size);
@@ -21,4 +21,4 @@ static inline std::string format(const fmt::CStringRef &fmt, const Args & ... ar
 }
 }
 
-#endif /* STRINGS_H */
+#endif /* REDSCRIPT_UTILS_STRINGS_H */
