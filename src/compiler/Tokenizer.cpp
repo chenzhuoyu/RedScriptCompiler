@@ -56,7 +56,7 @@ static const std::unordered_map<std::string, Token::Operator> Operators = {
     { "+"   , Token::Plus               },
     { "-"   , Token::Minus              },
     { "/"   , Token::Divide             },
-    { "&"   , Token::Multiply           },
+    { "*"   , Token::Multiply           },
     { "%"   , Token::Module             },
     { "**"  , Token::Power              },
 
@@ -164,7 +164,7 @@ std::string Token::toString(void) const
                 case Plus               : return "<Operator '+'>";
                 case Minus              : return "<Operator '-'>";
                 case Divide             : return "<Operator '/'>";
-                case Multiply           : return "<Operator '&'>";
+                case Multiply           : return "<Operator '*'>";
                 case Module             : return "<Operator '%'>";
                 case Power              : return "<Operator '**'>";
 

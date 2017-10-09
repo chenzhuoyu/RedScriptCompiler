@@ -6,6 +6,7 @@ set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 
 add_definitions(-D_BSD_SOURCE)
 include_directories(
+        /usr/local/include
         ${CMAKE_SOURCE_DIR}/include
         ${CMAKE_SOURCE_DIR}/include/compiler
         ${CMAKE_SOURCE_DIR}/include/utils)
