@@ -223,15 +223,15 @@ public:
     typedef std::function<void(ObjectRef)> VisitFunction;
 
 public:
-    virtual void objectInit(ObjectRef self);
-    virtual void objectClear(ObjectRef self);
-    virtual void objectDestroy(ObjectRef self);
+    virtual void objectInit    (ObjectRef self);
+    virtual void objectClear   (ObjectRef self);
+    virtual void objectDestroy (ObjectRef self);
     virtual void objectTraverse(ObjectRef self, VisitFunction visit);
 
 public:
-    virtual uint64_t objectHash(ObjectRef self);
-    virtual StringList objectDir(ObjectRef self);
-    virtual std::string objectStr(ObjectRef self);
+    virtual uint64_t    objectHash(ObjectRef self);
+    virtual StringList  objectDir (ObjectRef self);
+    virtual std::string objectStr (ObjectRef self);
     virtual std::string objectRepr(ObjectRef self);
 
 public:
