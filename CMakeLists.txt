@@ -18,7 +18,7 @@ set(SOURCE_FILES
         src/compiler/Tokenizer.cpp
         src/runtime/Object.cpp
         src/utils/Strings.cpp
-        src/main.cpp)
+        src/main.cpp src/engine/GarbageCollector.cpp include/engine/GarbageCollector.h src/engine/Thread.cpp include/engine/Thread.h src/utils/DoublyLinkedList.cpp include/utils/DoublyLinkedList.h)
 
 add_executable(rsc ${SOURCE_FILES})
 target_link_libraries(rsc -lfmt -ljemalloc)

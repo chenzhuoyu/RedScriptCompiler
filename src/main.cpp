@@ -1,11 +1,12 @@
 #include <stdio.h>
+#include "runtime/Object.h"
 #include "compiler/Tokenizer.h"
 
 int main()
 {
     RedScript::Compiler::Tokenizer tk(R"source(#!/usr/bin/env redscript
 
-class Foo << Bar
+class Foo : Bar
     def __init__(self, a, b = 10, *c, **d)
     end
 
@@ -25,6 +26,8 @@ end
 
     while (!tk.peekOrLine()->is<RedScript::Compiler::Token::Eof>())
         printf("%s\n", tk.nextOrLine()->toString().c_str());
+
+    RedScript::Runtime::ObjectRef obj(new RedScript::Runtime::Object(RedScript::Runtime::MetaType));
 
     return 0;
 }

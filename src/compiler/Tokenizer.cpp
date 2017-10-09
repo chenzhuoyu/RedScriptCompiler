@@ -99,10 +99,10 @@ std::string Token::toString(void) const
     switch (_type)
     {
         case Eof            : return "<Eof>";
-        case Float          : return Strings::format("<Float %f>"       , _float);
-        case String         : return Strings::format("<String %s>"      , Strings::repr(_string.data(), _string.size()));
-        case Integer        : return Strings::format("<Integer %ld>"    , _integer);
-        case Identifiers    : return Strings::format("<Identifier %s>"  , _string);
+        case Float          : return Utils::Strings::format("<Float %f>"      , _float);
+        case String         : return Utils::Strings::format("<String %s>"     , Utils::Strings::repr(_string.data(), _string.size()));
+        case Integer        : return Utils::Strings::format("<Integer %ld>"   , _integer);
+        case Identifiers    : return Utils::Strings::format("<Identifier %s>" , _string);
 
         case Keywords:
         {
@@ -386,9 +386,9 @@ Token::Ptr Tokenizer::readString(void)
                 default:
                 {
                     if (isprint(remains))
-                        throw Runtime::SyntaxError(_state->row, _state->col, Strings::format("Invalid escape character '%c'", remains));
+                        throw Runtime::SyntaxError(_state->row, _state->col, Utils::Strings::format("Invalid escape character '%c'", remains));
                     else
-                        throw Runtime::SyntaxError(_state->row, _state->col, Strings::format("Invalid escape character '\\x%.2x'", remains));
+                        throw Runtime::SyntaxError(_state->row, _state->col, Utils::Strings::format("Invalid escape character '\\x%.2x'", remains));
                 }
             }
         }
@@ -605,9 +605,9 @@ Token::Ptr Tokenizer::readOperator(void)
         default:
         {
             if (isprint(op))
-                throw Runtime::SyntaxError(_state->row, _state->col, Strings::format("Invalid operator '%c'", op));
+                throw Runtime::SyntaxError(_state->row, _state->col, Utils::Strings::format("Invalid operator '%c'", op));
             else
-                throw Runtime::SyntaxError(_state->row, _state->col, Strings::format("Invalid character '\\x%.2x'", (uint8_t)op));
+                throw Runtime::SyntaxError(_state->row, _state->col, Utils::Strings::format("Invalid character '\\x%.2x'", (uint8_t)op));
         }
     }
 }

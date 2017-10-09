@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstdlib>
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
@@ -15,6 +16,7 @@
 #include <unordered_map>
 
 #include "utils/Pointers.h"
+#include "engine/GarbageCollector.h"
 
 namespace RedScript::Runtime
 {
@@ -55,13 +57,13 @@ private:
     void ref(void) const
     {
         if (_object)
-            __sync_add_and_fetch(&(_object->_refCount), 1);
+            _object->_refCount++;
     }
 
 private:
     void unref()
     {
-        if (_object && !__sync_sub_and_fetch(&(_object->_refCount), 1))
+        if (_object && !(--_object->_refCount))
         {
             if (_object->_isStatic)
                 _object = nullptr;
@@ -150,7 +152,7 @@ extern TypeRef MetaType;
 class Object
 {
     bool _isStatic = true;
-    size_t _refCount = 0;
+    std::atomic_int32_t _refCount = 0;
 
 private:
     TypeRef _type;
@@ -160,6 +162,7 @@ private:
     template <typename>
     friend class Reference;
     friend class MetaClassInit;
+    static_assert(std::atomic_int32_t::is_always_lock_free, "Non lock-free reference counter");
 
 public:
     virtual ~Object();
@@ -171,33 +174,18 @@ public:
 
 public:
     bool isStatic(void) const { return _isStatic; }
-    size_t refCount(void) const { return _refCount; }
+    int32_t refCount(void) const { return _refCount.load(); }
 
 public:
-    void *operator new(size_t size)
-    {
-        /* check for minimun required size */
-        if (size < sizeof(Object))
-            throw std::bad_alloc();
+    /* override `new` and `delete` operators to identify static and heap objects */
+    static void *operator new(size_t size);
+    static void  operator delete(void *self);
 
-        /* allocate new class */
-        void *mem = malloc(size);
+private:
+    /* doesn't allow array allocations */
+    static void *operator new[](size_t) = delete;
+    static void  operator delete[](void *) = delete;
 
-        /* check for allocation */
-        if (!mem)
-            throw std::bad_alloc();
-
-        /* mark as dynamic created object */
-        static_cast<Object *>(mem)->_isStatic = false;
-        return mem;
-    }
-
-public:
-    void operator delete(void *self)
-    {
-        /* just free the object directly */
-        free(self);
-    }
 };
 
 /* class object */

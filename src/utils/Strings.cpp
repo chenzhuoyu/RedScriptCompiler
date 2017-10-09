@@ -3,7 +3,7 @@
 
 #include "utils/Strings.h"
 
-namespace RedScript::Strings
+namespace RedScript::Utils::Strings
 {
 std::string repr(const void *data, size_t size)
 {

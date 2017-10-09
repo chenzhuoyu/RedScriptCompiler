@@ -151,22 +151,22 @@ public:
     bool is(void) const { return _type == T; }
 
 public:
-    double  asFloat  (void) const { if (_type == Float  ) return _float  ; else throw Runtime::SyntaxError(_row, _col, Strings::format("\"Float\" expected, but got \"%s\""  , toString())); }
-    int64_t asInteger(void) const { if (_type == Integer) return _integer; else throw Runtime::SyntaxError(_row, _col, Strings::format("\"Integer\" expected, but got \"%s\"", toString())); }
+    double  asFloat  (void) const { if (_type == Float  ) return _float  ; else throw Runtime::SyntaxError(_row, _col, Utils::Strings::format("\"Float\" expected, but got \"%s\""  , toString())); }
+    int64_t asInteger(void) const { if (_type == Integer) return _integer; else throw Runtime::SyntaxError(_row, _col, Utils::Strings::format("\"Integer\" expected, but got \"%s\"", toString())); }
 
 public:
-    Keyword  asKeyword (void) const { if (_type == Keywords ) return _keyword ; else throw Runtime::SyntaxError(_row, _col, Strings::format("\"Keyword\" expected, but got \"%s\""   , toString())); }
-    Operator asOperator(void) const { if (_type == Operators) return _operator; else throw Runtime::SyntaxError(_row, _col, Strings::format("\"Operator\" expected, but got \"%s\""  , toString())); }
+    Keyword  asKeyword (void) const { if (_type == Keywords ) return _keyword ; else throw Runtime::SyntaxError(_row, _col, Utils::Strings::format("\"Keyword\" expected, but got \"%s\""   , toString())); }
+    Operator asOperator(void) const { if (_type == Operators) return _operator; else throw Runtime::SyntaxError(_row, _col, Utils::Strings::format("\"Operator\" expected, but got \"%s\""  , toString())); }
 
 public:
-    const std::string &asString    (void) const { if (_type == String    ) return _string; else throw Runtime::SyntaxError(_row, _col, Strings::format("\"String\" expected, but got \"%s\""    , toString())); }
-    const std::string &asIdentifier(void) const { if (_type == Identifiers) return _string; else throw Runtime::SyntaxError(_row, _col, Strings::format("\"Identifier\" expected, but got \"%s\"", toString())); }
+    const std::string &asString    (void) const { if (_type == String    ) return _string; else throw Runtime::SyntaxError(_row, _col, Utils::Strings::format("\"String\" expected, but got \"%s\""    , toString())); }
+    const std::string &asIdentifier(void) const { if (_type == Identifiers) return _string; else throw Runtime::SyntaxError(_row, _col, Utils::Strings::format("\"Identifier\" expected, but got \"%s\"", toString())); }
 
 public:
     void asEof(void) const
     {
         if (_type != Eof)
-            throw Runtime::SyntaxError(_row, _col, Strings::format("\"Eof\" expected, but got \"%s\"", toString()));
+            throw Runtime::SyntaxError(_row, _col, Utils::Strings::format("\"Eof\" expected, but got \"%s\"", toString()));
     }
 
 public:

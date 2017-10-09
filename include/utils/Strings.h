@@ -4,7 +4,7 @@
 #include <string>
 #include <fmt/printf.h>
 
-namespace RedScript::Strings
+namespace RedScript::Utils::Strings
 {
 std::string repr(const void *data, size_t size);
 std::string hexdump(const void *data, size_t size);
