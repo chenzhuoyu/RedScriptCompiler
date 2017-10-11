@@ -1,21 +1,36 @@
 #include <atomic>
+#include <stdexcept>
+
 #include "engine/Thread.h"
+#include "lockfree/IndexGenerator.h"
 
 namespace RedScript::Engine
 {
-/* thread object instance per real thread */
-static thread_local Thread _thread;
-static std::atomic_uint64_t _threadKey = 0;
+/* lock-free ID generator to generate thread keys */
+static LockFree::IndexGenerator _threadKey(Thread::MAX_THREADS);
 
 Thread::Thread()
 {
-    /* acquire new thread key by atomic add */
-    _key = _threadKey++;
+    /* generate a unique ID for this thread */
+    if ((_key = _threadKey.acquire()) < 0)
+        throw std::overflow_error("Too much threads");
 }
 
-Thread *Thread::current(void)
+Thread::~Thread()
 {
-    /* current thread */
-    return &_thread;
+    /* release the thread key */
+    _threadKey.release(_key);
+}
+
+size_t Thread::count(void)
+{
+    /* load the counter */
+    return _threadKey.count();
+}
+
+Thread &Thread::current(void)
+{
+    static thread_local Thread thread;
+    return thread;
 }
 }

@@ -1,7 +1,7 @@
 #ifndef REDSCRIPT_UTILS_POINTERS_H
 #define REDSCRIPT_UTILS_POINTERS_H
 
-namespace RedScript::Pointers
+namespace RedScript::Utils::Pointers
 {
 template <typename T>
 static inline void deleteAndSetNull(T *&object)

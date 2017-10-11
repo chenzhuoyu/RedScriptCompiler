@@ -68,7 +68,7 @@ private:
             if (_object->_isStatic)
                 _object = nullptr;
             else
-                Pointers::deleteAndSetNull(_object);
+                Utils::Pointers::deleteAndSetNull(_object);
         }
     }
 
@@ -162,7 +162,7 @@ private:
     template <typename>
     friend class Reference;
     friend class MetaClassInit;
-    static_assert(std::atomic_int32_t::is_always_lock_free, "Non lock-free reference counter");
+    static_assert(std::atomic_int32_t::is_always_lock_free, "Non atomic reference counter");
 
 public:
     virtual ~Object();

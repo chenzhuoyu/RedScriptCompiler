@@ -19,7 +19,7 @@ static MetaClassInit __META_CLASS_INIT__;
 
 /* flag to indicate that is instaniated by `new`, should be `long` in order to perform CAS operations */
 static thread_local std::atomic_bool _isStaticObject = true;
-static_assert(std::atomic_bool::is_always_lock_free, "Non lock-free static object flag");
+static_assert(std::atomic_bool::is_always_lock_free, "Non atomic static object flag");
 
 static inline bool isStaticObject(void)
 {
@@ -46,7 +46,7 @@ void *Object::operator new(size_t size)
         throw std::bad_alloc();
 
     /* mark as dynamic created object, and allocate new object from GC */
-    _isStaticObject.store(false);
+    _isStaticObject = false;
     return Engine::GarbageCollector::allocObject(size);
 }
 

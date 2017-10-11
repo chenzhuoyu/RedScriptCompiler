@@ -5,18 +5,23 @@
 
 namespace RedScript::Engine
 {
-class Thread final
+struct Thread final
 {
-    uint64_t _key;
+    static constexpr size_t MAX_THREADS = 65536;
 
-public:
+private:
+    int _key;
+
+private:
     Thread();
+   ~Thread();
 
 public:
-    uint64_t key(void) const { return _key; }
+    int key(void) const { return _key; }
 
 public:
-    static Thread *current(void);
+    static size_t count(void);
+    static Thread &current(void);
 
 };
 }
