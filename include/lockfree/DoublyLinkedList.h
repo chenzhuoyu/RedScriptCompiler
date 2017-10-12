@@ -17,7 +17,7 @@ class DoublyLinkedList
     typedef HazardPointer<Node, Link> Pointer;
 
 private:
-    struct Link : public HazardLink<Node>
+    struct Link : public HazardLink
     {
         static constexpr uintptr_t DEL_MASK = 1;
         static constexpr uintptr_t PTR_MASK = ~DEL_MASK;
@@ -29,7 +29,7 @@ private:
     public:
         Link() : Link(nullptr) {}
         Link(Node *node) : Link(node, false) {}
-        Link(Node *node, bool del) : HazardLink<Node>(addr2node(node2addr(node) | (del ? DEL_MASK : 0))) {}
+        Link(Node *node, bool del) : HazardLink(addr2node(node2addr(node) | (del ? DEL_MASK : 0))) {}
 
     public:
         bool del(void) const { return bool(node2addr(this->data.load()) & DEL_MASK); }

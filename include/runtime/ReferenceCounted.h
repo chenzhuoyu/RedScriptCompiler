@@ -138,7 +138,7 @@ class ReferenceCounted
 
 private:
     bool _isStatic;
-    std::atomic_int32_t _refCount;
+    std::atomic_int _refCount;
 
 protected:
     virtual ~ReferenceCounted() {}

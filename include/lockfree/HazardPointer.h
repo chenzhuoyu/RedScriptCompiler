@@ -19,9 +19,12 @@ namespace RedScript::LockFree
 {
 struct HazardNode
 {
-    std::atomic_int ref = 0;
-    std::atomic_bool del = false;
-    std::atomic_bool trace = false;
+    std::atomic_int ref;
+    std::atomic_bool del;
+    std::atomic_bool trace;
+
+public:
+    HazardNode() : ref(0), del(false), trace(false) {}
 
 public:
     virtual void update(void) {}
@@ -29,7 +32,6 @@ public:
 
 };
 
-template <typename Node>
 struct HazardLink
 {
     /* this field is just a pointer to `Node` */
@@ -121,10 +123,14 @@ private:
 private:
     struct DeadNode
     {
-        DeadNode         *next  = nullptr;
-        std::atomic_int   claim = 0;
-        std::atomic_bool  done  = false;
-        AtomicPNode       node  = nullptr;
+        DeadNode         *next;
+        AtomicPNode       node;
+        std::atomic_int   claim;
+        std::atomic_bool  finshed;
+
+    public:
+        DeadNode() : next(nullptr), node(nullptr), claim(0), finshed(false) {}
+
     };
 
 /*** Per-thread Hazard Free-List ***/
@@ -181,7 +187,7 @@ private:
     }
 };
 
-template <typename Node = HazardNode, typename Link = HazardLink<Node>>
+template <typename Node = HazardNode, typename Link = HazardLink>
 struct HazardPointer final : private HazardThread
 {
     static void free(Node *node)
@@ -200,7 +206,7 @@ struct HazardPointer final : private HazardThread
 
         /* initialize dead node, then insert into the dead node list */
         dhead->node = node;
-        dhead->done = false;
+        dhead->finshed = false;
         dhead->next = tls().deadHead;
 
         /* update dead node count and list */
@@ -273,7 +279,7 @@ struct HazardPointer final : private HazardThread
 
                         /* terminate the node concurrently, and mark as claimed */
                         pnode->terminate(true);
-                        dnode->done = true;
+                        dnode->finshed = true;
                         dnode->node = pnode;
                     }
 
@@ -299,7 +305,7 @@ struct HazardPointer final : private HazardThread
                 ThreadData *data = _threadData[i];
                 for (DeadNode &deadNode : data->deadNodes)
                 {
-                    bool done = deadNode.done.load();
+                    bool done = deadNode.finshed.load();
                     HazardNode *pnode = deadNode.node.load();
 
                     /* not claimed, and has nodes */

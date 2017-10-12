@@ -28,11 +28,10 @@ private:
 private:
     size_t _size;
     int32_t _level;
-    std::atomic_int32_t _refCount;
+    std::atomic_int _refCount;
 
 private:
     friend class GarbageCollector;
-    static_assert(std::atomic_int32_t::is_always_lock_free, "Non atomic reference counter");
 
 public:
    ~GCObject() { untrack(); }
