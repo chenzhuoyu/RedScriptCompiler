@@ -19,7 +19,7 @@ public:
     static void destruct(T *self) noexcept
     {
         /* call the destructor directly */
-        self->~T();
+        if (self) self->~T();
     }
 
 public:
