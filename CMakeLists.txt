@@ -17,6 +17,7 @@ set(SOURCE_FILES
         include/lockfree/HazardPointer.h
         include/lockfree/IndexGenerator.h
         include/runtime/Object.h
+        include/runtime/ReferenceCounted.h
         include/runtime/SyntaxError.h
         include/utils/Immovable.h
         include/utils/NonCopyable.h
@@ -29,6 +30,7 @@ set(SOURCE_FILES
         src/engine/Thread.cpp
         src/lockfree/HazardPointer.cpp
         src/runtime/Object.cpp
+        src/runtime/ReferenceCounted.cpp
         src/utils/Strings.cpp
         src/main.cpp)
 

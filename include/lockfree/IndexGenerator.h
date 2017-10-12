@@ -7,6 +7,8 @@
 #include <atomic>
 #include <stdexcept>
 
+#include "engine/Memory.h"
+
 #include "utils/Immovable.h"
 #include "utils/NonCopyable.h"
 

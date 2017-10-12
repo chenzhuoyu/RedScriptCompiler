@@ -17,43 +17,16 @@ static MetaClassInit __META_CLASS_INIT__;
 
 /*** Object Implementations ***/
 
-/* flag to indicate that is instaniated by `new`, should be `long` in order to perform CAS operations */
-static thread_local std::atomic_bool _isStaticObject = true;
-static_assert(std::atomic_bool::is_always_lock_free, "Non atomic static object flag");
-
-static inline bool isStaticObject(void)
-{
-    /* a simple CAS is good enough */
-    return _isStaticObject.exchange(true);
-}
-
 Object::~Object()
 {
     if (_type != MetaType)
         _type->objectDestroy(self());
 }
 
-Object::Object(TypeRef type) : _type(type), _isStatic(isStaticObject())
+Object::Object(TypeRef type) : _type(type)
 {
     if (_type != MetaType)
         _type->objectInit(self());
-}
-
-void *Object::operator new(size_t size)
-{
-    /* check for minimun required size */
-    if (size < sizeof(Object))
-        throw std::bad_alloc();
-
-    /* mark as dynamic created object, and allocate new object from GC */
-    _isStaticObject = false;
-    return Engine::GarbageCollector::allocObject(size);
-}
-
-void Object::operator delete(void *self)
-{
-    /* just free the object into GC */
-    Engine::GarbageCollector::freeObject(self);
 }
 
 /*** Type Implementations ***/

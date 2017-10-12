@@ -97,7 +97,7 @@ void GarbageCollector::freeObject(void *obj)
     GCObject *object = static_cast<GCObject *>(obj) - 1;
 
     /* and destroy the GC object header */
-    Memory::destruct(object);
+    Memory::destroy(object);
     Memory::free(object);
 }
 

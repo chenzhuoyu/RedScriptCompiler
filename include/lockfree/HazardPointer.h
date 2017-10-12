@@ -265,13 +265,9 @@ struct HazardPointer final : private HazardThread
                         /* and if not claiming by other thread, claim it */
                         if (!dnode->claim.load())
                         {
-                            /* terminate it, then add to free-list */
                             pnode->terminate(false);
                             tls().deadNodeFreeList.push_back(dnode);
-
-                            /* reclaim the object and recycle the memory */
-                            Engine::Memory::destruct(pnode);
-                            Engine::Memory::free(pnode);
+                            delete pnode;
                             continue;
                         }
 
@@ -329,8 +325,7 @@ public:
     static Node *alloc(Args &&... args)
     {
         /* instaniate new node, then add a reference to it */
-        void *mem = Engine::Memory::alloc(sizeof(Node));
-        return retain(Engine::Memory::construct<Node>(std::forward<Args>(args) ...));
+        return retain(new Node(std::forward<Args>(args) ...));
     }
 
 public:

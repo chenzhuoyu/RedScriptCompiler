@@ -1,8 +1,9 @@
 #include <stdio.h>
+#include "engine/Memory.h"
 #include "runtime/Object.h"
 #include "compiler/Tokenizer.h"
 
-int main()
+void run(void)
 {
     RedScript::Compiler::Tokenizer tk(R"source(#!/usr/bin/env redscript
 
@@ -28,6 +29,13 @@ end
         printf("%s\n", tk.nextOrLine()->toString().c_str());
 
     RedScript::Runtime::ObjectRef obj(new RedScript::Runtime::Object(RedScript::Runtime::MetaType));
+}
 
+int main()
+{
+    run();
+    printf("*** rawUsage : %zu\n", RedScript::Engine::Memory::rawUsage());
+    printf("*** arrayUsage : %zu\n", RedScript::Engine::Memory::arrayUsage());
+    printf("*** objectUsage : %zu\n", RedScript::Engine::Memory::objectUsage());
     return 0;
 }
