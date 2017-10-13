@@ -12,8 +12,6 @@
 #include "runtime/Object.h"
 #include "lockfree/DoublyLinkedList.h"
 
-#define TO_MEM(obj) (reinterpret_cast<Engine::Memory *>(reinterpret_cast<uintptr_t>(obj)) - 1)
-
 namespace RedScript::Engine
 {
 struct Generation
