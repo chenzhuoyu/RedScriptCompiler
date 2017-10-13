@@ -8,10 +8,6 @@
 #define MEM_ALIGN       16
 #define MEM_ALIGN_MASK  0x0f
 
-#define MEM_RAW         1
-#define MEM_ARRAY       2
-#define MEM_OBJECT      3
-
 namespace
 {
 struct MemoryTag
@@ -95,7 +91,12 @@ size_t Memory::objectUsage(void) { return _objectUsage().load(); }
 void Memory::free(void *ptr)
 {
     if (ptr != nullptr)
-        _objectUsage() -= freeTag(MEM_OBJECT, reinterpret_cast<MemoryTag *>(ptr) - 1);
+    {
+        _objectUsage() -= freeTag(
+            MEM_OBJECT,
+            reinterpret_cast<MemoryTag *>(ptr) - 1
+        );
+    }
 }
 
 void *Memory::alloc(size_t size)
@@ -104,20 +105,32 @@ void *Memory::alloc(size_t size)
     _objectUsage() += tag->size;
     return reinterpret_cast<void *>(tag + 1);
 }
+
+int Memory::typeOf(void *ptr)
+{
+    /* get memory type from memory tag */
+    return static_cast<int>((reinterpret_cast<MemoryTag *>(ptr) - 1)->type);
+}
+
+size_t Memory::sizeOf(void *ptr)
+{
+    /* get size info from memory tag */
+    return (reinterpret_cast<MemoryTag *>(ptr) - 1)->size;
+}
 }
 
 /*** System `new` and `delete` monitor ***/
 
 void *operator new(size_t size)
 {
-    MemoryTag *tag = allocTag(MEM_RAW, size);
+    MemoryTag *tag = allocTag(RedScript::Engine::Memory::MEM_RAW, size);
     _rawUsage() += tag->size;
     return reinterpret_cast<void *>(tag + 1);
 }
 
 void *operator new[](size_t size)
 {
-    MemoryTag *tag = allocTag(MEM_ARRAY, size);
+    MemoryTag *tag = allocTag(RedScript::Engine::Memory::MEM_ARRAY, size);
     _arrayUsage() += tag->size;
     return reinterpret_cast<void *>(tag + 1);
 }
@@ -125,11 +138,21 @@ void *operator new[](size_t size)
 void operator delete(void *ptr) noexcept
 {
     if (ptr != nullptr)
-        _rawUsage() -= freeTag(MEM_RAW, reinterpret_cast<MemoryTag *>(ptr) - 1);
+    {
+        _rawUsage() -= freeTag(
+            RedScript::Engine::Memory::MEM_RAW,
+            reinterpret_cast<MemoryTag *>(ptr) - 1
+        );
+    }
 }
 
 void operator delete[](void *ptr) noexcept
 {
     if (ptr != nullptr)
-        _arrayUsage() -= freeTag(MEM_ARRAY, reinterpret_cast<MemoryTag *>(ptr) - 1);
+    {
+        _arrayUsage() -= freeTag(
+            RedScript::Engine::Memory::MEM_ARRAY,
+            reinterpret_cast<MemoryTag *>(ptr) - 1
+        );
+    }
 }

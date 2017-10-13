@@ -12,12 +12,14 @@
 #include "runtime/Object.h"
 #include "lockfree/DoublyLinkedList.h"
 
+#define TO_MEM(obj) (reinterpret_cast<Engine::Memory *>(reinterpret_cast<uintptr_t>(obj)) - 1)
+
 namespace RedScript::Engine
 {
 struct Generation
 {
     size_t size;
-    size_t used;
+    std::atomic_size_t used;
 
 private:
     LockFree::DoublyLinkedList<GCObject *> _objects;
@@ -28,15 +30,15 @@ public:
 public:
     void addObject(GCObject *object)
     {
-        /* add into GC list */
+        used += Memory::sizeOf(object);
         _objects.push_back(object, &(object->_iter));
     }
 
 public:
     void removeObject(GCObject *object)
     {
-        if (!_objects.erase(object->_iter))
-            throw std::runtime_error("Object not inserted into GC");
+        used -= Memory::sizeOf(object);
+        _objects.erase(object->_iter);
     }
 };
 
@@ -64,7 +66,7 @@ void GCObject::track(void)
     /* CAS the reference count to check if already added */
     if (atomicCompareAndSwap(_refCount, GC_UNTRACK, GC_REACHABLE))
     {
-        _level = GC_YOUNG;
+        _gen = GC_YOUNG;
         _generations[GC_YOUNG]->addObject(this);
     }
 }
@@ -74,13 +76,13 @@ void GCObject::untrack(void)
     /* update the reference counter to untracked state */
     if (atomicSetNotEquals(_refCount, GC_UNTRACK))
     {
-        /* verify GC level */
-        if ((_level > GC_PERM) || (_level < GC_YOUNG))
-            throw std::out_of_range("bad level");
+        /* verify GC generation */
+        if ((_gen > GC_PERM) || (_gen < GC_YOUNG))
+            throw std::out_of_range("Invalid GC generation");
 
         /* remove from generations */
-        _generations[_level]->removeObject(this);
-        _level = GC_UNTRACK;
+        _generations[_gen]->removeObject(this);
+        _gen = GC_UNTRACK;
     }
 }
 
@@ -136,7 +138,7 @@ void *GarbageCollector::allocObject(size_t size)
 
     /* allocate memory for GC objects, and initialize it */
     void *mem = Memory::alloc(size + sizeof(GCObject));
-    GCObject *result = Memory::construct<GCObject>(mem, size);
+    GCObject *result = Memory::construct<GCObject>(mem);
 
     /* skip the GC header */
     return reinterpret_cast<void *>(result + 1);

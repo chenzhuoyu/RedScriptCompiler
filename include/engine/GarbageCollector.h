@@ -19,20 +19,15 @@ public:
     static constexpr int GC_YOUNG       = 0;
     static constexpr int GC_OLD         = 1;
     static constexpr int GC_PERM        = 2;
-    static constexpr int GC_GEN_COUNT   = 3;
 
 private:
-    size_t _size;
-    int32_t _level;
-
-private:
+    int32_t _gen;
     std::atomic_int _refCount;
     LockFree::DoublyLinkedList<GCObject *>::iterator _iter;
 
 private:
     /* to align the object size with 16-bytes */
-    uint32_t __not_used_just_for_alignment_1__;
-    uintptr_t __not_used_just_for_alignment_2__;
+    uintptr_t __not_used_just_for_alignment__;
 
 private:
     friend class Generation;
@@ -40,7 +35,7 @@ private:
 
 public:
    ~GCObject() { untrack(); }
-    GCObject(size_t size) : _size(size), _level(GC_UNTRACK), _refCount(GC_UNTRACK) {}
+    GCObject() : _gen(GC_UNTRACK), _refCount(GC_UNTRACK) {}
 
 public:
     void track(void);
