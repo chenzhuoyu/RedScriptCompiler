@@ -1,6 +1,8 @@
 #include "engine/GarbageCollector.h"
 #include "runtime/ReferenceCounted.h"
 
+#define TO_GC(obj)  (reinterpret_cast<Engine::GCObject *>(reinterpret_cast<uintptr_t>(obj)) - 1)
+
 namespace RedScript::Runtime
 {
 /* thread-local, so no atomic operations needed */
@@ -10,6 +12,24 @@ ReferenceCounted::ReferenceCounted() : _refCount(0)
 {
     _isStatic = _isStaticObject;
     _isStaticObject = true;
+}
+
+void ReferenceCounted::track(void) const
+{
+    if (!_isStatic)
+        TO_GC(this)->track();
+}
+
+void ReferenceCounted::untrack(void) const
+{
+    if (!_isStatic)
+        TO_GC(this)->untrack();
+}
+
+bool ReferenceCounted::isTracked(void) const
+{
+    /* static object are always not tracked */
+    return !_isStatic && TO_GC(this)->isTracked();
 }
 
 void *ReferenceCounted::operator new(size_t size)
@@ -39,5 +59,4 @@ void ReferenceCounted::operator delete(void *self)
         Engine::GarbageCollector::freeObject(self);
     }
 }
-
 }

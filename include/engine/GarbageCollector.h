@@ -22,15 +22,20 @@ public:
     static constexpr int GC_GEN_COUNT   = 3;
 
 private:
-    GCObject *_prev = nullptr;
-    GCObject *_next = nullptr;
-
-private:
     size_t _size;
     int32_t _level;
-    std::atomic_int _refCount;
 
 private:
+    std::atomic_int _refCount;
+    LockFree::DoublyLinkedList<GCObject *>::iterator _iter;
+
+private:
+    /* to align the object size with 16-bytes */
+    uint32_t __not_used_just_for_alignment_1__;
+    uintptr_t __not_used_just_for_alignment_2__;
+
+private:
+    friend class Generation;
     friend class GarbageCollector;
 
 public:
@@ -48,9 +53,14 @@ public:
 
 struct GarbageCollector
 {
+    static void init(void);
+    static void shutdown(void);
+
+public:
     static int gc(void);
     static void freeObject(void *obj);
     static void *allocObject(size_t size);
+
 };
 }
 

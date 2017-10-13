@@ -79,26 +79,29 @@ static MemoryTag *allocTag(uint64_t type, size_t size)
     return tag;
 }
 
+/* wrap counters in static functions to prevent initializing order problem
+ * compilers would optimize them away, thus it's not really a problem */
+
+static inline std::atomic_size_t &_rawUsage(void)    { static std::atomic_size_t value(0); return value; }
+static inline std::atomic_size_t &_arrayUsage(void)  { static std::atomic_size_t value(0); return value; }
+static inline std::atomic_size_t &_objectUsage(void) { static std::atomic_size_t value(0); return value; }
+
 namespace RedScript::Engine
 {
-/* memory usage counters */
-std::atomic_size_t Memory::_rawUsage;
-std::atomic_size_t Memory::_arrayUsage;
-std::atomic_size_t Memory::_objectUsage;
+size_t Memory::rawUsage(void) { return _rawUsage().load(); }
+size_t Memory::arrayUsage(void) { return _arrayUsage().load(); }
+size_t Memory::objectUsage(void) { return _objectUsage().load(); }
 
 void Memory::free(void *ptr)
 {
     if (ptr != nullptr)
-        _objectUsage -= freeTag(MEM_OBJECT, reinterpret_cast<MemoryTag *>(ptr) - 1);
+        _objectUsage() -= freeTag(MEM_OBJECT, reinterpret_cast<MemoryTag *>(ptr) - 1);
 }
 
 void *Memory::alloc(size_t size)
 {
-    /* allocate tagged memory */
     MemoryTag *tag = allocTag(MEM_OBJECT, size);
-
-    /* update object usage counter */
-    _objectUsage += tag->size;
+    _objectUsage() += tag->size;
     return reinterpret_cast<void *>(tag + 1);
 }
 }
@@ -108,25 +111,25 @@ void *Memory::alloc(size_t size)
 void *operator new(size_t size)
 {
     MemoryTag *tag = allocTag(MEM_RAW, size);
-    RedScript::Engine::Memory::_rawUsage += tag->size;
+    _rawUsage() += tag->size;
     return reinterpret_cast<void *>(tag + 1);
 }
 
 void *operator new[](size_t size)
 {
     MemoryTag *tag = allocTag(MEM_ARRAY, size);
-    RedScript::Engine::Memory::_arrayUsage += tag->size;
+    _arrayUsage() += tag->size;
     return reinterpret_cast<void *>(tag + 1);
 }
 
 void operator delete(void *ptr) noexcept
 {
     if (ptr != nullptr)
-        RedScript::Engine::Memory::_rawUsage -= freeTag(MEM_RAW, reinterpret_cast<MemoryTag *>(ptr) - 1);
+        _rawUsage() -= freeTag(MEM_RAW, reinterpret_cast<MemoryTag *>(ptr) - 1);
 }
 
 void operator delete[](void *ptr) noexcept
 {
     if (ptr != nullptr)
-        RedScript::Engine::Memory::_arrayUsage -= freeTag(MEM_ARRAY, reinterpret_cast<MemoryTag *>(ptr) - 1);
+        _arrayUsage() -= freeTag(MEM_ARRAY, reinterpret_cast<MemoryTag *>(ptr) - 1);
 }

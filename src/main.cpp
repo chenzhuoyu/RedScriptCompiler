@@ -1,5 +1,8 @@
 #include <stdio.h>
+
 #include "engine/Memory.h"
+#include "engine/GarbageCollector.h"
+
 #include "runtime/Object.h"
 #include "compiler/Tokenizer.h"
 
@@ -29,11 +32,14 @@ end
         printf("%s\n", tk.nextOrLine()->toString().c_str());
 
     RedScript::Runtime::ObjectRef obj(new RedScript::Runtime::Object(RedScript::Runtime::MetaType));
+    obj->track();
 }
 
 int main()
 {
+    RedScript::Engine::GarbageCollector::init();
     run();
+    RedScript::Engine::GarbageCollector::shutdown();
     printf("*** rawUsage : %zu\n", RedScript::Engine::Memory::rawUsage());
     printf("*** arrayUsage : %zu\n", RedScript::Engine::Memory::arrayUsage());
     printf("*** objectUsage : %zu\n", RedScript::Engine::Memory::objectUsage());

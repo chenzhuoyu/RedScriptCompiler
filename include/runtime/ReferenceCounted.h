@@ -9,8 +9,6 @@
 #include <typeinfo>
 #include <stdexcept>
 
-#include "utils/Pointers.h"
-
 namespace RedScript::Runtime
 {
 template <typename T>
@@ -58,10 +56,13 @@ private:
     {
         if (_object && !(--_object->_refCount))
         {
-            if (_object->_isStatic)
-                _object = nullptr;
-            else
-                Utils::Pointers::deleteAndSetNull(_object);
+            /* reference and null the object first */
+            T *object = _object;
+            _object = nullptr;
+
+            /* if the object is dynamically allocated, then reclaim the object */
+            if (!(object->_isStatic))
+                delete object;
         }
     }
 
@@ -122,7 +123,7 @@ public:
     template <typename U> bool operator!=(const Reference<U> &other) const { return _object != other._object; }
 
 public:
-    static Reference<T> refStatic(T &object)
+    static inline Reference<T> refStatic(T &object)
     {
         if (!object._isStatic)
             throw std::invalid_argument("Object must be static");
@@ -147,6 +148,11 @@ protected:
 public:
     bool isStatic(void) const { return _isStatic; }
     int32_t refCount(void) const { return _refCount.load(); }
+
+public:
+    void track(void) const;
+    void untrack(void) const;
+    bool isTracked(void) const;
 
 public:
     /* override `new` and `delete` operators to identify static and heap objects */

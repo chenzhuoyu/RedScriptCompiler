@@ -14,21 +14,19 @@ set(SOURCE_FILES
         include/engine/Memory.h
         include/engine/Thread.h
         include/lockfree/DoublyLinkedList.h
-        include/lockfree/HazardPointer.h
+        include/lockfree/HazardMemory.h
         include/lockfree/IndexGenerator.h
         include/runtime/Object.h
         include/runtime/ReferenceCounted.h
         include/runtime/SyntaxError.h
         include/utils/Immovable.h
         include/utils/NonCopyable.h
-        include/utils/Pointers.h
         include/utils/Strings.h
         src/compiler/Parser.cpp
         src/compiler/Tokenizer.cpp
         src/engine/GarbageCollector.cpp
         src/engine/Memory.cpp
         src/engine/Thread.cpp
-        src/lockfree/HazardPointer.cpp
         src/runtime/Object.cpp
         src/runtime/ReferenceCounted.cpp
         src/utils/Strings.cpp

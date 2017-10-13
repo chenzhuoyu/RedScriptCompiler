@@ -1,23 +1,26 @@
 #include <new>
 #include <atomic>
+#include <memory>
 #include <cstdlib>
 #include <stdexcept>
 #include <shared_mutex>
-
-#include "utils/Pointers.h"
 
 #include "engine/Memory.h"
 #include "engine/Thread.h"
 #include "engine/GarbageCollector.h"
 
+#include "runtime/Object.h"
+#include "lockfree/DoublyLinkedList.h"
+
 namespace RedScript::Engine
-{
-namespace
 {
 struct Generation
 {
     size_t size;
     size_t used;
+
+private:
+    LockFree::DoublyLinkedList<GCObject *> _objects;
 
 public:
     Generation(size_t size) : size(size), used(0) {}
@@ -25,23 +28,20 @@ public:
 public:
     void addObject(GCObject *object)
     {
-
+        /* add into GC list */
+        _objects.push_back(object, &(object->_iter));
     }
 
 public:
     void removeObject(GCObject *object)
     {
-
+        if (!_objects.erase(object->_iter))
+            throw std::runtime_error("Object not inserted into GC");
     }
 };
-}
 
 /* GC generations */
-static Generation _generations[GCObject::GC_GEN_COUNT] = {
-    Generation(1 * 1024 * 1024 * 1024),    /* Young,   1G */
-    Generation(     512 * 1024 * 1024),    /* Old  , 512M */
-    Generation(     128 * 1024 * 1024),    /* Perm , 128M */
-};
+static std::vector<std::unique_ptr<Generation>> _generations;
 
 /*** GCObject implementations ***/
 
@@ -65,7 +65,7 @@ void GCObject::track(void)
     if (atomicCompareAndSwap(_refCount, GC_UNTRACK, GC_REACHABLE))
     {
         _level = GC_YOUNG;
-        _generations[GC_YOUNG].addObject(this);
+        _generations[GC_YOUNG]->addObject(this);
     }
 }
 
@@ -79,20 +79,41 @@ void GCObject::untrack(void)
             throw std::out_of_range("bad level");
 
         /* remove from generations */
-        _generations[_level].removeObject(this);
+        _generations[_level]->removeObject(this);
         _level = GC_UNTRACK;
     }
 }
 
 /*** GarbageCollector implementations ***/
 
+void GarbageCollector::init(void)
+{
+    _generations.emplace_back(std::make_unique<Generation>(1 * 1024 * 1024 * 1024));  /* Young,   1G */
+    _generations.emplace_back(std::make_unique<Generation>(     512 * 1024 * 1024));  /* Old  , 512M */
+    _generations.emplace_back(std::make_unique<Generation>(     128 * 1024 * 1024));  /* Perm , 128M */
+}
+
+void GarbageCollector::shutdown(void)
+{
+    _generations.clear();
+    _generations.shrink_to_fit();
+}
+
 int GarbageCollector::gc(void)
 {
+    /* check for initialization */
+    if (_generations.empty())
+        throw std::runtime_error("GarbageCollector not initialized");
+
     return 0;
 }
 
 void GarbageCollector::freeObject(void *obj)
 {
+    /* check for initialization */
+    if (_generations.empty())
+        throw std::runtime_error("GarbageCollector not initialized");
+
     /* locate the real GC header */
     GCObject *object = static_cast<GCObject *>(obj) - 1;
 
@@ -108,6 +129,10 @@ void *GarbageCollector::allocObject(size_t size)
         (sizeof(GCObject) % 16) == 0,
         "Misaligned GC object, size must be aligned to 16-bytes"
     );
+
+    /* check for initialization */
+    if (_generations.empty())
+        throw std::runtime_error("GarbageCollector not initialized");
 
     /* allocate memory for GC objects, and initialize it */
     void *mem = Memory::alloc(size + sizeof(GCObject));

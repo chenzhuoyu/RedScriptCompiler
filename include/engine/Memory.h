@@ -9,11 +9,6 @@ namespace RedScript::Engine
 {
 class Memory
 {
-    static std::atomic_size_t _rawUsage;
-    static std::atomic_size_t _arrayUsage;
-    static std::atomic_size_t _objectUsage;
-
-private:
     friend void *::operator new(size_t);
     friend void *::operator new[](size_t);
 
@@ -22,13 +17,13 @@ private:
     friend void ::operator delete[](void *) noexcept;
 
 public:
-    static void free(void *ptr);
-    static void *alloc(size_t size);
+    static size_t rawUsage(void);
+    static size_t arrayUsage(void);
+    static size_t objectUsage(void);
 
 public:
-    static size_t rawUsage(void) { return _rawUsage.load(); }
-    static size_t arrayUsage(void) { return _arrayUsage.load(); }
-    static size_t objectUsage(void) { return _objectUsage.load(); }
+    static void free(void *ptr);
+    static void *alloc(size_t size);
 
 /*** Manual Object Construction and Destruction ***/
 
