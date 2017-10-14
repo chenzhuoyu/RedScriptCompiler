@@ -13,6 +13,14 @@ class SyntaxError : public std::exception
     std::string _message;
 
 public:
+    template <typename T>
+    explicit SyntaxError(T &&t) : SyntaxError(t, "Unexpected token " + t->toString()) {}
+
+public:
+    template <typename T>
+    explicit SyntaxError(T &&t, const std::string &message) : SyntaxError(t->row(), t->col(), message) {}
+
+public:
     explicit SyntaxError(int row, int col, const std::string &message) : _row(row), _col(col), _message(message) {}
 
 public:

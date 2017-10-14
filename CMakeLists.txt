@@ -8,6 +8,7 @@ add_definitions(-D_BSD_SOURCE)
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
 set(SOURCE_FILES
+        include/compiler/AST.h
         include/compiler/Parser.h
         include/compiler/Tokenizer.h
         include/engine/GarbageCollector.h
@@ -30,7 +31,7 @@ set(SOURCE_FILES
         src/runtime/Object.cpp
         src/runtime/ReferenceCounted.cpp
         src/utils/Strings.cpp
-        src/main.cpp)
+        src/main.cpp include/utils/Preprocessor.h)
 
 add_executable(rsc ${SOURCE_FILES})
 target_link_libraries(rsc -lfmt -ljemalloc)

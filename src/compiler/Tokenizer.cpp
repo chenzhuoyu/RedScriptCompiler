@@ -4,203 +4,93 @@
 namespace RedScript::Compiler
 {
 static const std::unordered_map<std::string, Token::Keyword> Keywords = {
-    { "if"      , Token::If         },
-    { "for"     , Token::For        },
-    { "while"   , Token::While      },
-    { "switch"  , Token::Switch     },
-    { "case"    , Token::Case       },
-    { "default" , Token::Default    },
+    { "if"      , Token::Keyword::If        },
+    { "for"     , Token::Keyword::For       },
+    { "while"   , Token::Keyword::While     },
+    { "switch"  , Token::Keyword::Switch    },
+    { "case"    , Token::Keyword::Case      },
+    { "default" , Token::Keyword::Default   },
 
-    { "break"   , Token::Break      },
-    { "continue", Token::Continue   },
-    { "return"  , Token::Return     },
+    { "break"   , Token::Keyword::Break     },
+    { "continue", Token::Keyword::Continue  },
+    { "return"  , Token::Keyword::Return    },
 
-    { "try"     , Token::Try        },
-    { "except"  , Token::Except     },
-    { "finally" , Token::Finally    },
-    { "raise"   , Token::Raise      },
+    { "try"     , Token::Keyword::Try       },
+    { "except"  , Token::Keyword::Except    },
+    { "finally" , Token::Keyword::Finally   },
+    { "raise"   , Token::Keyword::Raise     },
 
-    { "class"   , Token::Class      },
-    { "func"    , Token::Function   },
+    { "class"   , Token::Keyword::Class     },
+    { "func"    , Token::Keyword::Function  },
 
-    { "as"      , Token::As         },
-    { "in"      , Token::In         },
-    { "delete"  , Token::Delete     },
-    { "import"  , Token::Import     },
+    { "as"      , Token::Keyword::As        },
+    { "delete"  , Token::Keyword::Delete    },
+    { "import"  , Token::Keyword::Import    },
 };
 
 static const std::unordered_map<std::string, Token::Operator> Operators = {
-    { "("   , Token::BracketLeft        },
-    { ")"   , Token::BracketRight       },
-    { "["   , Token::IndexLeft          },
-    { "]"   , Token::IndexRight         },
-    { "{"   , Token::BlockLeft          },
-    { "}"   , Token::BlockRight         },
+    { "("   , Token::Operator::BracketLeft          },
+    { ")"   , Token::Operator::BracketRight         },
+    { "["   , Token::Operator::IndexLeft            },
+    { "]"   , Token::Operator::IndexRight           },
+    { "{"   , Token::Operator::BlockLeft            },
+    { "}"   , Token::Operator::BlockRight           },
 
-    { ","   , Token::Comma              },
-    { "."   , Token::Point              },
-    { ":"   , Token::Colon              },
-    { ";"   , Token::Semicolon          },
-    { "\n"  , Token::NewLine            },
+    { ","   , Token::Operator::Comma                },
+    { "."   , Token::Operator::Point                },
+    { ":"   , Token::Operator::Colon                },
+    { ";"   , Token::Operator::Semicolon            },
+    { "\n"  , Token::Operator::NewLine              },
 
-    { "<"   , Token::Less               },
-    { ">"   , Token::Greater            },
-    { "<="  , Token::Leq                },
-    { ">="  , Token::Geq                },
-    { "=="  , Token::Equ                },
-    { "!="  , Token::Neq                },
+    { "<"   , Token::Operator::Less                 },
+    { ">"   , Token::Operator::Greater              },
+    { "<="  , Token::Operator::Leq                  },
+    { ">="  , Token::Operator::Geq                  },
+    { "=="  , Token::Operator::Equ                  },
+    { "!="  , Token::Operator::Neq                  },
 
-    { "and" , Token::BoolAnd            },
-    { "or"  , Token::BoolOr             },
-    { "not" , Token::BoolNot            },
-    { "xor" , Token::BoolXor            },
+    { "and" , Token::Operator::BoolAnd              },
+    { "or"  , Token::Operator::BoolOr               },
+    { "not" , Token::Operator::BoolNot              },
+    { "xor" , Token::Operator::BoolXor              },
 
-    { "+"   , Token::Plus               },
-    { "-"   , Token::Minus              },
-    { "/"   , Token::Divide             },
-    { "*"   , Token::Multiply           },
-    { "%"   , Token::Module             },
-    { "**"  , Token::Power              },
+    { "+"   , Token::Operator::Plus                 },
+    { "-"   , Token::Operator::Minus                },
+    { "/"   , Token::Operator::Divide               },
+    { "*"   , Token::Operator::Multiply             },
+    { "%"   , Token::Operator::Module               },
+    { "**"  , Token::Operator::Power                },
 
-    { "&"   , Token::BitAnd             },
-    { "|"   , Token::BitOr              },
-    { "~"   , Token::BitNot             },
-    { "^"   , Token::BitXor             },
-    { "<<"  , Token::ShiftLeft          },
-    { ">>"  , Token::ShiftRight         },
+    { "&"   , Token::Operator::BitAnd               },
+    { "|"   , Token::Operator::BitOr                },
+    { "~"   , Token::Operator::BitNot               },
+    { "^"   , Token::Operator::BitXor               },
+    { "<<"  , Token::Operator::ShiftLeft            },
+    { ">>"  , Token::Operator::ShiftRight           },
 
-    { "+="  , Token::InplaceAdd         },
-    { "-="  , Token::InplaceSub         },
-    { "*="  , Token::InplaceMul         },
-    { "/="  , Token::InplaceDiv         },
-    { "%="  , Token::InplaceMod         },
-    { "**=" , Token::InplacePower       },
+    { "+="  , Token::Operator::InplaceAdd           },
+    { "-="  , Token::Operator::InplaceSub           },
+    { "*="  , Token::Operator::InplaceMul           },
+    { "/="  , Token::Operator::InplaceDiv           },
+    { "%="  , Token::Operator::InplaceMod           },
+    { "**=" , Token::Operator::InplacePower         },
 
-    { "&="  , Token::InplaceBitAnd      },
-    { "|="  , Token::InplaceBitOr       },
-    { "^="  , Token::InplaceBitXor      },
-    { "<<=" , Token::InplaceShiftLeft   },
-    { ">>=" , Token::InplaceShiftRight  },
+    { "&="  , Token::Operator::InplaceBitAnd        },
+    { "|="  , Token::Operator::InplaceBitOr         },
+    { "^="  , Token::Operator::InplaceBitXor        },
+    { "<<=" , Token::Operator::InplaceShiftLeft     },
+    { ">>=" , Token::Operator::InplaceShiftRight    },
 
-    { "="   , Token::Assign             },
-    { "=>"  , Token::Tuple              },
-    { ".."  , Token::Range              },
-    { "@"   , Token::Decorator          },
+    { "in"  , Token::Operator::In                   },
+    { "="   , Token::Operator::Assign               },
+    { "->"  , Token::Operator::Tuple                },
+    { ".."  , Token::Operator::Range                },
+    { "@"   , Token::Operator::Decorator            },
 };
 
 template <typename T> static inline bool in(T c, T a, T b)  { return c >= a && c <= b; }
 template <typename T> static inline bool isHex(T c)         { return in(c, '0', '9') || in(c, 'a', 'f') || in(c, 'A', 'F'); }
 template <typename T> static inline long toInt(T c)         { return in(c, '0', '9') ? (c - '0') : in(c, 'a', 'f') ? (c - 'a' + 10) : (c - 'A' + 10); }
-
-/****** Token ******/
-
-std::string Token::toString(void) const
-{
-    switch (_type)
-    {
-        case Eof            : return "<Eof>";
-        case Float          : return Utils::Strings::format("<Float %f>"      , _float);
-        case String         : return Utils::Strings::format("<String %s>"     , Utils::Strings::repr(_string.data(), _string.size()));
-        case Integer        : return Utils::Strings::format("<Integer %ld>"   , _integer);
-        case Identifiers    : return Utils::Strings::format("<Identifier %s>" , _string);
-
-        case Keywords:
-        {
-            switch (_keyword)
-            {
-                case If         : return "<Keyword if>";
-                case For        : return "<Keyword for>";
-                case While      : return "<Keyword while>";
-                case Switch     : return "<Keyword switch>";
-                case Case       : return "<Keyword case>";
-                case Default    : return "<Keyword default>";
-
-                case Break      : return "<Keyword break>";
-                case Continue   : return "<Keyword continue>";
-                case Return     : return "<Keyword return>";
-
-                case Try        : return "<Keyword try>";
-                case Except     : return "<Keyword except>";
-                case Finally    : return "<Keyword finally>";
-                case Raise      : return "<Keyword raise>";
-
-                case Class      : return "<Keyword class>";
-                case Function   : return "<Keyword func>";
-
-                case As         : return "<Keyword as>";
-                case In         : return "<Keyword in>";
-                case Delete     : return "<Keyword delete>";
-                case Import     : return "<Keyword import>";
-            }
-        }
-
-        case Operators:
-        {
-            switch (_operator)
-            {
-                case BracketLeft        : return "<Operator '('>";
-                case BracketRight       : return "<Operator ')'>";
-                case IndexLeft          : return "<Operator '['>";
-                case IndexRight         : return "<Operator ']'>";
-                case BlockLeft          : return "<Operator '{'>";
-                case BlockRight         : return "<Operator '}'>";
-
-                case Comma              : return "<Operator ','>";
-                case Point              : return "<Operator '.'>";
-                case Colon              : return "<Operator ':'>";
-                case Semicolon          : return "<Operator ';'>";
-                case NewLine            : return "<Operator NewLine>";
-
-                case Less               : return "<Operator '<'>";
-                case Greater            : return "<Operator '>'>";
-                case Leq                : return "<Operator '<='>";
-                case Geq                : return "<Operator '>='>";
-                case Equ                : return "<Operator '=='>";
-                case Neq                : return "<Operator '!='>";
-
-                case BoolAnd            : return "<Operator 'and'>";
-                case BoolOr             : return "<Operator 'or'>";
-                case BoolNot            : return "<Operator 'not'>";
-                case BoolXor            : return "<Operator 'xor'>";
-
-                case Plus               : return "<Operator '+'>";
-                case Minus              : return "<Operator '-'>";
-                case Divide             : return "<Operator '/'>";
-                case Multiply           : return "<Operator '*'>";
-                case Module             : return "<Operator '%'>";
-                case Power              : return "<Operator '**'>";
-
-                case BitAnd             : return "<Operator '&'>";
-                case BitOr              : return "<Operator '|'>";
-                case BitNot             : return "<Operator '~'>";
-                case BitXor             : return "<Operator '^'>";
-                case ShiftLeft          : return "<Operator '<<'>";
-                case ShiftRight         : return "<Operator '>>'>";
-
-                case InplaceAdd         : return "<Operator '+='>";
-                case InplaceSub         : return "<Operator '-='>";
-                case InplaceMul         : return "<Operator '*='>";
-                case InplaceDiv         : return "<Operator '/='>";
-                case InplaceMod         : return "<Operator '%='>";
-                case InplacePower       : return "<Operator '**='>";
-
-                case InplaceBitAnd      : return "<Operator '&='>";
-                case InplaceBitOr       : return "<Operator '|='>";
-                case InplaceBitXor      : return "<Operator '^='>";
-                case InplaceShiftLeft   : return "<Operator '<<='>";
-                case InplaceShiftRight  : return "<Operator '>>='>";
-
-                case Assign             : return "<Operator '='>";
-                case Tuple              : return "<Operator '=>'>";
-                case Range              : return "<Operator '..'>";
-                case Decorator          : return "<Operator '@'>";
-            }
-        }
-    }
-
-    /* never happens */
-    abort();
-}
 
 /****** Tokenizer ******/
 
@@ -282,10 +172,8 @@ void Tokenizer::skipComments(void)
     {
         char ch;
         nextChar();
-
         while ((ch = peekChar()) && (ch != '\n')) nextChar();
         while ((ch = peekChar()) && (ch == '\n')) nextChar();
-
         skipSpaces();
     }
 }
@@ -333,14 +221,14 @@ Token::Ptr Tokenizer::readString(void)
     while (start != remains)
     {
         if (!remains)
-            throw Runtime::SyntaxError(_state->row, _state->col, "Unexpected EOF when scanning strings");
+            throw Runtime::SyntaxError(this, "Unexpected EOF when scanning strings");
 
         if (remains == '\\')
         {
             switch ((remains = nextChar()))
             {
                 case 0:
-                    throw Runtime::SyntaxError(_state->row, _state->col, "Unexpected EOF when parsing escape sequence in strings");
+                    throw Runtime::SyntaxError(this, "Unexpected EOF when parsing escape sequence in strings");
 
                 case '\'':
                 case '\"':
@@ -362,7 +250,7 @@ Token::Ptr Tokenizer::readString(void)
                     char lsb = nextChar();
 
                     if (!isHex(msb) || !isHex(lsb))
-                        throw Runtime::SyntaxError(_state->row, _state->col, "Invalid '\\x' escape sequence");
+                        throw Runtime::SyntaxError(this, "Invalid '\\x' escape sequence");
 
                     remains = (char)((toInt(msb) << 4) | toInt(lsb));
                     break;
@@ -386,9 +274,9 @@ Token::Ptr Tokenizer::readString(void)
                 default:
                 {
                     if (isprint(remains))
-                        throw Runtime::SyntaxError(_state->row, _state->col, Utils::Strings::format("Invalid escape character '%c'", remains));
+                        throw Runtime::SyntaxError(this, Utils::Strings::format("Invalid escape character '%c'", remains));
                     else
-                        throw Runtime::SyntaxError(_state->row, _state->col, Utils::Strings::format("Invalid escape character '\\x%.2x'", remains));
+                        throw Runtime::SyntaxError(this, Utils::Strings::format("Invalid escape character '\\x%.2x'", remains));
                 }
             }
         }
@@ -494,26 +382,26 @@ Token::Ptr Tokenizer::readOperator(void)
     switch (char op = nextChar())
     {
         /* single character operators */
-        case '(' : return Token::createOperator(_state->row, _state->col, Token::BracketLeft    );
-        case ')' : return Token::createOperator(_state->row, _state->col, Token::BracketRight   );
-        case '[' : return Token::createOperator(_state->row, _state->col, Token::IndexLeft      );
-        case ']' : return Token::createOperator(_state->row, _state->col, Token::IndexRight     );
-        case '{' : return Token::createOperator(_state->row, _state->col, Token::BlockLeft      );
-        case '}' : return Token::createOperator(_state->row, _state->col, Token::BlockRight     );
-        case '~' : return Token::createOperator(_state->row, _state->col, Token::BitNot         );
-        case ',' : return Token::createOperator(_state->row, _state->col, Token::Comma          );
-        case ':' : return Token::createOperator(_state->row, _state->col, Token::Colon          );
-        case ';' : return Token::createOperator(_state->row, _state->col, Token::Semicolon      );
-        case '\n': return Token::createOperator(_state->row, _state->col, Token::NewLine        );
-        case '@' : return Token::createOperator(_state->row, _state->col, Token::Decorator      );
+        case '(' : return Token::createOperator(_state->row, _state->col, Token::Operator::BracketLeft    );
+        case ')' : return Token::createOperator(_state->row, _state->col, Token::Operator::BracketRight   );
+        case '[' : return Token::createOperator(_state->row, _state->col, Token::Operator::IndexLeft      );
+        case ']' : return Token::createOperator(_state->row, _state->col, Token::Operator::IndexRight     );
+        case '{' : return Token::createOperator(_state->row, _state->col, Token::Operator::BlockLeft      );
+        case '}' : return Token::createOperator(_state->row, _state->col, Token::Operator::BlockRight     );
+        case '~' : return Token::createOperator(_state->row, _state->col, Token::Operator::BitNot         );
+        case ',' : return Token::createOperator(_state->row, _state->col, Token::Operator::Comma          );
+        case ':' : return Token::createOperator(_state->row, _state->col, Token::Operator::Colon          );
+        case ';' : return Token::createOperator(_state->row, _state->col, Token::Operator::Semicolon      );
+        case '\n': return Token::createOperator(_state->row, _state->col, Token::Operator::NewLine        );
+        case '@' : return Token::createOperator(_state->row, _state->col, Token::Operator::Decorator      );
 
         /* != */
         case '!':
         {
-            if (nextChar() == '=')
-                return Token::createOperator(_state->row, _state->col, Token::Neq);
+            if (nextChar() != '=')
+                throw Runtime::SyntaxError(this, "Invalid operator '!'");
             else
-                throw Runtime::SyntaxError(_state->row, _state->col, "Invalid operator '!'");
+                return Token::createOperator(_state->row, _state->col, Token::Operator::Neq);
         }
 
         /* . .. */
@@ -521,52 +409,52 @@ Token::Ptr Tokenizer::readOperator(void)
         {
             /* . */
             if (peekChar() != '.')
-                return Token::createOperator(_state->row, _state->col, Token::Point);
+                return Token::createOperator(_state->row, _state->col, Token::Operator::Point);
 
             /* .. */
             nextChar();
-            return Token::createOperator(_state->row, _state->col, Token::Range);
+            return Token::createOperator(_state->row, _state->col, Token::Operator::Range);
         }
 
         case '+': /* + += */
-        case '-': /* - -= */
         case '/': /* / /= */
         case '%': /* % %= */
         case '&': /* & &= */
         case '|': /* | |= */
         case '^': /* ^ ^= */
+        case '=': /* = == */
         {
-            /* + - / % & | ^ */
+            /* + / % & | ^ = */
             if (peekChar() != '=')
                 return Token::createOperator(_state->row, _state->col, Operators.at(std::string(1, op)));
 
-            /* += -= /= %= &= |= ^= */
+            /* += /= %= &= |= ^= == */
             nextChar();
             return Token::createOperator(_state->row, _state->col, Operators.at(op + std::string("=")));
         }
 
-        /* = == => */
-        case '=':
+        /* - -= -> */
+        case '-':
         {
             switch (peekChar())
             {
-                /* == */
+                /* -= */
                 case '=':
                 {
                     nextChar();
-                    return Token::createOperator(_state->row, _state->col, Token::Equ);
+                    return Token::createOperator(_state->row, _state->col, Token::Operator::InplaceSub);
                 }
 
-                /* => */
+                /* -> */
                 case '>':
                 {
                     nextChar();
-                    return Token::createOperator(_state->row, _state->col, Token::Tuple);
+                    return Token::createOperator(_state->row, _state->col, Token::Operator::Tuple);
                 }
 
-                /* = */
+                /* - */
                 default:
-                    return Token::createOperator(_state->row, _state->col, Token::Assign);
+                    return Token::createOperator(_state->row, _state->col, Token::Operator::Minus);
             }
         }
 
@@ -605,9 +493,9 @@ Token::Ptr Tokenizer::readOperator(void)
         default:
         {
             if (isprint(op))
-                throw Runtime::SyntaxError(_state->row, _state->col, Utils::Strings::format("Invalid operator '%c'", op));
+                throw Runtime::SyntaxError(this, Utils::Strings::format("Invalid operator '%c'", op));
             else
-                throw Runtime::SyntaxError(_state->row, _state->col, Utils::Strings::format("Invalid character '\\x%.2x'", (uint8_t)op));
+                throw Runtime::SyntaxError(this, Utils::Strings::format("Invalid character '\\x%.2x'", (uint8_t)op));
         }
     }
 }
@@ -654,7 +542,9 @@ Token::Ptr Tokenizer::next(void)
     Token::Ptr token = std::move(_state->cache == nullptr ? read() : _state->cache);
 
     /* skip "\n" operator */
-    while (token != nullptr && token->is<Token::Operators>() && (token->asOperator() == Token::NewLine))
+    while (token &&
+           token->is<Token::Type::Operators>() &&
+           (token->asOperator() == Token::Operator::NewLine))
         token = std::move(read());
 
     return std::move(token);
@@ -666,7 +556,9 @@ Token::Ptr Tokenizer::peek(void)
         _state->cache = std::move(read());
 
     /* skip "\n" operator */
-    while (_state->cache != nullptr && _state->cache->is<Token::Operators>() && (_state->cache->asOperator() == Token::NewLine))
+    while (_state->cache &&
+           _state->cache->is<Token::Type::Operators>() &&
+           (_state->cache->asOperator() == Token::Operator::NewLine))
         _state->cache = std::move(read());
 
     /* preserve cache */
