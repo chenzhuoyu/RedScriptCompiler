@@ -38,6 +38,19 @@ public:
 /*** Expressions ***/
 
 public:
+    std::unique_ptr<AST::Name>          parseName(void);
+    std::unique_ptr<AST::Unpack>        parseUnpack(void);
+    std::unique_ptr<AST::Literal>       parseLiteral(void);
+    std::unique_ptr<AST::Composite>     parseComposite(void);
+    std::unique_ptr<AST::Expression>    parseExpression(void);
+
+private:
+    /* prune the expression tree,
+     * remove redundent nodes to reduce recursive depth,
+     * based on depth-first search algorithm */
+    void pruneExpression(std::unique_ptr<AST::Expression> &expr);
+
+public:
     std::unique_ptr<AST::Expression>    parseContains(void);
     std::unique_ptr<AST::Expression>    parseBoolOr(void);
     std::unique_ptr<AST::Expression>    parseBoolAnd(void);
@@ -51,16 +64,6 @@ public:
     std::unique_ptr<AST::Expression>    parseTerm(void);
     std::unique_ptr<AST::Expression>    parsePower(void);
     std::unique_ptr<AST::Expression>    parseFactor(void);
-
-public:
-    std::unique_ptr<AST::Name>          parseName(void);
-    std::unique_ptr<AST::Unpack>        parseUnpack(void);
-    std::unique_ptr<AST::Literal>       parseLiteral(void);
-    std::unique_ptr<AST::Composite>     parseComposite(void);
-    std::unique_ptr<AST::Expression>    parseExpression(void);
-
-private:
-    void pruneExpression(std::unique_ptr<AST::Expression> &expr);
 
 };
 }

@@ -224,8 +224,8 @@ public:
     std::unique_ptr<AST::Literal> literal = nullptr;
 
 public:
-    explicit Modifier(const Token::Ptr &token, std::unique_ptr<AST::Name> &&value) : vtype(ValueType::Name), name(std::move(value)) {}
-    explicit Modifier(const Token::Ptr &token, std::unique_ptr<AST::Literal> &&value) : vtype(ValueType::Literal), name(std::move(value)) {}
+    explicit Composite(const Token::Ptr &token, std::unique_ptr<AST::Name> &&value) : Node(Node::Type::Composite, token), vtype(ValueType::Name), name(std::move(value)) {}
+    explicit Composite(const Token::Ptr &token, std::unique_ptr<AST::Literal> &&value) : Node(Node::Type::Composite, token), vtype(ValueType::Literal), literal(std::move(value)) {}
 
 };
 
