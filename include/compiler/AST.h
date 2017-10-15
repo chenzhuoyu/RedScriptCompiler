@@ -185,18 +185,18 @@ struct Unpack : public Node
     {
         enum class Type : int
         {
-            Name,
             Subset,
+            Composite,
         };
 
     public:
         Type type;
-        std::unique_ptr<AST::Name> name = nullptr;
         std::unique_ptr<AST::Unpack> subset = nullptr;
+        std::unique_ptr<AST::Composite> composite = nullptr;
 
     public:
-        Target(std::unique_ptr<AST::Name> &&name) : type(Type::Name), name(std::move(name)) {}
-        Target(std::unique_ptr<AST::Unpack> &&subset) : type(Type::Subset), subset(std::move(subset)) {}
+        Target(std::unique_ptr<AST::Unpack> &&value) : type(Type::Subset), subset(std::move(value)) {}
+        Target(std::unique_ptr<AST::Composite> &&value) : type(Type::Composite), composite(std::move(value)) {}
 
     };
 

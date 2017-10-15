@@ -15,36 +15,42 @@ static std::ostream &margin(std::ostream &out, size_t level)
     return out;
 }
 
-static void printName(std::ostream &out, const std::unique_ptr<RedScript::Compiler::AST::Name> &name, size_t level = 0)
+static void printName(std::ostream &out, const std::unique_ptr<RedScript::Compiler::AST::Name> &name, size_t level = 0);
+static void printUnpack(std::ostream &out, const std::unique_ptr<RedScript::Compiler::AST::Unpack> &unpack, size_t level = 0);
+static void printLiteral(std::ostream &out, const std::unique_ptr<RedScript::Compiler::AST::Literal> &literal, size_t level = 0);
+static void printComposite(std::ostream &out, const std::unique_ptr<RedScript::Compiler::AST::Composite> &compo, size_t level = 0);
+static void printExpression(std::ostream &out, const std::unique_ptr<RedScript::Compiler::AST::Expression> &expr, size_t level = 0);
+
+static void printName(std::ostream &out, const std::unique_ptr<RedScript::Compiler::AST::Name> &name, size_t level)
 {
     margin(out, level) << "Name '" << name->name << "'" << std::endl;
 }
 
-static void printUnpack(std::ostream &out, const std::unique_ptr<RedScript::Compiler::AST::Unpack> &unpack, size_t level = 0)
+static void printUnpack(std::ostream &out, const std::unique_ptr<RedScript::Compiler::AST::Unpack> &unpack, size_t level)
 {
     margin(out, level) << "Name (" << unpack->items.size() << " items)" << std::endl;
     for (const auto &item : unpack->items)
     {
         switch (item.type)
         {
-            case RedScript::Compiler::AST::Unpack::Target::Type::Name:
-            {
-                margin(out, level + 1) << "Name" << std::endl;
-                printName(out, item.name, level + 2);
-                break;
-            }
-
             case RedScript::Compiler::AST::Unpack::Target::Type::Subset:
             {
                 margin(out, level + 1) << "Nested Unpack" << std::endl;
                 printUnpack(out, item.subset, level + 2);
                 break;
             }
+
+            case RedScript::Compiler::AST::Unpack::Target::Type::Composite:
+            {
+                margin(out, level + 1) << "Composite" << std::endl;
+                printComposite(out, item.composite, level + 2);
+                break;
+            }
         }
     }
 }
 
-static void printLiteral(std::ostream &out, const std::unique_ptr<RedScript::Compiler::AST::Literal> &literal, size_t level = 0)
+static void printLiteral(std::ostream &out, const std::unique_ptr<RedScript::Compiler::AST::Literal> &literal, size_t level)
 {
     switch (literal->type)
     {
@@ -54,7 +60,7 @@ static void printLiteral(std::ostream &out, const std::unique_ptr<RedScript::Com
     }
 }
 
-static void printComposite(std::ostream &out, const std::unique_ptr<RedScript::Compiler::AST::Composite> &compo, size_t level = 0)
+static void printComposite(std::ostream &out, const std::unique_ptr<RedScript::Compiler::AST::Composite> &compo, size_t level)
 {
     margin(out, level) << "Composite" << std::endl;
 
@@ -80,7 +86,7 @@ static void printComposite(std::ostream &out, const std::unique_ptr<RedScript::C
     }
 }
 
-static void printExpression(std::ostream &out, const std::unique_ptr<RedScript::Compiler::AST::Expression> &expr, size_t level = 0)
+static void printExpression(std::ostream &out, const std::unique_ptr<RedScript::Compiler::AST::Expression> &expr, size_t level)
 {
     if (!(expr->hasOp))
         margin(out, level) << "Expression" << std::endl;
