@@ -49,11 +49,19 @@ public:
 
 /*** Expressions ***/
 
+private:
+    enum class CompositeSuggestion : int
+    {
+        Tuple,
+        Lambda,
+        Simple,
+    };
+
 public:
     std::unique_ptr<AST::Name>          parseName(void);
     std::unique_ptr<AST::Unpack>        parseUnpack(void);
     std::unique_ptr<AST::Literal>       parseLiteral(void);
-    std::unique_ptr<AST::Composite>     parseComposite(void);
+    std::unique_ptr<AST::Composite>     parseComposite(CompositeSuggestion suggestion);
     std::unique_ptr<AST::Expression>    parseExpression(void);
 
 private:

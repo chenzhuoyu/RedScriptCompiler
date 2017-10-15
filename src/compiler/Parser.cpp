@@ -70,7 +70,7 @@ std::unique_ptr<AST::Literal> Parser::parseLiteral(void)
     }
 }
 
-std::unique_ptr<AST::Composite> Parser::parseComposite(void)
+std::unique_ptr<AST::Composite> Parser::parseComposite(CompositeSuggestion suggestion)
 {
     /* locate next token */
     Token::Ptr token = _lexer->peek();
@@ -342,7 +342,7 @@ std::unique_ptr<AST::Expression> Parser::parseFactor(void)
         case Token::Type::Identifiers:
         {
             /* composite types (constants, names, arrays, maps, tuples, lambdas with attributes, indexes, and invokes) */
-            return std::make_unique<AST::Expression>(token, parseComposite());
+            return std::make_unique<AST::Expression>(token, parseComposite(CompositeSuggestion::Simple));
         }
 
         case Token::Type::Operators:
@@ -364,7 +364,7 @@ std::unique_ptr<AST::Expression> Parser::parseFactor(void)
                 case Token::Operator::IndexLeft:
                 {
                     /* composite types (constants, names, arrays, maps, tuples, lambdas with attributes, indexes, and invokes) */
-                    return std::make_unique<AST::Expression>(token, parseComposite());
+                    return std::make_unique<AST::Expression>(token, parseComposite(CompositeSuggestion::Simple));
                 }
 
                 /* nested expression, or a tuple, or even a lambda, so handle it seperately */
@@ -386,8 +386,20 @@ std::unique_ptr<AST::Expression> Parser::parseFactor(void)
                      * but in either case, the composite parser will take over it */
                     if (next->isOperator<Token::Operator::BracketRight>())
                     {
-                        _lexer->popState();
-                        return std::make_unique<AST::Expression>(token, parseComposite());
+                        _lexer->next();
+                        next = _lexer->peek();
+
+                        /* perform a simple check to give the composite parser some suggestions */
+                        if (!(next->isOperator<Token::Operator::Lambda>()))
+                        {
+                            _lexer->popState();
+                            return std::make_unique<AST::Expression>(token, parseComposite(CompositeSuggestion::Tuple));
+                        }
+                        else
+                        {
+                            _lexer->popState();
+                            return std::make_unique<AST::Expression>(token, parseComposite(CompositeSuggestion::Lambda));
+                        }
                     }
 
                     do
@@ -396,7 +408,7 @@ std::unique_ptr<AST::Expression> Parser::parseFactor(void)
                         if (next->isOperator<Token::Operator::Power>() || next->isOperator<Token::Operator::Multiply>())
                         {
                             _lexer->popState();
-                            return std::make_unique<AST::Expression>(token, parseComposite());
+                            return std::make_unique<AST::Expression>(token, parseComposite(CompositeSuggestion::Lambda));
                         }
 
                         /* parse next expression */
@@ -412,7 +424,7 @@ std::unique_ptr<AST::Expression> Parser::parseFactor(void)
 
                         /* skip the comma seperator */
                         if (!(_lexer->next()->isOperator<Token::Operator::Comma>()))
-                            throw Runtime::SyntaxError(token, "Operator \",\" or \")\" expected");
+                            throw Runtime::SyntaxError(next, "Operator \",\" or \")\" expected");
 
                         /* once encountered a comma, the result may never be a nested expression */
                         next = _lexer->peek();
@@ -425,7 +437,7 @@ std::unique_ptr<AST::Expression> Parser::parseFactor(void)
                     if (hasTail)
                     {
                         _lexer->popState();
-                        return std::make_unique<AST::Expression>(token, parseComposite());
+                        return std::make_unique<AST::Expression>(token, parseComposite(CompositeSuggestion::Tuple));
                     }
 
                     /* skip the right bracket */
@@ -433,18 +445,26 @@ std::unique_ptr<AST::Expression> Parser::parseFactor(void)
                     next = _lexer->peek();
 
                     /* check whether it maybe a lambda function, which must
-                     * not have the tail comma, and all arguments must be names-only;
-                     * or there are more than one item, it's definately a tuple;
-                     * but in either case, the composite parser will take over it */
-                    if ((n > 1) || (nameOnly && next->isOperator<Token::Operator::Lambda>()))
+                     * not have the tail comma, and all arguments must be names-only */
+                    if (nameOnly && next->isOperator<Token::Operator::Lambda>())
                     {
                         _lexer->popState();
-                        return std::make_unique<AST::Expression>(token, parseComposite());
+                        return std::make_unique<AST::Expression>(token, parseComposite(CompositeSuggestion::Lambda));
+                    }
+
+                    /* or there are more than one item, definately a tuple */
+                    else if (n > 1)
+                    {
+                        _lexer->popState();
+                        return std::make_unique<AST::Expression>(token, parseComposite(CompositeSuggestion::Tuple));
                     }
 
                     /* otherwise, it's just a simple nested expression */
-                    _lexer->preserveState();
-                    return std::move(expr);
+                    else
+                    {
+                        _lexer->preserveState();
+                        return std::move(expr);
+                    }
                 }
 
                 default:
