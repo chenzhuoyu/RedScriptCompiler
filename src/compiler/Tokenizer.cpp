@@ -83,7 +83,7 @@ static const std::unordered_map<std::string, Token::Operator> Operators = {
 
     { "in"  , Token::Operator::In                   },
     { "="   , Token::Operator::Assign               },
-    { "->"  , Token::Operator::Tuple                },
+    { "->"  , Token::Operator::Lambda               },
     { ".."  , Token::Operator::Range                },
     { "@"   , Token::Operator::Decorator            },
 };
@@ -97,15 +97,15 @@ template <typename T> static inline long toInt(T c)         { return in(c, '0', 
 Tokenizer::Tokenizer(const std::string &source) : _source(source)
 {
     /* initial state */
-    _stack.push(State {
-        .col = 0,
-        .row = 0,
+    _stack.push_back(State {
+        .col = 1,
+        .row = 1,
         .pos = 0,
         .cache = nullptr,
     });
 
     /* fast reference */
-    _state = &(_stack.top());
+    _state = &(_stack.back());
 }
 
 char Tokenizer::peekChar(void)
@@ -214,6 +214,8 @@ Token::Ptr Tokenizer::read(void)
 
 Token::Ptr Tokenizer::readString(void)
 {
+    int col = _state->col;
+    int row = _state->row;
     char start = nextChar();
     char remains = nextChar();
     std::string result;
@@ -285,11 +287,13 @@ Token::Ptr Tokenizer::readString(void)
         remains = nextChar();
     }
 
-    return Token::createString(_state->row, _state->col, result);
+    return Token::createString(row, col, result);
 }
 
 Token::Ptr Tokenizer::readNumber(void)
 {
+    int col = _state->col;
+    int row = _state->row;
     int base = 10;
     char number = nextChar();
     int64_t integer = toInt(number);
@@ -329,7 +333,7 @@ Token::Ptr Tokenizer::readNumber(void)
 
             /* simply integer zero */
             default:
-                return Token::createValue(_state->row, _state->col, 0ll);
+                return Token::createValue(row, col, 0ll);
         }
     }
 
@@ -350,7 +354,7 @@ Token::Ptr Tokenizer::readNumber(void)
 
     /* fraction part only makes sense when it's base 10 */
     if (base != 10 || follow != '.')
-        return Token::createValue(_state->row, _state->col, integer);
+        return Token::createValue(row, col, integer);
 
     /* skip the decimal point */
     nextChar();
@@ -360,7 +364,7 @@ Token::Ptr Tokenizer::readNumber(void)
     {
         _state->col--;
         _state->pos--;
-        return Token::createValue(_state->row, _state->col, integer);
+        return Token::createValue(row, col, integer);
     }
 
     double factor = 1.0;
@@ -374,26 +378,30 @@ Token::Ptr Tokenizer::readNumber(void)
     } while (in(peekChar(), '0', '9'));
 
     /* represent as "Float" token */
-    return Token::createValue(_state->row, _state->col, decimal);
+    return Token::createValue(row, col, decimal);
 }
 
 Token::Ptr Tokenizer::readOperator(void)
 {
-    switch (char op = nextChar())
+    int col = _state->col;
+    int row = _state->row;
+    char next = nextChar();
+
+    switch (next)
     {
         /* single character operators */
-        case '(' : return Token::createOperator(_state->row, _state->col, Token::Operator::BracketLeft    );
-        case ')' : return Token::createOperator(_state->row, _state->col, Token::Operator::BracketRight   );
-        case '[' : return Token::createOperator(_state->row, _state->col, Token::Operator::IndexLeft      );
-        case ']' : return Token::createOperator(_state->row, _state->col, Token::Operator::IndexRight     );
-        case '{' : return Token::createOperator(_state->row, _state->col, Token::Operator::BlockLeft      );
-        case '}' : return Token::createOperator(_state->row, _state->col, Token::Operator::BlockRight     );
-        case '~' : return Token::createOperator(_state->row, _state->col, Token::Operator::BitNot         );
-        case ',' : return Token::createOperator(_state->row, _state->col, Token::Operator::Comma          );
-        case ':' : return Token::createOperator(_state->row, _state->col, Token::Operator::Colon          );
-        case ';' : return Token::createOperator(_state->row, _state->col, Token::Operator::Semicolon      );
-        case '\n': return Token::createOperator(_state->row, _state->col, Token::Operator::NewLine        );
-        case '@' : return Token::createOperator(_state->row, _state->col, Token::Operator::Decorator      );
+        case '(' : return Token::createOperator(row, col, Token::Operator::BracketLeft    );
+        case ')' : return Token::createOperator(row, col, Token::Operator::BracketRight   );
+        case '[' : return Token::createOperator(row, col, Token::Operator::IndexLeft      );
+        case ']' : return Token::createOperator(row, col, Token::Operator::IndexRight     );
+        case '{' : return Token::createOperator(row, col, Token::Operator::BlockLeft      );
+        case '}' : return Token::createOperator(row, col, Token::Operator::BlockRight     );
+        case '~' : return Token::createOperator(row, col, Token::Operator::BitNot         );
+        case ',' : return Token::createOperator(row, col, Token::Operator::Comma          );
+        case ':' : return Token::createOperator(row, col, Token::Operator::Colon          );
+        case ';' : return Token::createOperator(row, col, Token::Operator::Semicolon      );
+        case '\n': return Token::createOperator(row, col, Token::Operator::NewLine        );
+        case '@' : return Token::createOperator(row, col, Token::Operator::Decorator      );
 
         /* != */
         case '!':
@@ -401,7 +409,7 @@ Token::Ptr Tokenizer::readOperator(void)
             if (nextChar() != '=')
                 throw Runtime::SyntaxError(this, "Invalid operator '!'");
             else
-                return Token::createOperator(_state->row, _state->col, Token::Operator::Neq);
+                return Token::createOperator(row, col, Token::Operator::Neq);
         }
 
         /* . .. */
@@ -409,11 +417,11 @@ Token::Ptr Tokenizer::readOperator(void)
         {
             /* . */
             if (peekChar() != '.')
-                return Token::createOperator(_state->row, _state->col, Token::Operator::Point);
+                return Token::createOperator(row, col, Token::Operator::Point);
 
             /* .. */
             nextChar();
-            return Token::createOperator(_state->row, _state->col, Token::Operator::Range);
+            return Token::createOperator(row, col, Token::Operator::Range);
         }
 
         case '+': /* + += */
@@ -426,11 +434,11 @@ Token::Ptr Tokenizer::readOperator(void)
         {
             /* + / % & | ^ = */
             if (peekChar() != '=')
-                return Token::createOperator(_state->row, _state->col, Operators.at(std::string(1, op)));
+                return Token::createOperator(row, col, Operators.at(std::string(1, next)));
 
             /* += /= %= &= |= ^= == */
             nextChar();
-            return Token::createOperator(_state->row, _state->col, Operators.at(op + std::string("=")));
+            return Token::createOperator(row, col, Operators.at(next + std::string("=")));
         }
 
         /* - -= -> */
@@ -442,19 +450,19 @@ Token::Ptr Tokenizer::readOperator(void)
                 case '=':
                 {
                     nextChar();
-                    return Token::createOperator(_state->row, _state->col, Token::Operator::InplaceSub);
+                    return Token::createOperator(row, col, Token::Operator::InplaceSub);
                 }
 
                 /* -> */
                 case '>':
                 {
                     nextChar();
-                    return Token::createOperator(_state->row, _state->col, Token::Operator::Tuple);
+                    return Token::createOperator(row, col, Token::Operator::Lambda);
                 }
 
                 /* - */
                 default:
-                    return Token::createOperator(_state->row, _state->col, Token::Operator::Minus);
+                    return Token::createOperator(row, col, Token::Operator::Minus);
             }
         }
 
@@ -468,40 +476,42 @@ Token::Ptr Tokenizer::readOperator(void)
             if (follow == '=')
             {
                 nextChar();
-                return Token::createOperator(_state->row, _state->col, Operators.at(op + std::string("=")));
+                return Token::createOperator(row, col, Operators.at(next + std::string("=")));
             }
-            else if (follow == op)
+            else if (follow == next)
             {
                 nextChar();
 
                 /* ** << >> */
                 if (peekChar() != '=')
-                    return Token::createOperator(_state->row, _state->col, Operators.at(std::string(2, op)));
+                    return Token::createOperator(row, col, Operators.at(std::string(2, next)));
 
                 /* **= <<= >>= */
                 nextChar();
-                return Token::createOperator(_state->row, _state->col, Operators.at(std::string(2, op) + "="));
+                return Token::createOperator(row, col, Operators.at(std::string(2, next) + "="));
             }
             else
             {
                 /* * < > */
-                return Token::createOperator(_state->row, _state->col, Operators.at(std::string(1, op)));
+                return Token::createOperator(row, col, Operators.at(std::string(1, next)));
             }
         }
 
         /* other invalid operators */
         default:
         {
-            if (isprint(op))
-                throw Runtime::SyntaxError(this, Utils::Strings::format("Invalid operator '%c'", op));
+            if (isprint(next))
+                throw Runtime::SyntaxError(this, Utils::Strings::format("Invalid operator '%c'", next));
             else
-                throw Runtime::SyntaxError(this, Utils::Strings::format("Invalid character '\\x%.2x'", (uint8_t)op));
+                throw Runtime::SyntaxError(this, Utils::Strings::format("Invalid character '\\x%.2x'", (uint8_t)next));
         }
     }
 }
 
 Token::Ptr Tokenizer::readIdentifier(void)
 {
+    int col = _state->col;
+    int row = _state->row;
     char first = nextChar();
     char follow = peekChar();
     std::string token(1, first);
@@ -529,25 +539,27 @@ Token::Ptr Tokenizer::readIdentifier(void)
     }
 
     if (Keywords.find(token) != Keywords.end())
-        return Token::createKeyword(_state->row, _state->col, Keywords.at(token));
+        return Token::createKeyword(row, col, Keywords.at(token));
     else if (Operators.find(token) != Operators.end())
-        return Token::createOperator(_state->row, _state->col, Operators.at(token));
+        return Token::createOperator(row, col, Operators.at(token));
     else
-        return Token::createIdentifier(_state->row, _state->col, token);
+        return Token::createIdentifier(row, col, token);
 }
 
 Token::Ptr Tokenizer::next(void)
 {
     /* read from cache first */
-    Token::Ptr token = std::move(_state->cache == nullptr ? read() : _state->cache);
+    if (_state->cache == nullptr)
+        _state->cache = std::move(read());
 
     /* skip "\n" operator */
-    while (token &&
-           token->is<Token::Type::Operators>() &&
-           (token->asOperator() == Token::Operator::NewLine))
-        token = std::move(read());
+    while (_state->cache &&
+           _state->cache->is<Token::Type::Operators>() &&
+           (_state->cache->asOperator() == Token::Operator::NewLine))
+        _state->cache = std::move(read());
 
-    return std::move(token);
+    /* clear cache */
+    return std::move(_state->cache);
 }
 
 Token::Ptr Tokenizer::peek(void)

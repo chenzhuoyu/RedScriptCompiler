@@ -35,6 +35,18 @@ public:
             throw std::invalid_argument(Utils::Strings::format("Object named \"%s\" already exists", name));
     }
 
+/*** Basic Language Structures ***/
+
+public:
+    std::unique_ptr<AST::Function>      parseLambda(void);
+
+/*** Object Modifiers ***/
+
+public:
+    std::unique_ptr<AST::Index>         parseIndex(void);
+    std::unique_ptr<AST::Invoke>        parseInvoke(void);
+    std::unique_ptr<AST::Attribute>     parseAttribute(void);
+
 /*** Expressions ***/
 
 public:
@@ -45,9 +57,8 @@ public:
     std::unique_ptr<AST::Expression>    parseExpression(void);
 
 private:
-    /* prune the expression tree,
-     * remove redundent nodes to reduce recursive depth,
-     * based on depth-first search algorithm */
+    bool isName(const std::unique_ptr<AST::Composite> &comp);
+    bool isName(const std::unique_ptr<AST::Expression> &expr);
     void pruneExpression(std::unique_ptr<AST::Expression> &expr);
 
 public:

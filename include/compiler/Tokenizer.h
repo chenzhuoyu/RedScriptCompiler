@@ -1,9 +1,9 @@
 #ifndef REDSCRIPT_COMPILER_TOKENIZER_H
 #define REDSCRIPT_COMPILER_TOKENIZER_H
 
-#include <stack>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "utils/Strings.h"
 #include "runtime/SyntaxError.h"
@@ -109,7 +109,7 @@ public:
 
         In,
         Assign,
-        Tuple,
+        Lambda,
         Range,
         Decorator,
     };
@@ -147,8 +147,8 @@ public:
     Type type(void) const { return _type; }
 
 public:
-    template <Type T>
-    bool is(void) const { return _type == T; }
+    template <Type T> bool is(void) const { return _type == T; }
+    template <Operator Op> bool isOperator(void) const { return is<Type::Operators>() && (_operator == Op); }
 
 public:
     void asEof(void) const
@@ -316,7 +316,7 @@ public:
 
             case Operator::In                   : return "<Operator 'in'>";
             case Operator::Assign               : return "<Operator '='>";
-            case Operator::Tuple                : return "<Operator '->'>";
+            case Operator::Lambda               : return "<Operator '->'>";
             case Operator::Range                : return "<Operator '..'>";
             case Operator::Decorator            : return "<Operator '@'>";
         }
@@ -352,7 +352,7 @@ class Tokenizer
 private:
     State *_state;
     std::string _source;
-    std::stack<State> _stack;
+    std::vector<State> _stack;
 
 public:
     explicit Tokenizer(const std::string &source);
@@ -380,15 +380,22 @@ public:
 public:
     void popState(void)
     {
-        _stack.pop();
-        _state = &(_stack.top());
+        _stack.pop_back();
+        _state = &(_stack.back());
     }
 
 public:
     void pushState(void)
     {
-        _stack.push((const State &) _stack.top());
-        _state = &(_stack.top());
+        _stack.push_back(State(_stack.back()));
+        _state = &(_stack.back());
+    }
+
+public:
+    void preserveState(void)
+    {
+        _stack.erase(----_stack.end());
+        _state = &(_stack.back());
     }
 
 public:

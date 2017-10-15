@@ -54,50 +54,77 @@ static void printLiteral(std::ostream &out, const std::unique_ptr<RedScript::Com
     }
 }
 
-static void printComposite(std::ostream &out, const std::unique_ptr<RedScript::Compiler::AST::Composite> &expr, size_t level = 0)
+static void printComposite(std::ostream &out, const std::unique_ptr<RedScript::Compiler::AST::Composite> &compo, size_t level = 0)
 {
+    margin(out, level) << "Composite" << std::endl;
 
+    switch (compo->vtype)
+    {
+        case RedScript::Compiler::AST::Composite::ValueType::Map: break;
+        case RedScript::Compiler::AST::Composite::ValueType::Name:
+        {
+            printName(out, compo->name, level + 1);
+            break;
+        }
+
+        case RedScript::Compiler::AST::Composite::ValueType::Array: break;
+        case RedScript::Compiler::AST::Composite::ValueType::Tuple: break;
+
+        case RedScript::Compiler::AST::Composite::ValueType::Literal:
+        {
+            printLiteral(out, compo->literal, level + 1);
+            break;
+        }
+
+        case RedScript::Compiler::AST::Composite::ValueType::Function: break;
+    }
 }
 
 static void printExpression(std::ostream &out, const std::unique_ptr<RedScript::Compiler::AST::Expression> &expr, size_t level = 0)
 {
-    if (!(expr->right))
+    if (!(expr->hasOp))
         margin(out, level) << "Expression" << std::endl;
-    else if (!(expr->left))
-        margin(out, level) << "Unary Expression " << RedScript::Compiler::Token::toString(expr->op) << std::endl;
     else
-        margin(out, level) << "Binary Expression " << RedScript::Compiler::Token::toString(expr->op) << std::endl;
+        margin(out, level) << "Unary Expression " << RedScript::Compiler::Token::toString(expr->first.op) << std::endl;
 
-    if (expr->left)
+    switch (expr->first.type)
     {
-        switch (expr->left->type)
+        case RedScript::Compiler::AST::Expression::Operand::Type::Composite:
+        {
+            printComposite(out, expr->first.composite, level + 1);
+            break;
+        }
+
+        case RedScript::Compiler::AST::Expression::Operand::Type::Expression:
+        {
+            printExpression(out, expr->first.expression, level + 1);
+            break;
+        }
+    }
+
+    for (const auto &term : expr->follows)
+    {
+        margin(out, level + 1) << "Following " << RedScript::Compiler::Token::toString(term.op) << std::endl;
+        switch (term.type)
         {
             case RedScript::Compiler::AST::Expression::Operand::Type::Composite:
             {
-                margin(out, level + 1) << "Left Composite" << std::endl;
-                printComposite(out, expr->left->composite, level + 2);
+                printComposite(out, term.composite, level + 2);
                 break;
             }
 
             case RedScript::Compiler::AST::Expression::Operand::Type::Expression:
             {
-                margin(out, level + 1) << "Left Expression" << std::endl;
-                printExpression(out, expr->left->expression, level + 2);
+                printExpression(out, term.expression, level + 2);
                 break;
             }
         }
-    }
-
-    if (expr->right)
-    {
-        margin(out, level + 1) << "Right" << std::endl;
-        printExpression(out, expr->right, level + 2);
     }
 }
 
 void run(void)
 {
-    RedScript::Compiler::Parser parser(std::make_unique<RedScript::Compiler::Tokenizer>(R"source(#!/usr/bin/env redscript
+    const char *source = R"source(#!/usr/bin/env redscript
 
 # class Foo : Bar
 # {
@@ -116,11 +143,12 @@ void run(void)
 #     }
 # }
 
-1 + 1
+1 * (x ^ y)
 
-)source"));
+)source";
 
-    printExpression(std::cerr, parser.parseExpression());
+    RedScript::Compiler::Parser parser(std::make_unique<RedScript::Compiler::Tokenizer>(source));
+    printExpression(std::cout, parser.parseExpression());
 }
 
 int main()

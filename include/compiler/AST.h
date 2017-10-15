@@ -21,10 +21,15 @@ public:
         For,
         While,
         Foreach,
+        Function,
 
         Index,
         Invoke,
         Attribute,
+
+        Map,
+        Array,
+        Tuple,
 
         Name,
         Unpack,
@@ -60,10 +65,15 @@ struct If;
 struct For;
 struct While;
 struct Foreach;
+struct Function;
 
 struct Index;
 struct Invoke;
 struct Attribute;
+
+struct Map;
+struct Array;
+struct Tuple;
 
 struct Name;
 struct Unpack;
@@ -74,14 +84,14 @@ struct Expression;
 struct Statement;
 struct CompondStatement;
 
-/*** Control Flows ***/
+/*** Basic Language Structures ***/
 
 struct If : public Node
 {
     AST_NODE(If)
     std::unique_ptr<Expression> expr;
     std::unique_ptr<Statement > positive;
-    std::unique_ptr<Statement > negative;
+    std::unique_ptr<Statement > negative = nullptr;
 };
 
 struct For : public Node
@@ -109,6 +119,21 @@ struct Foreach : public Node
     std::unique_ptr<Statement > body;
 };
 
+struct Function : public Node
+{
+    AST_NODE(Function)
+
+public:
+    std::unique_ptr<Name> name = nullptr;
+    std::unique_ptr<Name> vargs = nullptr;
+    std::unique_ptr<Name> kwargs = nullptr;
+
+public:
+    std::unique_ptr<Statement> body;
+    std::vector<std::unique_ptr<Name>> args;
+
+};
+
 /*** Object Modifiers ***/
 
 struct Index : public Node
@@ -124,6 +149,26 @@ struct Invoke : public Node
 struct Attribute : public Node
 {
     AST_NODE(Attribute)
+};
+
+/*** Composite Literals ***/
+
+struct Map : public Node
+{
+    AST_NODE(Map)
+    std::vector<std::pair<std::unique_ptr<Expression>, std::unique_ptr<Expression>>> items;
+};
+
+struct Array : public Node
+{
+    AST_NODE(Array)
+    std::vector<std::unique_ptr<Expression>> items;
+};
+
+struct Tuple : public Node
+{
+    AST_NODE(Tuple)
+    std::vector<std::unique_ptr<Expression>> items;
 };
 
 /*** Expressions ***/
@@ -198,8 +243,12 @@ public:
 public:
     enum class ValueType : int
     {
+        Map,
         Name,
+        Array,
+        Tuple,
         Literal,
+        Function,
     };
 
 public:
@@ -220,20 +269,35 @@ public:
 public:
     ValueType vtype;
     std::vector<Modifier> mods;
-    std::unique_ptr<AST::Name> name = nullptr;
-    std::unique_ptr<AST::Literal> literal = nullptr;
 
 public:
-    explicit Composite(const Token::Ptr &token, std::unique_ptr<AST::Name> &&value) : Node(Node::Type::Composite, token), vtype(ValueType::Name), name(std::move(value)) {}
-    explicit Composite(const Token::Ptr &token, std::unique_ptr<AST::Literal> &&value) : Node(Node::Type::Composite, token), vtype(ValueType::Literal), literal(std::move(value)) {}
+    std::unique_ptr<AST::Map> map = nullptr;
+    std::unique_ptr<AST::Name> name = nullptr;
+    std::unique_ptr<AST::Array> array = nullptr;
+    std::unique_ptr<AST::Tuple> tuple = nullptr;
+    std::unique_ptr<AST::Literal> literal = nullptr;
+    std::unique_ptr<AST::Function> function = nullptr;
 
+public:
+    explicit Composite(const Token::Ptr &token, std::unique_ptr<AST::Map> &&value) : Node(Node::Type::Composite, token), vtype(ValueType::Map), map(std::move(value)) {}
+    explicit Composite(const Token::Ptr &token, std::unique_ptr<AST::Name> &&value) : Node(Node::Type::Composite, token), vtype(ValueType::Name), name(std::move(value)) {}
+    explicit Composite(const Token::Ptr &token, std::unique_ptr<AST::Array> &&value) : Node(Node::Type::Composite, token), vtype(ValueType::Array), array(std::move(value)) {}
+    explicit Composite(const Token::Ptr &token, std::unique_ptr<AST::Tuple> &&value) : Node(Node::Type::Composite, token), vtype(ValueType::Tuple), tuple(std::move(value)) {}
+    explicit Composite(const Token::Ptr &token, std::unique_ptr<AST::Literal> &&value) : Node(Node::Type::Composite, token), vtype(ValueType::Literal), literal(std::move(value)) {}
+    explicit Composite(const Token::Ptr &token, std::unique_ptr<AST::Function> &&value) : Node(Node::Type::Composite, token), vtype(ValueType::Function), function(std::move(value)) {}
+
+public:
+    bool isSyntacticallyMutable(void) const
+    {
+        if (mods.empty())
+            return vtype == ValueType::Name;
+        else
+            return mods.back().type != ModType::Invoke;
+    }
 };
 
 struct Expression : public Node
 {
-    AST_NODE(Expression);
-
-public:
     struct Operand
     {
         enum class Type : int
@@ -244,6 +308,9 @@ public:
 
     public:
         Type type;
+        Token::Operator op;
+
+    public:
         std::unique_ptr<AST::Composite> composite = nullptr;
         std::unique_ptr<AST::Expression> expression = nullptr;
 
@@ -251,17 +318,24 @@ public:
         Operand(std::unique_ptr<AST::Composite> &&value) : type(Type::Composite), composite(std::move(value)) {}
         Operand(std::unique_ptr<AST::Expression> &&value) : type(Type::Expression), expression(std::move(value)) {}
 
+    public:
+        /* special operator to create operands with operators (e.g. unary expression or following operands) */
+        Operand(Token::Operator op, std::unique_ptr<AST::Expression> &&value) : op(op), type(Type::Expression), expression(std::move(value)) {}
+
     };
 
 public:
-    Token::Operator op;
-    std::unique_ptr<Operand> left = nullptr;
-    std::unique_ptr<Expression> right = nullptr;
+    bool hasOp;
+    Operand first;
+    std::vector<Operand> follows;
 
 public:
-    explicit Expression(const Token::Ptr &token, std::unique_ptr<AST::Composite> &&left) : Node(Node::Type::Expression, token), left(new Operand(std::move(left))) {}
-    explicit Expression(const Token::Ptr &token, std::unique_ptr<AST::Expression> &&left) : Node(Node::Type::Expression, token), left(new Operand(std::move(left))) {}
-    explicit Expression(const Token::Ptr &token, std::unique_ptr<AST::Expression> &&right, Token::Operator op) : Node(Node::Type::Expression, token), right(std::move(right)), op(op) {}
+    explicit Expression(const Token::Ptr &token, std::unique_ptr<AST::Composite> &&value) : Node(Node::Type::Expression, token), first(std::move(value)), hasOp(false) {}
+    explicit Expression(const Token::Ptr &token, std::unique_ptr<AST::Expression> &&value) : Node(Node::Type::Expression, token), first(std::move(value)), hasOp(false) {}
+
+public:
+    /* special operator to create unary operator expressions */
+    explicit Expression(const Token::Ptr &token, std::unique_ptr<AST::Expression> &&value, Token::Operator op) : Node(Node::Type::Expression, token), first(op, std::move(value)), hasOp(true) {}
 
 };
 
