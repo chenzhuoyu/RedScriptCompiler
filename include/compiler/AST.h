@@ -23,6 +23,10 @@ public:
         Foreach,
         Function,
 
+        Break,
+        Return,
+        Continue,
+
         Index,
         Invoke,
         Attribute,
@@ -66,6 +70,10 @@ struct For;
 struct While;
 struct Foreach;
 struct Function;
+
+struct Break;
+struct Return;
+struct Continue;
 
 struct Index;
 struct Invoke;
@@ -132,6 +140,28 @@ public:
     std::unique_ptr<Statement> body;
     std::vector<std::unique_ptr<Name>> args;
 
+};
+
+/*** Control Flows ***/
+
+struct Break : public Node
+{
+    AST_NODE(Break)
+};
+
+struct Return : public Node
+{
+    AST_NODE(Return)
+    std::unique_ptr<Expression> value;
+
+public:
+    explicit Return(const Token::Ptr &token, std::unique_ptr<Expression> &&value) : Node(Node::Type::Return, token), value(std::move(value)) {}
+
+};
+
+struct Continue : public Node
+{
+    AST_NODE(Continue)
 };
 
 /*** Object Modifiers ***/
@@ -344,7 +374,19 @@ public:
 struct Statement : public Node
 {
     AST_NODE(Statement)
-    std::unique_ptr<Node> statement;
+
+public:
+    enum class Type : int
+    {
+        Return,
+    };
+
+public:
+    std::unique_ptr<AST::Return> ret;
+
+public:
+    explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::Return> &&value) : Node(Node::Type::Statement, token), ret(std::move(value)) {}
+
 };
 
 struct CompondStatement : public Node

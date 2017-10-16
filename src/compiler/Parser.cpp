@@ -1,4 +1,6 @@
 #include "utils/Preprocessor.h"
+#include "runtime/SyntaxError.h"
+
 #include "compiler/Parser.h"
 
 namespace RedScript::Compiler
@@ -12,7 +14,142 @@ std::unique_ptr<AST::Node> Parser::parse(void)
 
 std::unique_ptr<AST::Function> Parser::parseLambda(void)
 {
-    return std::unique_ptr<AST::Function>();
+    /* reset loop counter, and enter a new function scope */
+    Reset loops(_loops);
+    Scope functions(_functions);
+
+    /* peek the next token */
+    Token::Ptr token = _lexer->peek();
+    std::unique_ptr<AST::Function> result(new AST::Function(token));
+
+    /* lambda with one argument can be a simple name */
+    if (token->is<Token::Type::Identifiers>())
+    {
+        result->args.emplace_back(parseName());
+        result->name = nullptr;
+        result->vargs = nullptr;
+        result->kwargs = nullptr;
+    }
+
+    /* otherwise it's an argument list */
+    else
+    {
+        /* it must starts with '(' operator */
+        _lexer->operatorExpected<Token::Operator::BracketLeft>();
+        token = _lexer->peek();
+
+        /* iterate until meets `BracketRight` token */
+        while (!(token->isOperator<Token::Operator::BracketRight>()))
+        {
+            /* '**' keyword argument prefix operator */
+            if (token->isOperator<Token::Operator::Power>())
+            {
+                /* cannot have more than one keyword argument */
+                if (result->kwargs)
+                    throw Runtime::SyntaxError(token, "Cannot have more than one keyword argument");
+
+                /* parse as variable arguments */
+                _lexer->next();
+                result->kwargs = parseName();
+                token = _lexer->peek();
+            }
+
+            /* keyword argument must be the last argument */
+            else if (result->kwargs)
+                throw Runtime::SyntaxError(token, "Keyword argument must be the last argument");
+
+            /* '*' varidic argument prefix operator */
+            else if (token->isOperator<Token::Operator::Multiply>())
+            {
+                /* cannot have more than one varidic argument */
+                if (result->vargs)
+                    throw Runtime::SyntaxError(token, "Cannot have more than one varidic argument");
+
+                /* parse as variable arguments */
+                _lexer->next();
+                result->vargs = parseName();
+                token = _lexer->peek();
+            }
+
+            /* varidic argument must be the last argument but before keyword argument */
+            else if (result->vargs)
+                throw Runtime::SyntaxError(token, "Varidic argument must be the last argument but before keyword argument");
+
+            /* just a simple name */
+            else
+            {
+                result->args.emplace_back(parseName());
+                token = _lexer->peek();
+            }
+
+            /* ',' encountered, followed by more arguments  */
+            if (token->isOperator<Token::Operator::Comma>())
+                _lexer->next();
+
+            /* ')' encountered, argument list terminated */
+            else if (token->isOperator<Token::Operator::BracketRight>())
+                break;
+
+            /* otherwise it's an error */
+            else
+                throw Runtime::SyntaxError(token);
+        }
+
+        /* skip the ')' */
+        _lexer->next();
+    }
+
+    /* must follows a lambda operator */
+    _lexer->operatorExpected<Token::Operator::Lambda>();
+    token = _lexer->peek();
+
+    /* check whether it's a expression lambda */
+    if (token->isOperator<Token::Operator::BlockLeft>())
+    {
+        /* no, parse as simple statement */
+        result->name = nullptr;
+        result->body = parseStatement();
+    }
+    else
+    {
+        /* yes, build a simple return statement */
+        result->name = nullptr;
+        result->body = std::make_unique<AST::Statement>(token, std::make_unique<AST::Return>(token, parseReturnExpression()));
+    }
+
+    return result;
+}
+
+/*** Control Flows ***/
+
+std::unique_ptr<AST::Break> Parser::parseBreak(void)
+{
+    if (!_loops)
+        throw Runtime::SyntaxError(_lexer->peek(), "`break` outside of loops");
+
+    Token::Ptr token = _lexer->peek();
+    _lexer->keywordExpected<Token::Keyword::Break>();
+    return std::make_unique<AST::Break>(token);
+}
+
+std::unique_ptr<AST::Return> Parser::parseReturn(void)
+{
+    if (!_functions)
+        throw Runtime::SyntaxError(_lexer->peek(), "`return` outside of functions");
+
+    Token::Ptr token = _lexer->peek();
+    _lexer->keywordExpected<Token::Keyword::Return>();
+    return std::make_unique<AST::Return>(token, parseReturnExpression());
+}
+
+std::unique_ptr<AST::Continue> Parser::parseContinue(void)
+{
+    if (!_loops)
+        throw Runtime::SyntaxError(_lexer->peek(), "`continue` outside of loops");
+
+    Token::Ptr token = _lexer->peek();
+    _lexer->keywordExpected<Token::Keyword::Continue>();
+    return std::make_unique<AST::Continue>(token);
 }
 
 /*** Object Modifiers ***/
@@ -125,23 +262,31 @@ std::unique_ptr<AST::Composite> Parser::parseComposite(CompositeSuggestion sugge
                 /* array expression */
                 case Token::Operator::IndexLeft:
                 {
-                    /* array expression node */
-                    std::unique_ptr<AST::Array> array(new AST::Array(token));
+                    /* skip the '[' */
+                    std::unique_ptr<AST::Array> array(new AST::Array(_lexer->next()));
 
                     /* iterate until meets `IndexRight` token */
-                    while (!((token = _lexer->next())->isOperator<Token::Operator::IndexRight>()))
+                    while (!(_lexer->peek()->isOperator<Token::Operator::IndexRight>()))
                     {
                         /* parse an array item */
                         array->items.emplace_back(parseExpression());
-                        token = _lexer->next();
+                        token = _lexer->peek();
 
                         /* check for comma seperator */
-                        if (!(token->isOperator<Token::Operator::Comma>()))
-                            if (!(token->isOperator<Token::Operator::IndexRight>()))
-                                throw Runtime::SyntaxError(token, "Operator \",\" or \"]\" expected");
+                        if (token->isOperator<Token::Operator::Comma>())
+                            _lexer->next();
+
+                        /* check for `IndexRight` operator */
+                        else if (token->isOperator<Token::Operator::IndexRight>())
+                            break;
+
+                        /* otherwise it's an error */
+                        else
+                            throw Runtime::SyntaxError(token, "Operator \",\" or \"]\" expected");
                     }
 
                     /* make it an array */
+                    _lexer->next();
                     result = std::make_unique<AST::Composite>(token, std::move(array));
                     break;
                 }
@@ -149,13 +294,13 @@ std::unique_ptr<AST::Composite> Parser::parseComposite(CompositeSuggestion sugge
                 /* map expression */
                 case Token::Operator::BlockLeft:
                 {
-                    /* map expression node */
-                    std::unique_ptr<AST::Map> map(new AST::Map(token));
+                    /* skip the '{' */
+                    std::unique_ptr<AST::Map> map(new AST::Map(_lexer->next()));
                     std::unique_ptr<AST::Expression> key;
                     std::unique_ptr<AST::Expression> value;
 
                     /* iterate until meets `BlockRight` token */
-                    while (!((token = _lexer->next())->isOperator<Token::Operator::BlockRight>()))
+                    while (!(_lexer->peek()->isOperator<Token::Operator::BlockRight>()))
                     {
                         /* parse key and value */
                         key = parseExpression();
@@ -164,15 +309,23 @@ std::unique_ptr<AST::Composite> Parser::parseComposite(CompositeSuggestion sugge
 
                         /* add to may key-value list */
                         map->items.emplace_back(std::make_pair(std::move(key), std::move(value)));
-                        token = _lexer->next();
+                        token = _lexer->peek();
 
                         /* check for comma seperator */
-                        if (!(token->isOperator<Token::Operator::Comma>()))
-                            if (!(token->isOperator<Token::Operator::BlockRight>()))
-                                throw Runtime::SyntaxError(token, "Operator \",\" or \"}\" expected");
+                        if (token->isOperator<Token::Operator::Comma>())
+                            _lexer->next();
+
+                        /* check for `IndexRight` operator */
+                        else if (token->isOperator<Token::Operator::BlockRight>())
+                            break;
+
+                        /* otherwise it's an error */
+                        else
+                            throw Runtime::SyntaxError(token, "Operator \",\" or \"}\" expected");
                     }
 
                     /* make it a map */
+                    _lexer->next();
                     result = std::make_unique<AST::Composite>(token, std::move(map));
                     break;
                 }
@@ -180,7 +333,53 @@ std::unique_ptr<AST::Composite> Parser::parseComposite(CompositeSuggestion sugge
                 /* tuple expression, or lambda function */
                 case Token::Operator::BracketLeft:
                 {
-                    // TODO: parse this crap
+                    switch (suggestion)
+                    {
+                        /* parse as tuple */
+                        case CompositeSuggestion::Tuple:
+                        {
+                            /* skip the '(' */
+                            std::unique_ptr<AST::Tuple> tuple(new AST::Tuple(_lexer->next()));
+
+                            /* iterate until meets `BracketRight` token */
+                            while (!(_lexer->peek()->isOperator<Token::Operator::BracketRight>()))
+                            {
+                                /* parse an tuple item */
+                                tuple->items.emplace_back(parseExpression());
+                                token = _lexer->peek();
+
+                                /* check for ')' operator */
+                                if (token->isOperator<Token::Operator::Comma>())
+                                    _lexer->next();
+
+                                /* check for comma seperator */
+                                else if (token->isOperator<Token::Operator::BracketRight>())
+                                    break;
+
+                                /* otherwise it's an error */
+                                else
+                                    throw Runtime::SyntaxError(token, "Operator \",\" or \")\" expected");
+                            }
+
+                            /* make it a tuple */
+                            _lexer->next();
+                            result = std::make_unique<AST::Composite>(token, std::move(tuple));
+                            break;
+                        }
+
+                        /* parse as lambda */
+                        case CompositeSuggestion::Lambda:
+                        {
+                            result = std::make_unique<AST::Composite>(token, parseLambda());
+                            break;
+                        }
+
+                        /* must provide a suggestion */
+                        case CompositeSuggestion::Simple:
+                            throw std::logic_error("Suggestion is not proper");
+                    }
+
+                    break;
                 }
 
                 /* other operators are not allowed */
@@ -218,6 +417,12 @@ std::unique_ptr<AST::Expression> Parser::parseExpression(void)
     std::unique_ptr<AST::Expression> result = parseContains();
     pruneExpression(result);
     return result;
+}
+
+std::unique_ptr<AST::Expression> Parser::parseReturnExpression(void)
+{
+    // TODO: parse expression with inline tuple
+    return std::unique_ptr<AST::Expression>();
 }
 
 #pragma clang diagnostic push
@@ -472,5 +677,17 @@ std::unique_ptr<AST::Expression> Parser::parseFactor(void)
             }
         }
     }
+}
+
+/*** Generic Statements ***/
+
+std::unique_ptr<AST::Statement> Parser::parseStatement(void)
+{
+    return std::unique_ptr<AST::Statement>();
+}
+
+std::unique_ptr<AST::CompondStatement> Parser::parseCompondStatement(void)
+{
+    return std::unique_ptr<AST::CompondStatement>();
 }
 }

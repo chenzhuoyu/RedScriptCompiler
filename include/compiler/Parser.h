@@ -20,6 +20,29 @@ class Parser final
     std::unique_ptr<Tokenizer> _lexer;
     std::unordered_map<std::string, Runtime::ObjectRef> _builtins;
 
+private:
+    class Scope
+    {
+        int &_value;
+
+    public:
+       ~Scope() { _value--; }
+        Scope(int &value) : _value(value) { _value++; }
+
+    };
+
+private:
+    class Reset
+    {
+        int _old;
+        int &_value;
+
+    public:
+       ~Reset() { _value = _old; }
+        Reset(int &value) : _old(value), _value(value) { value = 0; }
+
+    };
+
 public:
     Parser(std::unique_ptr<Tokenizer> &&lexer) : _lexer(std::move(lexer)), _loops(0), _functions(0) {}
 
@@ -40,6 +63,13 @@ public:
 public:
     std::unique_ptr<AST::Function>      parseLambda(void);
 
+/*** Control Flows ***/
+
+public:
+    std::unique_ptr<AST::Break>         parseBreak(void);
+    std::unique_ptr<AST::Return>        parseReturn(void);
+    std::unique_ptr<AST::Continue>      parseContinue(void);
+
 /*** Object Modifiers ***/
 
 public:
@@ -49,7 +79,7 @@ public:
 
 /*** Expressions ***/
 
-private:
+public:
     enum class CompositeSuggestion : int
     {
         Tuple,
@@ -58,11 +88,12 @@ private:
     };
 
 public:
-    std::unique_ptr<AST::Name>          parseName(void);
-    std::unique_ptr<AST::Unpack>        parseUnpack(void);
-    std::unique_ptr<AST::Literal>       parseLiteral(void);
-    std::unique_ptr<AST::Composite>     parseComposite(CompositeSuggestion suggestion);
-    std::unique_ptr<AST::Expression>    parseExpression(void);
+    std::unique_ptr<AST::Name>              parseName(void);
+    std::unique_ptr<AST::Unpack>            parseUnpack(void);
+    std::unique_ptr<AST::Literal>           parseLiteral(void);
+    std::unique_ptr<AST::Composite>         parseComposite(CompositeSuggestion suggestion);
+    std::unique_ptr<AST::Expression>        parseExpression(void);
+    std::unique_ptr<AST::Expression>        parseReturnExpression(void);
 
 private:
     bool isName(const std::unique_ptr<AST::Composite> &comp);
@@ -70,19 +101,25 @@ private:
     void pruneExpression(std::unique_ptr<AST::Expression> &expr);
 
 public:
-    std::unique_ptr<AST::Expression>    parseContains(void);
-    std::unique_ptr<AST::Expression>    parseBoolOr(void);
-    std::unique_ptr<AST::Expression>    parseBoolAnd(void);
-    std::unique_ptr<AST::Expression>    parseBitOr(void);
-    std::unique_ptr<AST::Expression>    parseBitXor(void);
-    std::unique_ptr<AST::Expression>    parseBitAnd(void);
-    std::unique_ptr<AST::Expression>    parseEquals(void);
-    std::unique_ptr<AST::Expression>    parseCompares(void);
-    std::unique_ptr<AST::Expression>    parseShifts(void);
-    std::unique_ptr<AST::Expression>    parseAddSub(void);
-    std::unique_ptr<AST::Expression>    parseTerm(void);
-    std::unique_ptr<AST::Expression>    parsePower(void);
-    std::unique_ptr<AST::Expression>    parseFactor(void);
+    std::unique_ptr<AST::Expression>        parseContains(void);
+    std::unique_ptr<AST::Expression>        parseBoolOr(void);
+    std::unique_ptr<AST::Expression>        parseBoolAnd(void);
+    std::unique_ptr<AST::Expression>        parseBitOr(void);
+    std::unique_ptr<AST::Expression>        parseBitXor(void);
+    std::unique_ptr<AST::Expression>        parseBitAnd(void);
+    std::unique_ptr<AST::Expression>        parseEquals(void);
+    std::unique_ptr<AST::Expression>        parseCompares(void);
+    std::unique_ptr<AST::Expression>        parseShifts(void);
+    std::unique_ptr<AST::Expression>        parseAddSub(void);
+    std::unique_ptr<AST::Expression>        parseTerm(void);
+    std::unique_ptr<AST::Expression>        parsePower(void);
+    std::unique_ptr<AST::Expression>        parseFactor(void);
+
+/*** Generic Statements ***/
+
+public:
+    std::unique_ptr<AST::Statement>         parseStatement(void);
+    std::unique_ptr<AST::CompondStatement>  parseCompondStatement(void);
 
 };
 }
