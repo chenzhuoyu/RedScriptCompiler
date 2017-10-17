@@ -61,6 +61,19 @@ public:
 /*** Basic Language Structures ***/
 
 public:
+    std::unique_ptr<AST::If>            parseIf(void);
+    std::unique_ptr<AST::For>           parseFor(void);
+    std::unique_ptr<AST::Class>         parseClass(void);
+    std::unique_ptr<AST::While>         parseWhile(void);
+    std::unique_ptr<AST::Switch>        parseSwitch(void);
+    std::unique_ptr<AST::Foreach>       parseForeach(void);
+    std::unique_ptr<AST::Function>      parseFunction(void);
+
+public:
+    std::unique_ptr<AST::Assign>        parseAssign(void);
+    std::unique_ptr<AST::Incremental>   parseIncremental(void);
+
+public:
     std::unique_ptr<AST::Function>      parseLambda(void);
 
 /*** Control Flows ***/
@@ -89,7 +102,7 @@ public:
 
 public:
     std::unique_ptr<AST::Name>              parseName(void);
-    std::unique_ptr<AST::Unpack>            parseUnpack(void);
+    std::unique_ptr<AST::Unpack>            parseUnpack(Token::Operator terminate);
     std::unique_ptr<AST::Literal>           parseLiteral(void);
     std::unique_ptr<AST::Composite>         parseComposite(CompositeSuggestion suggestion);
     std::unique_ptr<AST::Expression>        parseExpression(void);

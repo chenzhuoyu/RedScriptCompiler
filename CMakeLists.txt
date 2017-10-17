@@ -22,7 +22,9 @@ set(SOURCE_FILES
         include/runtime/SyntaxError.h
         include/utils/Immovable.h
         include/utils/NonCopyable.h
+        include/utils/Preprocessor.h
         include/utils/Strings.h
+        src/compiler/AST.cpp
         src/compiler/Parser.cpp
         src/compiler/Tokenizer.cpp
         src/engine/GarbageCollector.cpp
@@ -31,7 +33,7 @@ set(SOURCE_FILES
         src/runtime/Object.cpp
         src/runtime/ReferenceCounted.cpp
         src/utils/Strings.cpp
-        src/main.cpp include/utils/Preprocessor.h)
+        src/main.cpp)
 
 add_executable(rsc ${SOURCE_FILES})
 target_link_libraries(rsc -lfmt -ljemalloc)

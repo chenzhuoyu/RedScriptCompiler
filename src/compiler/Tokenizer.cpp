@@ -98,10 +98,10 @@ Tokenizer::Tokenizer(const std::string &source) : _source(source)
 {
     /* initial state */
     _stack.push_back(State {
-        .col = 1,
-        .row = 1,
-        .pos = 0,
-        .cache = nullptr,
+        /* row   */ 1,
+        /* col   */ 1,
+        /* pos   */ 0,
+        /* cache */ nullptr,
     });
 
     /* fast reference */

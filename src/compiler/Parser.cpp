@@ -12,6 +12,96 @@ std::unique_ptr<AST::Node> Parser::parse(void)
 
 /*** Basic Language Structures ***/
 
+std::unique_ptr<AST::If> Parser::parseIf(void)
+{
+    return std::unique_ptr<AST::If>();
+}
+
+std::unique_ptr<AST::For> Parser::parseFor(void)
+{
+    return std::unique_ptr<AST::For>();
+}
+
+std::unique_ptr<AST::Class> Parser::parseClass(void)
+{
+    return std::unique_ptr<AST::Class>();
+}
+
+std::unique_ptr<AST::While> Parser::parseWhile(void)
+{
+    return std::unique_ptr<AST::While>();
+}
+
+std::unique_ptr<AST::Switch> Parser::parseSwitch(void)
+{
+    return std::unique_ptr<AST::Switch>();
+}
+
+std::unique_ptr<AST::Foreach> Parser::parseForeach(void)
+{
+    return std::unique_ptr<AST::Foreach>();
+}
+
+std::unique_ptr<AST::Function> Parser::parseFunction(void)
+{
+    return std::unique_ptr<AST::Function>();
+}
+
+std::unique_ptr<AST::Assign> Parser::parseAssign(void)
+{
+    return std::unique_ptr<AST::Assign>();
+}
+
+std::unique_ptr<AST::Incremental> Parser::parseIncremental(void)
+{
+    /* the left side of the incremental assignment */
+    Token::Ptr token = _lexer->peek();
+    std::unique_ptr<AST::Expression> expr = parseExpression();
+    std::unique_ptr<AST::Incremental> result(new AST::Incremental(token));
+
+    /* should be a single `Composite`, so test and extract it */
+    while (!(result->dest))
+    {
+        /* has unary operators or following operands, it's an expression, and not assignable */
+        if (expr->hasOp || !expr->follows.empty())
+            throw Runtime::SyntaxError(token, "Expressions are not assignable");
+
+        /* if it's the composite, extract it, otherwise, move to inner expression */
+        if (expr->first.type != AST::Expression::Operand::Type::Composite)
+            expr = std::move(expr->first.expression);
+        else
+            result->dest = std::move(expr->first.composite);
+    }
+
+    /* and the operator */
+    token = _lexer->next();
+    result->op = token->asOperator();
+
+    /* check the operator */
+    switch (result->op)
+    {
+        case Token::Operator::InplaceAdd:
+        case Token::Operator::InplaceSub:
+        case Token::Operator::InplaceMul:
+        case Token::Operator::InplaceDiv:
+        case Token::Operator::InplaceMod:
+        case Token::Operator::InplacePower:
+        case Token::Operator::InplaceBitOr:
+        case Token::Operator::InplaceBitAnd:
+        case Token::Operator::InplaceBitXor:
+        case Token::Operator::InplaceShiftLeft:
+        case Token::Operator::InplaceShiftRight:
+            break;
+
+        default:
+            throw Runtime::SyntaxError(token);
+    }
+
+    /* and the expression */
+    result->expr = parseReturnExpression();
+    return result;
+}
+
 std::unique_ptr<AST::Function> Parser::parseLambda(void)
 {
     /* reset loop counter, and enter a new function scope */
@@ -48,7 +138,7 @@ std::unique_ptr<AST::Function> Parser::parseLambda(void)
                 if (result->kwargs)
                     throw Runtime::SyntaxError(token, "Cannot have more than one keyword argument");
 
-                /* parse as variable arguments */
+                /* parse as keyword argument */
                 _lexer->next();
                 result->kwargs = parseName();
                 token = _lexer->peek();
@@ -156,17 +246,117 @@ std::unique_ptr<AST::Continue> Parser::parseContinue(void)
 
 std::unique_ptr<AST::Index> Parser::parseIndex(void)
 {
-    return std::unique_ptr<AST::Index>();
+    Token::Ptr token = _lexer->next();
+    std::unique_ptr<AST::Index> result(new AST::Index(token));
+
+    result->index = parseExpression();
+    _lexer->operatorExpected<Token::Operator::IndexRight>();
+    return result;
 }
 
 std::unique_ptr<AST::Invoke> Parser::parseInvoke(void)
 {
-    return std::unique_ptr<AST::Invoke>();
+    Token::Ptr token = _lexer->peek();
+    std::unique_ptr<AST::Invoke> result(new AST::Invoke(token));
+
+    /* it must starts with '(' operator */
+    _lexer->operatorExpected<Token::Operator::BracketLeft>();
+    token = _lexer->peek();
+
+    /* iterate until meets `BracketRight` token */
+    while (!(token->isOperator<Token::Operator::BracketRight>()))
+    {
+        /* '**' keyword argument prefix operator */
+        if (token->isOperator<Token::Operator::Power>())
+        {
+            /* cannot have more than one keyword argument */
+            if (result->kwarg)
+                throw Runtime::SyntaxError(token, "Cannot have more than one keyword argument");
+
+            /* parse as keyword argument */
+            _lexer->next();
+            result->kwarg = parseExpression();
+            token = _lexer->peek();
+        }
+
+        /* keyword argument must be the last argument */
+        else if (result->kwarg)
+            throw Runtime::SyntaxError(token, "Keyword argument must be the last argument");
+
+        /* '*' varidic argument prefix operator */
+        else if (token->isOperator<Token::Operator::Multiply>())
+        {
+            /* cannot have more than one varidic argument */
+            if (result->varg)
+                throw Runtime::SyntaxError(token, "Cannot have more than one varidic argument");
+
+            /* parse as variable arguments */
+            _lexer->next();
+            result->varg = parseExpression();
+            token = _lexer->peek();
+        }
+
+        /* varidic argument must be the last argument but before keyword argument */
+        else if (result->varg)
+            throw Runtime::SyntaxError(token, "Varidic argument must be the last argument but before keyword argument");
+
+        /* a simple argument, or a named argument */
+        else
+        {
+            /* try parsing as an expression */
+            std::unique_ptr<AST::Name> name;
+            std::unique_ptr<AST::Expression> expr = parseExpression();
+
+            /* it's a pure name followed by a '=' operator, means it's a named argument */
+            if (isName(expr) && _lexer->peek()->isOperator<Token::Operator::Assign>())
+            {
+                /* find the correct composite node in the expression chain */
+                while (expr->first.type == AST::Expression::Operand::Type::Expression)
+                    expr = std::move(expr->first.expression);
+
+                /* add to result list */
+                _lexer->next();
+                result->kwargs.emplace_back(std::move(expr->first.composite->name), parseExpression());
+                token = _lexer->peek();
+            }
+
+            /* nope, it's a simple argument, check it's order */
+            else if (result->kwargs.empty())
+            {
+                result->args.emplace_back(std::move(expr));
+                token = _lexer->peek();
+            }
+
+            /* named arguments must be placed after normal arguments */
+            else
+                throw Runtime::SyntaxError(token, "Non-keyword argument after keyword argument");
+        }
+
+        /* check for the comma seperator */
+        if (token->isOperator<Token::Operator::Comma>())
+            _lexer->next();
+
+        /* check for the `BracketRight` operator */
+        else if (token->isOperator<Token::Operator::BracketRight>())
+            break;
+
+        /* otherwise it's an error */
+        else
+            throw Runtime::SyntaxError(token, "Operator \",\" or \")\" expected");
+    }
+
+    /* skip the right bracket */
+    _lexer->next();
+    return result;
 }
 
 std::unique_ptr<AST::Attribute> Parser::parseAttribute(void)
 {
-    return std::unique_ptr<AST::Attribute>();
+    Token::Ptr token = _lexer->next();
+    std::unique_ptr<AST::Attribute> result(new AST::Attribute(token));
+
+    result->attr = parseName();
+    return result;
 }
 
 /*** Expressions ***/
@@ -181,9 +371,94 @@ std::unique_ptr<AST::Name> Parser::parseName(void)
     return result;
 }
 
-std::unique_ptr<AST::Unpack> Parser::parseUnpack(void)
+std::unique_ptr<AST::Unpack> Parser::parseUnpack(Token::Operator terminate)
 {
-    return std::unique_ptr<AST::Unpack>();
+    Token::Ptr token = _lexer->peek();
+    std::unique_ptr<AST::Unpack> result(new AST::Unpack(token));
+
+    /* iterate until meets the termination operator */
+    while (!(token->is<Token::Type::Operators>()) || (token->asOperator() != terminate))
+    {
+        /* parse as an expression */
+        _lexer->pushState();
+        std::unique_ptr<AST::Composite> comp = nullptr;
+        std::unique_ptr<AST::Expression> expr = parseExpression();
+
+        /* should be a single `Composite`, so test and extract it */
+        while (!comp)
+        {
+            /* has unary operators or following operands, it's an expression, and not assignable */
+            if (expr->hasOp || !expr->follows.empty())
+                throw Runtime::SyntaxError(token, "Expressions are not assignable");
+
+            /* if it's the composite, extract it, otherwise, move to inner expression */
+            if (expr->first.type == AST::Expression::Operand::Type::Composite)
+                comp = std::move(expr->first.composite);
+            else
+                expr = std::move(expr->first.expression);
+        }
+
+        /* and if it's mutable, take it directly */
+        if (comp->isSyntacticallyMutable())
+        {
+            token = _lexer->peek();
+            _lexer->preserveState();
+            result->items.emplace_back(std::move(comp));
+        }
+
+        /* otherwise, it should be a tuple or array composite, which could turns into a nested `Unpack` */
+        else
+        {
+            switch (comp->vtype)
+            {
+                /* they are all immutable */
+                case AST::Composite::ValueType::Map:
+                case AST::Composite::ValueType::Name:
+                case AST::Composite::ValueType::Literal:
+                case AST::Composite::ValueType::Function:
+                case AST::Composite::ValueType::Expression:
+                    throw Runtime::SyntaxError(token, "Expressions are not assignable");
+
+                /* process them together since they are essentially the same */
+                case AST::Composite::ValueType::Array:
+                case AST::Composite::ValueType::Tuple:
+                {
+                    /* restore the state and skip the start operator */
+                    _lexer->popState();
+                    _lexer->next();
+
+                    /* process arrays and tuples accordingly */
+                    if (comp->vtype == AST::Composite::ValueType::Array)
+                        result->items.emplace_back(parseUnpack(Token::Operator::IndexRight));
+                    else
+                        result->items.emplace_back(parseUnpack(Token::Operator::BracketRight));
+
+                    /* peek the next token */
+                    _lexer->next();
+                    token = _lexer->peek();
+                    break;
+                }
+            }
+        }
+
+        /* check for the comma seperator */
+        if (token->isOperator<Token::Operator::Comma>())
+            _lexer->next();
+
+        /* check for the termination operator */
+        else if ((token->is<Token::Type::Operators>()) && (token->asOperator() == terminate))
+            break;
+
+        /* otherwise it's an error */
+        else
+            throw Runtime::SyntaxError(token, "Operator \",\" or \"]\" expected");
+    }
+
+    /* must have at least something */
+    if (result->items.empty())
+        throw Runtime::SyntaxError(token);
+    else
+        return result;
 }
 
 std::unique_ptr<AST::Literal> Parser::parseLiteral(void)
@@ -272,11 +547,11 @@ std::unique_ptr<AST::Composite> Parser::parseComposite(CompositeSuggestion sugge
                         array->items.emplace_back(parseExpression());
                         token = _lexer->peek();
 
-                        /* check for comma seperator */
+                        /* check for the comma seperator */
                         if (token->isOperator<Token::Operator::Comma>())
                             _lexer->next();
 
-                        /* check for `IndexRight` operator */
+                        /* check for the `IndexRight` operator */
                         else if (token->isOperator<Token::Operator::IndexRight>())
                             break;
 
@@ -311,11 +586,11 @@ std::unique_ptr<AST::Composite> Parser::parseComposite(CompositeSuggestion sugge
                         map->items.emplace_back(std::make_pair(std::move(key), std::move(value)));
                         token = _lexer->peek();
 
-                        /* check for comma seperator */
+                        /* check for the comma seperator */
                         if (token->isOperator<Token::Operator::Comma>())
                             _lexer->next();
 
-                        /* check for `IndexRight` operator */
+                        /* check for the `IndexRight` operator */
                         else if (token->isOperator<Token::Operator::BlockRight>())
                             break;
 
@@ -348,11 +623,11 @@ std::unique_ptr<AST::Composite> Parser::parseComposite(CompositeSuggestion sugge
                                 tuple->items.emplace_back(parseExpression());
                                 token = _lexer->peek();
 
-                                /* check for ')' operator */
+                                /* check for the comma seperator */
                                 if (token->isOperator<Token::Operator::Comma>())
                                     _lexer->next();
 
-                                /* check for comma seperator */
+                                /* check for the `BracketRight` operator */
                                 else if (token->isOperator<Token::Operator::BracketRight>())
                                     break;
 
@@ -374,9 +649,14 @@ std::unique_ptr<AST::Composite> Parser::parseComposite(CompositeSuggestion sugge
                             break;
                         }
 
-                        /* must provide a suggestion */
+                        /* parse as a simple nested expression */
                         case CompositeSuggestion::Simple:
-                            throw std::logic_error("Suggestion is not proper");
+                        {
+                            _lexer->next();
+                            result = std::make_unique<AST::Composite>(token, parseExpression());
+                            _lexer->operatorExpected<Token::Operator::BracketRight>();
+                            break;
+                        }
                     }
 
                     break;
@@ -396,11 +676,9 @@ std::unique_ptr<AST::Composite> Parser::parseComposite(CompositeSuggestion sugge
     {
         switch (token->asOperator())
         {
-            case Token::Operator::Point: break;
-            case Token::Operator::Lambda: break;
-            case Token::Operator::IndexLeft: break;
-            case Token::Operator::BlockLeft: break;
-            case Token::Operator::BracketLeft: break;
+            case Token::Operator::Point       : result->mods.emplace_back(parseAttribute()); break;
+            case Token::Operator::IndexLeft   : result->mods.emplace_back(parseIndex()); break;
+            case Token::Operator::BracketLeft : result->mods.emplace_back(parseInvoke()); break;
 
             /* unknown operator, should terminate the modifier chain */
             default:
@@ -421,8 +699,42 @@ std::unique_ptr<AST::Expression> Parser::parseExpression(void)
 
 std::unique_ptr<AST::Expression> Parser::parseReturnExpression(void)
 {
-    // TODO: parse expression with inline tuple
-    return std::unique_ptr<AST::Expression>();
+    /* try parse the first expression */
+    Token::Ptr next;
+    Token::Ptr token = _lexer->peek();
+    std::unique_ptr<AST::Tuple> tuple(new AST::Tuple(token));
+    std::unique_ptr<AST::Expression> result = parseExpression();
+
+    /* not followed by a comma, it's a simple expression */
+    if (_lexer->peekOrLine()->isOperator<Token::Operator::Comma>())
+        return result;
+
+    /* otherwise, it's a inline tuple */
+    next = _lexer->nextOrLine();
+    tuple->items.emplace_back(std::move(result));
+
+    /* iterate until meets `NewLine` token */
+    while (!(_lexer->peekOrLine()->isOperator<Token::Operator::NewLine>()))
+    {
+        /* parse an tuple item */
+        tuple->items.emplace_back(parseExpression());
+        next = _lexer->peekOrLine();
+
+        /* check for the comma seperator */
+        if (next->isOperator<Token::Operator::Comma>())
+            _lexer->nextOrLine();
+
+        /* check for the `NewLine` operator */
+        else if (next->isOperator<Token::Operator::NewLine>())
+            break;
+
+        /* otherwise it's an error */
+        else
+            throw Runtime::SyntaxError(next, "Operator \",\" or `NewLine` expected");
+    }
+
+    /* build a composite expression around it */
+    return std::make_unique<AST::Expression>(token, std::make_unique<AST::Composite>(token, std::move(tuple)));
 }
 
 #pragma clang diagnostic push
@@ -446,6 +758,17 @@ bool Parser::isName(const std::unique_ptr<AST::Expression> &expr)
 
 void Parser::pruneExpression(std::unique_ptr<AST::Expression> &expr)
 {
+    /* prune the first operand, move the sub-expression up if possible */
+    if (expr->first.type == AST::Expression::Operand::Type::Composite)
+    {
+        /* this composite has no modifiers, and contains just a simple expression, we can simply move it to the upper level */
+        if (expr->first.composite->mods.empty() && (expr->first.composite->vtype == AST::Composite::ValueType::Expression))
+        {
+            expr->first.type = AST::Expression::Operand::Type::Expression;
+            expr->first.expression = std::move(expr->first.composite->expression);
+        }
+    }
+
     /* check whether the first operand is a sub-expression */
     if (expr->first.type == AST::Expression::Operand::Type::Expression)
     {
@@ -471,8 +794,22 @@ void Parser::pruneExpression(std::unique_ptr<AST::Expression> &expr)
 
     /* prune following operands recursively */
     for (auto &term : expr->follows)
+    {
+        /* if the operand is a composite value, move the sub-expression up if possible */
+        if (term.type == AST::Expression::Operand::Type::Composite)
+        {
+            /* this composite has no modifiers, and contains just a simple expression, we can simply move it to the upper level */
+            if (term.composite->mods.empty() && (term.composite->vtype == AST::Composite::ValueType::Expression))
+            {
+                term.type = AST::Expression::Operand::Type::Expression;
+                term.expression = std::move(term.composite->expression);
+            }
+        }
+
+        /* then prune the "clean" sub-expression */
         if (term.type == AST::Expression::Operand::Type::Expression)
             pruneExpression(term.expression);
+    }
 }
 
 #define MAKE_CASE_ITEM(_, op)       case Token::Operator::op:
@@ -667,8 +1004,8 @@ std::unique_ptr<AST::Expression> Parser::parseFactor(void)
                     /* otherwise, it's just a simple nested expression */
                     else
                     {
-                        _lexer->preserveState();
-                        return std::move(expr);
+                        _lexer->popState();
+                        return std::make_unique<AST::Expression>(token, parseComposite(CompositeSuggestion::Simple));
                     }
                 }
 
