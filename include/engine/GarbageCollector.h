@@ -48,8 +48,8 @@ public:
 
 struct GarbageCollector
 {
-    static void init(void);
     static void shutdown(void);
+    static void initialize(size_t young, size_t old, size_t perm);
 
 public:
     static int gc(void);

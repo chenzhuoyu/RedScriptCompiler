@@ -15,10 +15,16 @@ void Visitor::visitIf(const std::unique_ptr<If> &node)
 
 void Visitor::visitFor(const std::unique_ptr<For> &node)
 {
-    visitStatement(node->init);
+    if (node->pack)
+        visitUnpack(node->pack);
+    else
+        visitComposite(node->comp);
+
     visitExpression(node->expr);
-    visitStatement(node->step);
     visitStatement(node->body);
+
+    if (node->branch)
+        visitStatement(node->branch);
 }
 
 void Visitor::visitClass(const std::unique_ptr<Class> &node)
@@ -30,22 +36,14 @@ void Visitor::visitWhile(const std::unique_ptr<While> &node)
 {
     visitExpression(node->expr);
     visitStatement(node->body);
+
+    if (node->branch)
+        visitStatement(node->branch);
 }
 
 void Visitor::visitSwitch(const std::unique_ptr<Switch> &node)
 {
     // TODO visit switch
-}
-
-void Visitor::visitForeach(const std::unique_ptr<Foreach> &node)
-{
-    if (node->name)
-        visitName(node->name);
-    else
-        visitUnpack(node->pack);
-
-    visitExpression(node->expr);
-    visitStatement(node->body);
 }
 
 void Visitor::visitFunction(const std::unique_ptr<Function> &node)
@@ -67,11 +65,10 @@ void Visitor::visitFunction(const std::unique_ptr<Function> &node)
 
 void Visitor::visitAssign(const std::unique_ptr<Assign> &node)
 {
-    switch (node->vtype)
-    {
-        case Assign::Type::Unpack    : visitUnpack(node->unpack); break;
-        case Assign::Type::Composite : visitComposite(node->composite); break;
-    }
+    if (node->unpack)
+        visitUnpack(node->unpack);
+    else
+        visitComposite(node->composite);
 
     visitExpression(node->expression);
 }
@@ -209,7 +206,6 @@ void Visitor::visitStatement(const std::unique_ptr<Statement> &node)
         case Statement::StatementType::Class            : visitClass(node->classStatement); break;
         case Statement::StatementType::While            : visitWhile(node->whileStatement); break;
         case Statement::StatementType::Switch           : visitSwitch(node->switchStatement); break;
-        case Statement::StatementType::Foreach          : visitForeach(node->foreachStatement); break;
         case Statement::StatementType::Function         : visitFunction(node->functionStatement); break;
 
         case Statement::StatementType::Assign           : visitAssign(node->assignStatement); break;

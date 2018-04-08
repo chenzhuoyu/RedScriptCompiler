@@ -86,17 +86,17 @@ void GCObject::untrack(void)
 
 /*** GarbageCollector implementations ***/
 
-void GarbageCollector::init(void)
-{
-    _generations.emplace_back(std::make_unique<Generation>(1 * 1024 * 1024 * 1024));  /* Young,   1G */
-    _generations.emplace_back(std::make_unique<Generation>(     512 * 1024 * 1024));  /* Old  , 512M */
-    _generations.emplace_back(std::make_unique<Generation>(     128 * 1024 * 1024));  /* Perm , 128M */
-}
-
 void GarbageCollector::shutdown(void)
 {
     _generations.clear();
     _generations.shrink_to_fit();
+}
+
+void GarbageCollector::initialize(size_t young, size_t old, size_t perm)
+{
+    _generations.emplace_back(std::make_unique<Generation>(young));
+    _generations.emplace_back(std::make_unique<Generation>(old));
+    _generations.emplace_back(std::make_unique<Generation>(perm));
 }
 
 int GarbageCollector::gc(void)
@@ -105,6 +105,7 @@ int GarbageCollector::gc(void)
     if (_generations.empty())
         throw std::runtime_error("GarbageCollector not initialized");
 
+    // TODO: collect dead objects
     return 0;
 }
 

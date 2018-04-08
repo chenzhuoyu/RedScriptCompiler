@@ -5,6 +5,7 @@ namespace RedScript::Compiler
 {
 static const std::unordered_map<std::string, Token::Keyword> Keywords = {
     { "if"      , Token::Keyword::If        },
+    { "else"    , Token::Keyword::Else      },
     { "for"     , Token::Keyword::For       },
     { "while"   , Token::Keyword::While     },
     { "switch"  , Token::Keyword::Switch    },
@@ -333,7 +334,7 @@ Token::Ptr Tokenizer::readNumber(void)
 
             /* simply integer zero */
             default:
-                return Token::createValue(row, col, 0ll);
+                return Token::createValue(row, col, (int64_t)0);
         }
     }
 

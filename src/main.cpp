@@ -149,7 +149,7 @@ void run(void)
 #     }
 # }
 
-1 * (x ^ y)
+x.a + 2
 
 )source";
 
@@ -159,7 +159,12 @@ void run(void)
 
 int main()
 {
-    RedScript::Engine::GarbageCollector::init();
+    RedScript::Engine::GarbageCollector::initialize(
+        1 * 1024 * 1024 * 1024,     /* Young,   1G */
+             512 * 1024 * 1024,     /* Old  , 512M */
+             128 * 1024 * 1024      /* Perm , 128M */
+    );
+
     run();
     RedScript::Engine::GarbageCollector::shutdown();
     return 0;

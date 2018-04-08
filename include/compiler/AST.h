@@ -75,7 +75,6 @@ struct For;
 struct Class;
 struct While;
 struct Switch;
-struct Foreach;
 struct Function;
 
 struct Assign;
@@ -115,10 +114,11 @@ struct If : public Node
 struct For : public Node
 {
     AST_NODE(For)
-    std::unique_ptr<Statement > init;
+    std::unique_ptr<Unpack    > pack;
+    std::unique_ptr<Composite > comp;
     std::unique_ptr<Expression> expr;
-    std::unique_ptr<Statement > step;
     std::unique_ptr<Statement > body;
+    std::unique_ptr<Statement > branch;
 };
 
 struct Class : public Node
@@ -131,20 +131,12 @@ struct While : public Node
     AST_NODE(While)
     std::unique_ptr<Expression> expr;
     std::unique_ptr<Statement > body;
+    std::unique_ptr<Statement > branch;
 };
 
 struct Switch : public Node
 {
     AST_NODE(Switch)
-};
-
-struct Foreach : public Node
-{
-    AST_NODE(Foreach)
-    std::unique_ptr<Name      > name;
-    std::unique_ptr<Unpack    > pack;
-    std::unique_ptr<Expression> expr;
-    std::unique_ptr<Statement > body;
 };
 
 struct Function : public Node
@@ -167,14 +159,6 @@ struct Assign : public Node
     AST_NODE(Assign);
 
 public:
-    enum class Type : int
-    {
-        Unpack,
-        Composite,
-    };
-
-public:
-    Type vtype;
     std::unique_ptr<AST::Unpack> unpack;
     std::unique_ptr<AST::Composite> composite;
     std::unique_ptr<AST::Expression> expression;
@@ -440,7 +424,6 @@ public:
         Class,
         While,
         Switch,
-        Foreach,
         Function,
 
         Assign,
@@ -462,7 +445,6 @@ public:
     std::unique_ptr<AST::Class> classStatement;
     std::unique_ptr<AST::While> whileStatement;
     std::unique_ptr<AST::Switch> switchStatement;
-    std::unique_ptr<AST::Foreach> foreachStatement;
     std::unique_ptr<AST::Function> functionStatement;
 
 public:
@@ -483,7 +465,6 @@ public:
     explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::Class> &&value) : Node(Node::Type::Statement, token), stype(StatementType::Class), classStatement(std::move(value)) {}
     explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::While> &&value) : Node(Node::Type::Statement, token), stype(StatementType::While), whileStatement(std::move(value)) {}
     explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::Switch> &&value) : Node(Node::Type::Statement, token), stype(StatementType::Switch), switchStatement(std::move(value)) {}
-    explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::Foreach> &&value) : Node(Node::Type::Statement, token), stype(StatementType::Foreach), foreachStatement(std::move(value)) {}
     explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::Function> &&value) : Node(Node::Type::Statement, token), stype(StatementType::Function), functionStatement(std::move(value)) {}
 
 public:
@@ -522,7 +503,6 @@ public:
     virtual void visitClass(const std::unique_ptr<Class> &node);
     virtual void visitWhile(const std::unique_ptr<While> &node);
     virtual void visitSwitch(const std::unique_ptr<Switch> &node);
-    virtual void visitForeach(const std::unique_ptr<Foreach> &node);
     virtual void visitFunction(const std::unique_ptr<Function> &node);
 
 public:

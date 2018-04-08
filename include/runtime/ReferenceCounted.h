@@ -9,6 +9,9 @@
 #include <typeinfo>
 #include <stdexcept>
 
+#include "utils/Immovable.h"
+#include "utils/NonCopyable.h"
+
 namespace RedScript::Runtime
 {
 template <typename T>
@@ -107,7 +110,7 @@ public:
 public:
     bool isNull(void) const { return !_object; }
     bool isStatic(void) const { return _object ? _object->_isStatic : true; }
-    size_t refCount(void) const { return _object ? _object->_refCount : SIZE_T_MAX; }
+    size_t refCount(void) const { return _object ? _object->_refCount : SIZE_MAX; }
 
 public:
     operator T *(void) { return _object; }
@@ -132,7 +135,7 @@ public:
     }
 };
 
-class ReferenceCounted
+class ReferenceCounted : public Utils::Immovable, public Utils::NonCopyable
 {
     template <typename>
     friend class Reference;

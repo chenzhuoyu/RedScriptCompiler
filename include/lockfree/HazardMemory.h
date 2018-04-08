@@ -4,6 +4,7 @@
 #include <atomic>
 #include <vector>
 #include <cstdint>
+#include <cstring>
 #include <utility>
 #include <stdexcept>
 #include <unordered_set>

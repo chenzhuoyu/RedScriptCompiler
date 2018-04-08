@@ -30,6 +30,7 @@ public:
     enum class Keyword : int
     {
         If,
+        Else,
         For,
         While,
         Switch,
@@ -148,6 +149,7 @@ public:
 
 public:
     template <Type T> bool is(void) const { return _type == T; }
+    template <Keyword Kw> bool isKeyword(void) const { return is<Type::Keywords>() && (_keyword == Kw); }
     template <Operator Op> bool isOperator(void) const { return is<Type::Operators>() && (_operator == Op); }
 
 public:
@@ -233,6 +235,7 @@ public:
         switch (value)
         {
             case Keyword::If        : return "<Keyword if>";
+            case Keyword::Else      : return "<Keyword else>";
             case Keyword::For       : return "<Keyword for>";
             case Keyword::While     : return "<Keyword while>";
             case Keyword::Switch    : return "<Keyword switch>";

@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.6)
 project(RedScriptCompiler)
 
+if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+    set(CMAKE_C_COMPILER /usr/bin/clang-5.0)
+    set(CMAKE_ASM_COMPILER /usr/bin/clang-5.0)
+    set(CMAKE_CXX_COMPILER /usr/bin/clang++-5.0)
+endif()
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 

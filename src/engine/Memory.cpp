@@ -53,7 +53,7 @@ static size_t freeTag(uint64_t type, MemoryTag *tag)
     /* check for object type */
     if (tag->type != type)
     {
-        fprintf(stderr, "*** FATAL: memory type mismatch on blck %p: %llu -> %llu\n", tag, type, tag->type);
+        fprintf(stderr, "*** FATAL: memory type mismatch on blck %p: %lu -> %lu\n", tag, type, tag->type);
         abort();
     }
 

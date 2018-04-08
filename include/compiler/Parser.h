@@ -29,6 +29,13 @@ private:
        ~Scope() { _value--; }
         Scope(int &value) : _value(value) { _value++; }
 
+    public:
+        template <typename F, typename ... Args>
+        static inline auto wrap(int &monitor, F &&func, Args && ... args)
+        {
+            Scope _(monitor);
+            return func(std::forward<Args>(args) ...);
+        }
     };
 
 private:
@@ -66,7 +73,6 @@ public:
     std::unique_ptr<AST::Class>         parseClass(void);
     std::unique_ptr<AST::While>         parseWhile(void);
     std::unique_ptr<AST::Switch>        parseSwitch(void);
-    std::unique_ptr<AST::Foreach>       parseForeach(void);
     std::unique_ptr<AST::Function>      parseFunction(void);
 
 public:
@@ -102,7 +108,7 @@ public:
 
 public:
     std::unique_ptr<AST::Name>              parseName(void);
-    std::unique_ptr<AST::Unpack>            parseUnpack(Token::Operator terminate);
+    std::unique_ptr<AST::Unpack>            parseUnpack(Token::Operator terminator);
     std::unique_ptr<AST::Literal>           parseLiteral(void);
     std::unique_ptr<AST::Composite>         parseComposite(CompositeSuggestion suggestion);
     std::unique_ptr<AST::Expression>        parseExpression(void);
@@ -111,7 +117,10 @@ public:
 private:
     bool isName(const std::unique_ptr<AST::Composite> &comp);
     bool isName(const std::unique_ptr<AST::Expression> &expr);
+
+private:
     void pruneExpression(std::unique_ptr<AST::Expression> &expr);
+    void parseAssignTarget(std::unique_ptr<AST::Composite> &comp, std::unique_ptr<AST::Unpack> &unpack, Token::Operator terminator);
 
 public:
     std::unique_ptr<AST::Expression>        parseContains(void);
