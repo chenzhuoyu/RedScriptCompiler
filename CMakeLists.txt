@@ -5,7 +5,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 
 add_definitions(-D_BSD_SOURCE)
-include_directories(${CMAKE_SOURCE_DIR}/include)
+
+link_directories(/usr/local/lib)
+include_directories(/usr/local/include ${CMAKE_SOURCE_DIR}/include)
 
 set(SOURCE_FILES
         include/compiler/AST.h
