@@ -2,6 +2,7 @@
 #include <atomic>
 #include <cstdint>
 #include <cstdlib>
+#include <cinttypes>
 
 #include "engine/Memory.h"
 
@@ -53,7 +54,7 @@ static size_t freeTag(uint64_t type, MemoryTag *tag)
     /* check for object type */
     if (tag->type != type)
     {
-        fprintf(stderr, "*** FATAL: memory type mismatch on blck %p: %lu -> %lu\n", tag, type, tag->type);
+        fprintf(stderr, "*** FATAL: memory type mismatch on blck %p: %" PRIu64 " -> %" PRIu64 "\n", tag, type, tag->type);
         abort();
     }
 
