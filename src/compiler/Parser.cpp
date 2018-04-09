@@ -1167,8 +1167,53 @@ std::unique_ptr<AST::Expression> Parser::parseFactor(void)
 
 std::unique_ptr<AST::Statement> Parser::parseStatement(void)
 {
-    // TODO: parse statement
-    return std::unique_ptr<AST::Statement>();
+    /* peek the first token */
+    Token::Ptr token = _lexer->peek();
+    std::unique_ptr<AST::Statement> result;
+
+    /* keywords, such as "if", "for", "while" etc. */
+    if (token->is<Token::Type::Keywords>())
+    {
+        switch (token->asKeyword())
+        {
+            case Token::Keyword::If       : result = std::make_unique<AST::Statement>(token, parseIf()); break;
+            case Token::Keyword::For      : result = std::make_unique<AST::Statement>(token, parseFor()); break;
+            case Token::Keyword::While    : result = std::make_unique<AST::Statement>(token, parseWhile()); break;
+            case Token::Keyword::Switch   : result = std::make_unique<AST::Statement>(token, parseSwitch()); break;
+
+            case Token::Keyword::Class    : result = std::make_unique<AST::Statement>(token, parseClass()); break;
+            case Token::Keyword::Function : result = std::make_unique<AST::Statement>(token, parseFunction()); break;
+
+            case Token::Keyword::Break    : result = std::make_unique<AST::Statement>(token, parseBreak()); break;
+            case Token::Keyword::Return   : result = std::make_unique<AST::Statement>(token, parseReturn()); break;
+            case Token::Keyword::Continue : result = std::make_unique<AST::Statement>(token, parseContinue()); break;
+
+            case Token::Keyword::Try      : break;
+            case Token::Keyword::Raise    : break;
+            case Token::Keyword::Delete   : break;
+            case Token::Keyword::Import   : break;
+
+            default:
+                throw Runtime::SyntaxError(token, "Unexpected token " + token->toString());
+        }
+    }
+
+    /* compound statement */
+    else if (token->isOperator<Token::Operator::BlockLeft>())
+        result = std::make_unique<AST::Statement>(token, parseCompondStatement());
+
+    /* single semicolon, give an empty compond statement */
+    else if (token->isOperator<Token::Operator::Semicolon>())
+        return std::make_unique<AST::Statement>(token, parseCompondStatement());
+
+    /* optional semicolon seperator */
+    if (_lexer->peek()->isOperator<Token::Operator::Semicolon>())
+    {
+        if (result == nullptr)
+            result = std::make_unique<AST::Statement>(token, std::make_unique<AST::CompondStatement>(token));
+    }
+
+    return result;
 }
 
 std::unique_ptr<AST::CompondStatement> Parser::parseCompondStatement(void)
