@@ -19,6 +19,7 @@ public:
     {
         If,
         For,
+        Try,
         Class,
         While,
         Switch,
@@ -27,6 +28,10 @@ public:
 
         Assign,
         Incremental,
+
+        Raise,
+        Delete,
+        Import,
 
         Break,
         Return,
@@ -72,6 +77,7 @@ public:
 
 struct If;
 struct For;
+struct Try;
 struct Class;
 struct While;
 struct Switch;
@@ -79,6 +85,10 @@ struct Function;
 
 struct Assign;
 struct Incremental;
+
+struct Raise;
+struct Delete;
+struct Import;
 
 struct Break;
 struct Return;
@@ -119,6 +129,11 @@ struct For : public Node
     std::unique_ptr<Expression> expr;
     std::unique_ptr<Statement > body;
     std::unique_ptr<Statement > branch;
+};
+
+struct Try : public Node
+{
+    AST_NODE(Try)
 };
 
 struct Class : public Node
@@ -171,6 +186,28 @@ struct Incremental : public Node
     Token::Operator op;
     std::unique_ptr<Composite> dest;
     std::unique_ptr<Expression> expr;
+};
+
+/*** Misc. Statements ***/
+
+struct Raise : public Node
+{
+    AST_NODE(Raise)
+    std::unique_ptr<Expression> expr;
+};
+
+struct Delete : public Node
+{
+    AST_NODE(Delete)
+    std::unique_ptr<Composite> comp;
+};
+
+struct Import : public Node
+{
+    AST_NODE(Import)
+    std::string from;
+    std::unique_ptr<Name> alias;
+    std::vector<std::unique_ptr<Name>> names;
 };
 
 /*** Control Flows ***/
@@ -421,6 +458,7 @@ public:
     {
         If,
         For,
+        Try,
         Class,
         While,
         Switch,
@@ -428,6 +466,10 @@ public:
 
         Assign,
         Incremental,
+
+        Raise,
+        Delete,
+        Import,
 
         Break,
         Return,
@@ -442,6 +484,7 @@ public:
 public:
     std::unique_ptr<AST::If> ifStatement;
     std::unique_ptr<AST::For> forStatement;
+    std::unique_ptr<AST::Try> tryStatement;
     std::unique_ptr<AST::Class> classStatement;
     std::unique_ptr<AST::While> whileStatement;
     std::unique_ptr<AST::Switch> switchStatement;
@@ -450,6 +493,11 @@ public:
 public:
     std::unique_ptr<AST::Assign> assignStatement;
     std::unique_ptr<AST::Incremental> incrementalStatement;
+
+public:
+    std::unique_ptr<AST::Raise> raiseStatement;
+    std::unique_ptr<AST::Delete> deleteStatement;
+    std::unique_ptr<AST::Import> importStatement;
 
 public:
     std::unique_ptr<AST::Break> breakStatement;
@@ -462,6 +510,7 @@ public:
 public:
     explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::If> &&value) : Node(Node::Type::Statement, token), stype(StatementType::If), ifStatement(std::move(value)) {}
     explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::For> &&value) : Node(Node::Type::Statement, token), stype(StatementType::For), forStatement(std::move(value)) {}
+    explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::Try> &&value) : Node(Node::Type::Statement, token), stype(StatementType::Try), tryStatement(std::move(value)) {}
     explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::Class> &&value) : Node(Node::Type::Statement, token), stype(StatementType::Class), classStatement(std::move(value)) {}
     explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::While> &&value) : Node(Node::Type::Statement, token), stype(StatementType::While), whileStatement(std::move(value)) {}
     explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::Switch> &&value) : Node(Node::Type::Statement, token), stype(StatementType::Switch), switchStatement(std::move(value)) {}
@@ -470,6 +519,11 @@ public:
 public:
     explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::Assign> &&value) : Node(Node::Type::Statement, token), stype(StatementType::Assign), assignStatement(std::move(value)) {}
     explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::Incremental> &&value) : Node(Node::Type::Statement, token), stype(StatementType::Incremental), incrementalStatement(std::move(value)) {}
+
+public:
+    explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::Raise> &&value) : Node(Node::Type::Statement, token), stype(StatementType::Raise), raiseStatement(std::move(value)) {}
+    explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::Delete> &&value) : Node(Node::Type::Statement, token), stype(StatementType::Delete), deleteStatement(std::move(value)) {}
+    explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::Import> &&value) : Node(Node::Type::Statement, token), stype(StatementType::Import), importStatement(std::move(value)) {}
 
 public:
     explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::Break> &&value) : Node(Node::Type::Statement, token), stype(StatementType::Break), breakStatement(std::move(value)) {}
@@ -500,6 +554,7 @@ class Visitor
 public:
     virtual void visitIf(const std::unique_ptr<If> &node);
     virtual void visitFor(const std::unique_ptr<For> &node);
+    virtual void visitTry(const std::unique_ptr<Try> &node);
     virtual void visitClass(const std::unique_ptr<Class> &node);
     virtual void visitWhile(const std::unique_ptr<While> &node);
     virtual void visitSwitch(const std::unique_ptr<Switch> &node);
@@ -508,6 +563,13 @@ public:
 public:
     virtual void visitAssign(const std::unique_ptr<Assign> &node);
     virtual void visitIncremental(const std::unique_ptr<Incremental> &node);
+
+/*** Misc. Statements ***/
+
+public:
+    virtual void visitRaise(const std::unique_ptr<Raise> &node);
+    virtual void visitDelete(const std::unique_ptr<Delete> &node);
+    virtual void visitImport(const std::unique_ptr<Import> &node);
 
 /*** Control Flows ***/
 

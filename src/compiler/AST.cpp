@@ -27,6 +27,11 @@ void Visitor::visitFor(const std::unique_ptr<For> &node)
         visitStatement(node->branch);
 }
 
+void Visitor::visitTry(const std::unique_ptr<Try> &node)
+{
+    // TODO visit try
+}
+
 void Visitor::visitClass(const std::unique_ptr<Class> &node)
 {
     // TODO visit class
@@ -77,6 +82,27 @@ void Visitor::visitIncremental(const std::unique_ptr<Incremental> &node)
 {
     visitComposite(node->dest);
     visitExpression(node->expr);
+}
+
+/*** Misc. Statements ***/
+
+void Visitor::visitRaise(const std::unique_ptr<Raise> &node)
+{
+    visitExpression(node->expr);
+}
+
+void Visitor::visitDelete(const std::unique_ptr<Delete> &node)
+{
+    visitComposite(node->comp);
+}
+
+void Visitor::visitImport(const std::unique_ptr<Import> &node)
+{
+    if (node->alias)
+        visitName(node->alias);
+
+    for (const auto &name : node->names)
+        visitName(name);
 }
 
 /*** Control Flows ***/
@@ -203,6 +229,7 @@ void Visitor::visitStatement(const std::unique_ptr<Statement> &node)
     {
         case Statement::StatementType::If               : visitIf(node->ifStatement); break;
         case Statement::StatementType::For              : visitFor(node->forStatement); break;
+        case Statement::StatementType::Try              : visitTry(node->tryStatement); break;
         case Statement::StatementType::Class            : visitClass(node->classStatement); break;
         case Statement::StatementType::While            : visitWhile(node->whileStatement); break;
         case Statement::StatementType::Switch           : visitSwitch(node->switchStatement); break;
@@ -210,6 +237,10 @@ void Visitor::visitStatement(const std::unique_ptr<Statement> &node)
 
         case Statement::StatementType::Assign           : visitAssign(node->assignStatement); break;
         case Statement::StatementType::Incremental      : visitIncremental(node->incrementalStatement); break;
+
+        case Statement::StatementType::Raise            : visitRaise(node->raiseStatement); break;
+        case Statement::StatementType::Delete           : visitDelete(node->deleteStatement); break;
+        case Statement::StatementType::Import           : visitImport(node->importStatement); break;
 
         case Statement::StatementType::Break            : visitBreak(node->breakStatement); break;
         case Statement::StatementType::Return           : visitReturn(node->returnStatement); break;

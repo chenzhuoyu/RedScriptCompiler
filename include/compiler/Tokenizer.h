@@ -50,6 +50,7 @@ public:
         Function,
 
         As,
+        From,
         Delete,
         Import,
     };
@@ -255,6 +256,7 @@ public:
             case Keyword::Function  : return "<Keyword def>";
 
             case Keyword::As        : return "<Keyword as>";
+            case Keyword::From      : return "<Keyword from>";
             case Keyword::Delete    : return "<Keyword delete>";
             case Keyword::Import    : return "<Keyword import>";
         }

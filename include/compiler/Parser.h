@@ -70,16 +70,16 @@ public:
 public:
     std::unique_ptr<AST::If>            parseIf(void);
     std::unique_ptr<AST::For>           parseFor(void);
+    std::unique_ptr<AST::Try>           parseTry(void);
     std::unique_ptr<AST::Class>         parseClass(void);
     std::unique_ptr<AST::While>         parseWhile(void);
     std::unique_ptr<AST::Switch>        parseSwitch(void);
     std::unique_ptr<AST::Function>      parseFunction(void);
 
 public:
-    std::unique_ptr<AST::Assign>        parseAssign(void);
-    std::unique_ptr<AST::Incremental>   parseIncremental(void);
-
-public:
+    std::unique_ptr<AST::Raise>         parseRaise(void);
+    std::unique_ptr<AST::Delete>        parseDelete(void);
+    std::unique_ptr<AST::Import>        parseImport(void);
     std::unique_ptr<AST::Function>      parseLambda(void);
 
 /*** Control Flows ***/
