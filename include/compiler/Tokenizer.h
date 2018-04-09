@@ -252,7 +252,7 @@ public:
             case Keyword::Raise     : return "<Keyword raise>";
 
             case Keyword::Class     : return "<Keyword class>";
-            case Keyword::Function  : return "<Keyword func>";
+            case Keyword::Function  : return "<Keyword def>";
 
             case Keyword::As        : return "<Keyword as>";
             case Keyword::Delete    : return "<Keyword delete>";

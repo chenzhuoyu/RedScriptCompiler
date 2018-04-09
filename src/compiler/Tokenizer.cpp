@@ -22,7 +22,7 @@ static const std::unordered_map<std::string, Token::Keyword> Keywords = {
     { "raise"   , Token::Keyword::Raise     },
 
     { "class"   , Token::Keyword::Class     },
-    { "func"    , Token::Keyword::Function  },
+    { "def"     , Token::Keyword::Function  },
 
     { "as"      , Token::Keyword::As        },
     { "delete"  , Token::Keyword::Delete    },
