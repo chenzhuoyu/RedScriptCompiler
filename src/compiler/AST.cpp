@@ -246,6 +246,7 @@ void Visitor::visitStatement(const std::unique_ptr<Statement> &node)
         case Statement::StatementType::Return           : visitReturn(node->returnStatement); break;
         case Statement::StatementType::Continue         : visitContinue(node->continueStatement); break;
 
+        case Statement::StatementType::Expression       : visitExpression(node->expression); break;
         case Statement::StatementType::CompondStatement : visitCompondStatement(node->compondStatement); break;
     }
 }

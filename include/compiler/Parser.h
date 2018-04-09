@@ -54,7 +54,7 @@ public:
     Parser(std::unique_ptr<Tokenizer> &&lexer) : _lexer(std::move(lexer)), _loops(0), _functions(0) {}
 
 public:
-    std::unique_ptr<AST::Node> parse(void);
+    std::unique_ptr<AST::CompondStatement> parse(void);
 
 public:
     void addBuiltin(const std::string &name, Runtime::ObjectRef object)

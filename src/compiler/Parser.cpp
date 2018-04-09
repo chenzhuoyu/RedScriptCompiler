@@ -5,9 +5,19 @@
 
 namespace RedScript::Compiler
 {
-std::unique_ptr<AST::Node> Parser::parse(void)
+std::unique_ptr<AST::CompondStatement> Parser::parse(void)
 {
-    return std::unique_ptr<AST::Node>();
+    Token::Ptr token = _lexer->peek();
+    std::unique_ptr<AST::CompondStatement> result(new AST::CompondStatement(token));
+
+    /* parse each statement until end of file */
+    while (!(token->is<Token::Type::Eof>()))
+    {
+        result->statements.emplace_back(parseStatement());
+        token = _lexer->peek();
+    }
+
+    return result;
 }
 
 /*** Basic Language Structures ***/
@@ -102,17 +112,107 @@ std::unique_ptr<AST::Switch> Parser::parseSwitch(void)
     Token::Ptr token = _lexer->peek();
     std::unique_ptr<AST::Switch> result(new AST::Switch(token));
 
-    // TODO: parse class
+    // TODO: parse switch
     throw Runtime::SyntaxError(token, "Not implemented yet");
 }
 
 std::unique_ptr<AST::Function> Parser::parseFunction(void)
 {
+    /* reset loop counter, and enter a new function scope */
+    Reset loops(_loops);
+    Scope functions(_functions);
+
+    /* peek the next token */
     Token::Ptr token = _lexer->peek();
     std::unique_ptr<AST::Function> result(new AST::Function(token));
 
-    // TODO: parse class
-    throw Runtime::SyntaxError(token, "Not implemented yet");
+    /* function name */
+    _lexer->keywordExpected<Token::Keyword::Function>();
+    result->name = parseName();
+
+    /* it must starts with '(' operator */
+    _lexer->operatorExpected<Token::Operator::BracketLeft>();
+    token = _lexer->peek();
+
+    /* iterate until meets `BracketRight` token */
+    if (!(token->isOperator<Token::Operator::BracketRight>()))
+    {
+        for (;;)
+        {
+            /* '**' keyword argument prefix operator */
+            if (token->isOperator<Token::Operator::Power>())
+            {
+                /* cannot have more than one keyword argument */
+                if (result->kwargs)
+                    throw Runtime::SyntaxError(token, "Cannot have more than one keyword argument");
+
+                /* parse as keyword argument */
+                _lexer->next();
+                result->kwargs = parseName();
+                token = _lexer->peek();
+            }
+
+            /* keyword argument must be the last argument */
+            else if (result->kwargs)
+                throw Runtime::SyntaxError(token, "Keyword argument must be the last argument");
+
+            /* '*' varidic argument prefix operator */
+            else if (token->isOperator<Token::Operator::Multiply>())
+            {
+                /* cannot have more than one varidic argument */
+                if (result->vargs)
+                    throw Runtime::SyntaxError(token, "Cannot have more than one varidic argument");
+
+                /* parse as variable arguments */
+                _lexer->next();
+                result->vargs = parseName();
+                token = _lexer->peek();
+            }
+
+            /* varidic argument must be the last argument but before keyword argument */
+            else if (result->vargs)
+                throw Runtime::SyntaxError(token, "Varidic argument must be the last argument but before keyword argument");
+
+            /* just a simple name */
+            else
+            {
+                result->args.emplace_back(parseName());
+                token = _lexer->peek();
+
+                /* may have default value */
+                if (token->isOperator<Token::Operator::Assign>())
+                {
+                    _lexer->next();
+                    result->defaults.emplace_back(parseExpression());
+                    token = _lexer->peek();
+                }
+
+                /* default values must be placed after normal arguments */
+                else if (!(result->defaults.empty()))
+                    throw Runtime::SyntaxError(token, "Default values must be placed after normal arguments");
+            }
+
+            /* ')' encountered, argument list terminated */
+            if (token->isOperator<Token::Operator::BracketRight>())
+                break;
+
+            /* ',' encountered, followed by more arguments  */
+            else if (token->isOperator<Token::Operator::Comma>())
+            {
+                _lexer->next();
+                token = _lexer->peek();
+            }
+
+            /* otherwise it's an error */
+            else
+                throw Runtime::SyntaxError(token);
+        }
+    }
+
+    /* skip the ')', and parse statement body */
+    _lexer->next();
+    result->body = parseStatement();
+    return result;
 }
 
 /*** Misc. Statements ***/
@@ -231,60 +331,78 @@ std::unique_ptr<AST::Function> Parser::parseLambda(void)
         token = _lexer->peek();
 
         /* iterate until meets `BracketRight` token */
-        while (!(token->isOperator<Token::Operator::BracketRight>()))
+        if (!(token->isOperator<Token::Operator::BracketRight>()))
         {
-            /* '**' keyword argument prefix operator */
-            if (token->isOperator<Token::Operator::Power>())
+            for (;;)
             {
-                /* cannot have more than one keyword argument */
-                if (result->kwargs)
-                    throw Runtime::SyntaxError(token, "Cannot have more than one keyword argument");
+                /* '**' keyword argument prefix operator */
+                if (token->isOperator<Token::Operator::Power>())
+                {
+                    /* cannot have more than one keyword argument */
+                    if (result->kwargs)
+                        throw Runtime::SyntaxError(token, "Cannot have more than one keyword argument");
 
-                /* parse as keyword argument */
-                _lexer->next();
-                result->kwargs = parseName();
-                token = _lexer->peek();
+                    /* parse as keyword argument */
+                    _lexer->next();
+                    result->kwargs = parseName();
+                    token = _lexer->peek();
+                }
+
+                /* keyword argument must be the last argument */
+                else if (result->kwargs)
+                    throw Runtime::SyntaxError(token, "Keyword argument must be the last argument");
+
+                /* '*' varidic argument prefix operator */
+                else if (token->isOperator<Token::Operator::Multiply>())
+                {
+                    /* cannot have more than one varidic argument */
+                    if (result->vargs)
+                        throw Runtime::SyntaxError(token, "Cannot have more than one varidic argument");
+
+                    /* parse as variable arguments */
+                    _lexer->next();
+                    result->vargs = parseName();
+                    token = _lexer->peek();
+                }
+
+                /* varidic argument must be the last argument but before keyword argument */
+                else if (result->vargs)
+                    throw Runtime::SyntaxError(token, "Varidic argument must be the last argument but before keyword argument");
+
+                /* just a simple name */
+                else
+                {
+                    result->args.emplace_back(parseName());
+                    token = _lexer->peek();
+
+                    /* may have default value */
+                    if (token->isOperator<Token::Operator::Assign>())
+                    {
+                        _lexer->next();
+                        result->defaults.emplace_back(parseExpression());
+                        token = _lexer->peek();
+                    }
+
+                    /* default values must be placed after normal arguments */
+                    else if (!(result->defaults.empty()))
+                        throw Runtime::SyntaxError(token, "Default values must be placed after normal arguments");
+                }
+
+                /* ')' encountered, argument list terminated */
+                if (token->isOperator<Token::Operator::BracketRight>())
+                    break;
+
+                /* ',' encountered, followed by more arguments  */
+                else if (token->isOperator<Token::Operator::Comma>())
+                {
+                    _lexer->next();
+                    token = _lexer->peek();
+                }
+
+                /* otherwise it's an error */
+                else
+                    throw Runtime::SyntaxError(token);
             }
-
-            /* keyword argument must be the last argument */
-            else if (result->kwargs)
-                throw Runtime::SyntaxError(token, "Keyword argument must be the last argument");
-
-            /* '*' varidic argument prefix operator */
-            else if (token->isOperator<Token::Operator::Multiply>())
-            {
-                /* cannot have more than one varidic argument */
-                if (result->vargs)
-                    throw Runtime::SyntaxError(token, "Cannot have more than one varidic argument");
-
-                /* parse as variable arguments */
-                _lexer->next();
-                result->vargs = parseName();
-                token = _lexer->peek();
-            }
-
-            /* varidic argument must be the last argument but before keyword argument */
-            else if (result->vargs)
-                throw Runtime::SyntaxError(token, "Varidic argument must be the last argument but before keyword argument");
-
-            /* just a simple name */
-            else
-            {
-                result->args.emplace_back(parseName());
-                token = _lexer->peek();
-            }
-
-            /* ',' encountered, followed by more arguments  */
-            if (token->isOperator<Token::Operator::Comma>())
-                _lexer->next();
-
-            /* ')' encountered, argument list terminated */
-            else if (token->isOperator<Token::Operator::BracketRight>())
-                break;
-
-            /* otherwise it's an error */
-            else
-                throw Runtime::SyntaxError(token);
         }
 
         /* skip the ')' */
@@ -487,7 +605,7 @@ std::unique_ptr<AST::Unpack> Parser::parseUnpack(Token::Operator terminator)
         /* parse as an expression */
         _lexer->pushState();
         std::unique_ptr<AST::Composite> comp = nullptr;
-        std::unique_ptr<AST::Expression> expr = parseExpression();
+        std::unique_ptr<AST::Expression> expr = parseFactor();
 
         /* should be a single `Composite`, so test and extract it */
         while (!comp)
@@ -548,7 +666,18 @@ std::unique_ptr<AST::Unpack> Parser::parseUnpack(Token::Operator terminator)
 
         /* check for the comma seperator */
         if (token->isOperator<Token::Operator::Comma>())
+        {
+            /* skip the comma */
             _lexer->next();
+            token = _lexer->peek();
+
+            /* may follows a terminator, if so, skip it and quit the loop */
+            if ((token->is<Token::Type::Operators>()) && (token->asOperator() == terminator))
+            {
+                _lexer->next();
+                break;
+            }
+        }
 
         /* check for the termination operator */
         else if ((token->is<Token::Type::Operators>()) && (token->asOperator() == terminator))
@@ -926,7 +1055,7 @@ void Parser::parseAssignTarget(std::unique_ptr<AST::Composite> &comp, std::uniqu
 
     /* parse the first element as expression */
     Token::Ptr token = _lexer->peek();
-    std::unique_ptr<AST::Expression> expr = parseExpression();
+    std::unique_ptr<AST::Expression> expr = parseFactor();
 
     /* check for following operator */
     if (_lexer->peek()->isOperator<Token::Operator::Comma>())
@@ -1207,13 +1336,13 @@ std::unique_ptr<AST::Statement> Parser::parseStatement(void)
     Token::Ptr token = _lexer->peek();
     std::unique_ptr<AST::Statement> result;
 
-    /* single semicolon, give an empty compond statement */
-    if (token->isOperator<Token::Operator::Semicolon>())
-        return std::make_unique<AST::Statement>(token, std::make_unique<AST::CompondStatement>(token));
-
     /* compound statement */
-    else if (token->isOperator<Token::Operator::BlockLeft>())
-        result = std::make_unique<AST::Statement>(token, parseCompondStatement());
+    if (token->isOperator<Token::Operator::BlockLeft>())
+        return std::make_unique<AST::Statement>(token, parseCompondStatement());
+
+    /* single semicolon, give an empty compond statement */
+    else if (token->isOperator<Token::Operator::Semicolon>())
+        return std::make_unique<AST::Statement>(token, std::make_unique<AST::CompondStatement>(token));
 
     /* keywords, such as "if", "for", "while" etc. */
     else if (token->is<Token::Type::Keywords>())
@@ -1254,14 +1383,23 @@ std::unique_ptr<AST::Statement> Parser::parseStatement(void)
         std::unique_ptr<AST::Incremental> incr(new AST::Incremental(next));
 
         /* check for operators */
-        if (_lexer->peek()->is<Token::Type::Operators>())
+        if (_lexer->peekOrLine()->is<Token::Type::Operators>())
         {
-            next = _lexer->next();
-            incr->op = token->asOperator();
+            next = _lexer->nextOrLine();
+            incr->op = next->asOperator();
 
             /* check the operator */
             switch (incr->op)
             {
+                /* a solo expression */
+                case Token::Operator::NewLine:
+                case Token::Operator::Semicolon:
+                {
+                    _lexer->preserveState();
+                    return std::make_unique<AST::Statement>(token, std::move(expr));
+                }
+
+                /* incremental statements */
                 case Token::Operator::InplaceAdd:
                 case Token::Operator::InplaceSub:
                 case Token::Operator::InplaceMul:
@@ -1320,15 +1458,18 @@ std::unique_ptr<AST::Statement> Parser::parseStatement(void)
         }
     }
 
-    /* a statement must ends with semicolon or a new line */
-    switch ((token = _lexer->nextOrLine())->asOperator())
+    /* a statement must ends with semicolon or a new line, or EOF */
+    if (!((token = _lexer->nextOrLine())->is<Token::Type::Eof>()))
     {
-        case Token::Operator::NewLine:
-        case Token::Operator::Semicolon:
-            break;
+        switch (token->asOperator())
+        {
+            case Token::Operator::NewLine:
+            case Token::Operator::Semicolon:
+                break;
 
-        default:
-            throw Runtime::SyntaxError(token, "New line or semicolon expected");
+            default:
+                throw Runtime::SyntaxError(token, "New line or semicolon expected");
+        }
     }
 
     return result;

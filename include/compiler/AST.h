@@ -166,6 +166,7 @@ public:
 public:
     std::unique_ptr<Statement> body;
     std::vector<std::unique_ptr<Name>> args;
+    std::vector<std::unique_ptr<Expression>> defaults;
 
 };
 
@@ -243,7 +244,6 @@ struct Index : public Node
 struct Invoke : public Node
 {
     AST_NODE(Invoke)
-    bool discardResult = false;
     std::unique_ptr<Expression> varg = nullptr;
     std::unique_ptr<Expression> kwarg = nullptr;
     std::vector<std::unique_ptr<Expression>> args;
@@ -475,6 +475,7 @@ public:
         Return,
         Continue,
 
+        Expression,
         CompondStatement,
     };
 
@@ -505,6 +506,7 @@ public:
     std::unique_ptr<AST::Continue> continueStatement;
 
 public:
+    std::unique_ptr<AST::Expression> expression;
     std::unique_ptr<AST::CompondStatement> compondStatement;
 
 public:
@@ -531,6 +533,7 @@ public:
     explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::Continue> &&value) : Node(Node::Type::Statement, token), stype(StatementType::Continue), continueStatement(std::move(value)) {}
 
 public:
+    explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::Expression> &&value) : Node(Node::Type::Statement, token), stype(StatementType::Expression), expression(std::move(value)) {}
     explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::CompondStatement> &&value) : Node(Node::Type::Statement, token), stype(StatementType::CompondStatement), compondStatement(std::move(value)) {}
 
 };

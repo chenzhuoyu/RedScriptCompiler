@@ -1,6 +1,7 @@
 #ifndef REDSCRIPT_COMPILER_TOKENIZER_H
 #define REDSCRIPT_COMPILER_TOKENIZER_H
 
+#include <deque>
 #include <memory>
 #include <string>
 #include <vector>
@@ -351,7 +352,7 @@ class Tokenizer
         int row;
         int col;
         int pos;
-        Token::Ptr cache;
+        std::deque<Token::Ptr> cache;
     };
 
 private:

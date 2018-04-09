@@ -103,7 +103,7 @@ Tokenizer::Tokenizer(const std::string &source) : _source(source)
         /* row   */ 1,
         /* col   */ 1,
         /* pos   */ 0,
-        /* cache */ nullptr,
+        /* cache */ std::deque<Token::Ptr>(),
     });
 
     /* fast reference */
@@ -550,49 +550,63 @@ Token::Ptr Tokenizer::readIdentifier(void)
 
 Token::Ptr Tokenizer::next(void)
 {
-    /* read from cache first */
-    if (_state->cache == nullptr)
-        _state->cache = std::move(read());
+    for (;;)
+    {
+        /* fill the cache if empty */
+        if (_state->cache.empty())
+            _state->cache.emplace_back(read());
 
-    /* skip "\n" operator */
-    while (_state->cache &&
-           _state->cache->is<Token::Type::Operators>() &&
-           (_state->cache->asOperator() == Token::Operator::NewLine))
-        _state->cache = std::move(read());
+        /* pop one token from cache queue */
+        Token::Ptr token = std::move(_state->cache.front());
+        _state->cache.pop_front();
 
-    /* clear cache */
-    return std::move(_state->cache);
+        /* skip all the `NewLine` operators */
+        if (!(token->isOperator<Token::Operator::NewLine>()))
+            return std::move(token);
+    }
 }
 
 Token::Ptr Tokenizer::peek(void)
 {
-    if (_state->cache == nullptr)
-        _state->cache = std::move(read());
+    /* find an non-`NewLine` token in queue */
+    for (auto &token : _state->cache)
+        if (!(token->isOperator<Token::Operator::NewLine>()))
+            return token;
 
-    /* skip "\n" operator */
-    while (_state->cache &&
-           _state->cache->is<Token::Type::Operators>() &&
-           (_state->cache->asOperator() == Token::Operator::NewLine))
-        _state->cache = std::move(read());
+    /* not found, read new tokens */
+    for (;;)
+    {
+        /* read one token, and add to cache */
+        Token::Ptr token = read();
+        _state->cache.push_back(token);
 
-    /* preserve cache */
-    return _state->cache;
+        /* skip all the `NewLine` operators */
+        if (!(token->isOperator<Token::Operator::NewLine>()))
+            return token;
+    }
 }
 
 Token::Ptr Tokenizer::nextOrLine(void)
 {
-    if (_state->cache == nullptr)
-        return std::move(read());
-    else
-        return std::move(_state->cache);
+    /* fill the cache if empty */
+    if (_state->cache.empty())
+        _state->cache.emplace_back(read());
+
+    /* pop one token from cache queue */
+    Token::Ptr token = std::move(_state->cache.front());
+    _state->cache.pop_front();
+
+    /* move to prevent copy */
+    return std::move(token);
 }
 
 Token::Ptr Tokenizer::peekOrLine(void)
 {
-    if (_state->cache == nullptr)
-        _state->cache = std::move(read());
+    /* fill the cache if empty */
+    if (_state->cache.empty())
+        _state->cache.emplace_back(read());
 
-    /* preserve cache */
-    return _state->cache;
+    /* return the first element in queue */
+    return _state->cache.front();
 }
 }
