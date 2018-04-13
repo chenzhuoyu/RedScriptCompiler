@@ -600,7 +600,7 @@ std::unique_ptr<AST::Unpack> Parser::parseUnpack(Token::Operator terminator)
     std::unique_ptr<AST::Unpack> result(new AST::Unpack(token));
 
     /* iterate until meets the termination operator */
-    while (!(token->is<Token::Type::Operators>()) || (token->asOperator() != terminator))
+    for (;;)
     {
         /* parse as an expression */
         _lexer->pushState();
@@ -657,7 +657,6 @@ std::unique_ptr<AST::Unpack> Parser::parseUnpack(Token::Operator terminator)
                         result->items.emplace_back(parseUnpack(Token::Operator::BracketRight));
 
                     /* peek the next token */
-                    _lexer->next();
                     token = _lexer->peek();
                     break;
                 }
@@ -681,7 +680,10 @@ std::unique_ptr<AST::Unpack> Parser::parseUnpack(Token::Operator terminator)
 
         /* check for the termination operator */
         else if ((token->is<Token::Type::Operators>()) && (token->asOperator() == terminator))
+        {
+            _lexer->next();
             break;
+        }
 
         /* otherwise it's an error */
         else
@@ -940,7 +942,7 @@ std::unique_ptr<AST::Expression> Parser::parseReturnExpression(void)
     std::unique_ptr<AST::Expression> result = parseExpression();
 
     /* not followed by a comma, it's a simple expression */
-    if (_lexer->peekOrLine()->isOperator<Token::Operator::Comma>())
+    if (!(_lexer->peekOrLine()->isOperator<Token::Operator::Comma>()))
         return result;
 
     /* otherwise, it's a inline tuple */
@@ -1333,32 +1335,65 @@ std::unique_ptr<AST::Statement> Parser::parseStatement(void)
     Token::Ptr token = _lexer->peek();
     std::unique_ptr<AST::Statement> result;
 
-    /* compound statement */
+    /* compound statement, no semicolon allowed */
     if (token->isOperator<Token::Operator::BlockLeft>())
         return std::make_unique<AST::Statement>(token, parseCompondStatement());
 
     /* single semicolon, give an empty compond statement */
     else if (token->isOperator<Token::Operator::Semicolon>())
+    {
+        _lexer->next();
         return std::make_unique<AST::Statement>(token, std::make_unique<AST::CompondStatement>(token));
+    }
+
+    /* decorator expression, parse as assigning invocation */
+    else if (token->isOperator<Token::Operator::Decorator>())
+    {
+        Token::Ptr next = _lexer->next();
+        std::unique_ptr<AST::Decorator> decorator(new AST::Decorator(next, parseExpression()));
+
+        /* might be function or class */
+        switch ((next = _lexer->peek())->asKeyword())
+        {
+            case Token::Keyword::Class:
+            {
+                decorator->klass = parseClass();
+                decorator->decoration = AST::Decorator::Decoration::Class;
+                break;
+            }
+
+            case Token::Keyword::Function:
+            {
+                decorator->function = parseFunction();
+                decorator->decoration = AST::Decorator::Decoration::Function;
+                break;
+            }
+
+            default:
+                throw Runtime::SyntaxError(next, "Can only decorate functions or classes");
+        }
+
+        /* build decorator expression statement */
+        return std::make_unique<AST::Statement>(token, std::move(decorator));
+    }
 
     /* keywords, such as "if", "for", "while" etc. */
     else if (token->is<Token::Type::Keywords>())
     {
         switch (token->asKeyword())
         {
-            case Token::Keyword::If       : result = std::make_unique<AST::Statement>(token, parseIf()); break;
-            case Token::Keyword::For      : result = std::make_unique<AST::Statement>(token, parseFor()); break;
-            case Token::Keyword::While    : result = std::make_unique<AST::Statement>(token, parseWhile()); break;
-            case Token::Keyword::Switch   : result = std::make_unique<AST::Statement>(token, parseSwitch()); break;
-
-            case Token::Keyword::Class    : result = std::make_unique<AST::Statement>(token, parseClass()); break;
-            case Token::Keyword::Function : result = std::make_unique<AST::Statement>(token, parseFunction()); break;
+            case Token::Keyword::If       : return std::make_unique<AST::Statement>(token, parseIf());
+            case Token::Keyword::For      : return std::make_unique<AST::Statement>(token, parseFor());
+            case Token::Keyword::Try      : return std::make_unique<AST::Statement>(token, parseTry());
+            case Token::Keyword::Class    : return std::make_unique<AST::Statement>(token, parseClass());
+            case Token::Keyword::While    : return std::make_unique<AST::Statement>(token, parseWhile());
+            case Token::Keyword::Switch   : return std::make_unique<AST::Statement>(token, parseSwitch());
+            case Token::Keyword::Function : return std::make_unique<AST::Statement>(token, parseFunction());
 
             case Token::Keyword::Break    : result = std::make_unique<AST::Statement>(token, parseBreak()); break;
             case Token::Keyword::Return   : result = std::make_unique<AST::Statement>(token, parseReturn()); break;
             case Token::Keyword::Continue : result = std::make_unique<AST::Statement>(token, parseContinue()); break;
 
-            case Token::Keyword::Try      : result = std::make_unique<AST::Statement>(token, parseTry()); break;
             case Token::Keyword::Raise    : result = std::make_unique<AST::Statement>(token, parseRaise()); break;
             case Token::Keyword::Delete   : result = std::make_unique<AST::Statement>(token, parseDelete()); break;
             case Token::Keyword::Import   : result = std::make_unique<AST::Statement>(token, parseImport()); break;
@@ -1379,79 +1414,73 @@ std::unique_ptr<AST::Statement> Parser::parseStatement(void)
         std::unique_ptr<AST::Expression> expr = parseExpression();
         std::unique_ptr<AST::Incremental> incr(new AST::Incremental(next));
 
-        /* check for operators */
-        if (_lexer->peekOrLine()->is<Token::Type::Operators>())
+        /* must be operators */
+        next = _lexer->nextOrLine();
+        incr->op = next->asOperator();
+
+        /* check the operator */
+        switch (incr->op)
         {
-            next = _lexer->nextOrLine();
-            incr->op = next->asOperator();
-
-            /* check the operator */
-            switch (incr->op)
+            /* a solo expression */
+            case Token::Operator::NewLine:
+            case Token::Operator::Semicolon:
             {
-                /* a solo expression */
-                case Token::Operator::NewLine:
-                case Token::Operator::Semicolon:
+                _lexer->preserveState();
+                return std::make_unique<AST::Statement>(token, std::move(expr));
+            }
+
+            /* incremental statements */
+            case Token::Operator::InplaceAdd:
+            case Token::Operator::InplaceSub:
+            case Token::Operator::InplaceMul:
+            case Token::Operator::InplaceDiv:
+            case Token::Operator::InplaceMod:
+            case Token::Operator::InplacePower:
+            case Token::Operator::InplaceBitOr:
+            case Token::Operator::InplaceBitAnd:
+            case Token::Operator::InplaceBitXor:
+            case Token::Operator::InplaceShiftLeft:
+            case Token::Operator::InplaceShiftRight:
+            {
+                /* is a valid incremental format, preserve the tokenizer state */
+                _lexer->preserveState();
+
+                /* should be a single `Composite`, so test and extract it */
+                while (!(incr->dest))
                 {
-                    _lexer->preserveState();
-                    return std::make_unique<AST::Statement>(token, std::move(expr));
-                }
-
-                /* incremental statements */
-                case Token::Operator::InplaceAdd:
-                case Token::Operator::InplaceSub:
-                case Token::Operator::InplaceMul:
-                case Token::Operator::InplaceDiv:
-                case Token::Operator::InplaceMod:
-                case Token::Operator::InplacePower:
-                case Token::Operator::InplaceBitOr:
-                case Token::Operator::InplaceBitAnd:
-                case Token::Operator::InplaceBitXor:
-                case Token::Operator::InplaceShiftLeft:
-                case Token::Operator::InplaceShiftRight:
-                {
-                    /* is a valid incremental format, preserve the tokenizer state */
-                    _lexer->preserveState();
-
-                    /* should be a single `Composite`, so test and extract it */
-                    while (!(incr->dest))
-                    {
-                        /* has unary operators or following operands, it's an expression, and not assignable */
-                        if (expr->hasOp || !expr->follows.empty())
-                            throw Runtime::SyntaxError(token, "Expressions are not assignable");
-
-                        /* if it's the composite, extract it, otherwise, move to inner expression */
-                        if (expr->first.type != AST::Expression::Operand::Type::Composite)
-                            expr = std::move(expr->first.expression);
-                        else
-                            incr->dest = std::move(expr->first.composite);
-                    }
-
-                    /* must be mutable */
-                    if (!(incr->dest->isSyntacticallyMutable()))
+                    /* has unary operators or following operands, it's an expression, and not assignable */
+                    if (expr->hasOp || !expr->follows.empty())
                         throw Runtime::SyntaxError(token, "Expressions are not assignable");
 
-                    /* parse the expression */
-                    incr->expr = parseExpression();
-                    result = std::make_unique<AST::Statement>(token, std::move(incr));
-                    break;
+                    /* if it's the composite, extract it, otherwise, move to inner expression */
+                    if (expr->first.type != AST::Expression::Operand::Type::Composite)
+                        expr = std::move(expr->first.expression);
+                    else
+                        incr->dest = std::move(expr->first.composite);
                 }
 
-                default:
-                    throw Runtime::SyntaxError(next);
+                /* must be mutable */
+                if (!(incr->dest->isSyntacticallyMutable()))
+                    throw Runtime::SyntaxError(token, "Expressions are not assignable");
+
+                /* parse the expression */
+                incr->expr = parseExpression();
+                result = std::make_unique<AST::Statement>(token, std::move(incr));
+                break;
             }
-        }
 
-        /* if not an increment statement, must be an assignment */
-        if (result == nullptr)
-        {
-            /* restore the tokenizer state */
-            _lexer->popState();
-            std::unique_ptr<AST::Assign> assign(new AST::Assign(token));
+            /* other operators, maybe an assignment statement */
+            default:
+            {
+                /* restore the tokenizer state */
+                _lexer->popState();
+                std::unique_ptr<AST::Assign> assign(new AST::Assign(token));
 
-            /* <sequence> = <return-expr> */
-            parseAssignTarget(assign->composite, assign->unpack, Token::Operator::Assign);
-            assign->expression = parseReturnExpression();
-            result = std::make_unique<AST::Statement>(token, std::move(assign));
+                /* <sequence> = <return-expr> */
+                parseAssignTarget(assign->composite, assign->unpack, Token::Operator::Assign);
+                assign->expression = parseReturnExpression();
+                result = std::make_unique<AST::Statement>(token, std::move(assign));
+            }
         }
     }
 

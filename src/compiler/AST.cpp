@@ -203,6 +203,17 @@ void Visitor::visitComposite(const std::unique_ptr<Composite> &node)
     }
 }
 
+void Visitor::visitDecorator(const std::unique_ptr<Decorator> &node)
+{
+    switch (node->decoration)
+    {
+        case Decorator::Decoration::Class    : visitClass(node->klass); break;
+        case Decorator::Decoration::Function : visitFunction(node->function); break;
+    }
+
+    visitExpression(node->expression);
+}
+
 void Visitor::visitExpression(const std::unique_ptr<Expression> &node)
 {
     switch (node->first.type)
@@ -246,6 +257,7 @@ void Visitor::visitStatement(const std::unique_ptr<Statement> &node)
         case Statement::StatementType::Return           : visitReturn(node->returnStatement); break;
         case Statement::StatementType::Continue         : visitContinue(node->continueStatement); break;
 
+        case Statement::StatementType::Decorator        : visitDecorator(node->decorator); break;
         case Statement::StatementType::Expression       : visitExpression(node->expression); break;
         case Statement::StatementType::CompondStatement : visitCompondStatement(node->compondStatement); break;
     }

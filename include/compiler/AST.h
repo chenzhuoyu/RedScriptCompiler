@@ -49,6 +49,7 @@ public:
         Unpack,
         Literal,
         Composite,
+        Decorator,
         Expression,
 
         Statement,
@@ -106,6 +107,7 @@ struct Name;
 struct Unpack;
 struct Literal;
 struct Composite;
+struct Decorator;
 struct Expression;
 
 struct Statement;
@@ -404,6 +406,25 @@ public:
     }
 };
 
+struct Decorator : public Node
+{
+    enum class Decoration : int
+    {
+        Class,
+        Function,
+    };
+
+public:
+    Decoration decoration;
+    std::unique_ptr<AST::Class> klass;
+    std::unique_ptr<AST::Function> function;
+    std::unique_ptr<AST::Expression> expression;
+
+public:
+    explicit Decorator(const Token::Ptr &token, std::unique_ptr<AST::Expression> &&expr) : Node(Node::Type::Decorator, token), expression(std::move(expr)) {}
+
+};
+
 struct Expression : public Node
 {
     struct Operand
@@ -442,7 +463,7 @@ public:
     explicit Expression(const Token::Ptr &token, std::unique_ptr<AST::Expression> &&value) : Node(Node::Type::Expression, token), first(std::move(value)), hasOp(false) {}
 
 public:
-    /* special operator to create unary operator expressions */
+    /* special constructor to create unary operator expressions */
     explicit Expression(const Token::Ptr &token, std::unique_ptr<AST::Expression> &&value, Token::Operator op) : Node(Node::Type::Expression, token), first(op, std::move(value)), hasOp(true) {}
 
 };
@@ -475,6 +496,7 @@ public:
         Return,
         Continue,
 
+        Decorator,
         Expression,
         CompondStatement,
     };
@@ -506,6 +528,7 @@ public:
     std::unique_ptr<AST::Continue> continueStatement;
 
 public:
+    std::unique_ptr<AST::Decorator> decorator;
     std::unique_ptr<AST::Expression> expression;
     std::unique_ptr<AST::CompondStatement> compondStatement;
 
@@ -533,6 +556,7 @@ public:
     explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::Continue> &&value) : Node(Node::Type::Statement, token), stype(StatementType::Continue), continueStatement(std::move(value)) {}
 
 public:
+    explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::Decorator> &&value) : Node(Node::Type::Statement, token), stype(StatementType::Decorator), decorator(std::move(value)) {}
     explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::Expression> &&value) : Node(Node::Type::Statement, token), stype(StatementType::Expression), expression(std::move(value)) {}
     explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::CompondStatement> &&value) : Node(Node::Type::Statement, token), stype(StatementType::CompondStatement), compondStatement(std::move(value)) {}
 
@@ -602,6 +626,7 @@ public:
     virtual void visitUnpack(const std::unique_ptr<Unpack> &node);
     virtual void visitLiteral(const std::unique_ptr<Literal> &node) {}
     virtual void visitComposite(const std::unique_ptr<Composite> &node);
+    virtual void visitDecorator(const std::unique_ptr<Decorator> &node);
     virtual void visitExpression(const std::unique_ptr<Expression> &node);
 
 /*** Generic Statements ***/

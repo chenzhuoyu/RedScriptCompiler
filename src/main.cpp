@@ -2,20 +2,21 @@ const char *source = R"source(#!/usr/bin/env redscript
 
 # class Foo : Bar
 # {
-    def __init__(self, a, b = 10, *c, **d);
-
-    def func(self, x, y)
-    {
-        if (x > y)
-            println('hello, world %d' % (self.a + self.b + 1))
-
-        for (i in range(1, 10))
-        {
-            self.a += x
-            println(self.b + y)
-        }
-    }
+#     def __init__(self, a, b = 10, *c, **d);
+#
+#     @classmethod
+#     def func(self, x, y)
+#     {
+#         if (x > y)
+#             println('hello, world %d' % (self.a + self.b + 1))
+#
+#         for (i in range(1, 10))
+#             self.a, self.b = self.b, self.a + 1
+#     }
 # }
+
+a, (b, c), d = 1, (2, 3,), 4,
+z(1)
 
 )source";
 
@@ -33,14 +34,7 @@ const char *source = R"source(#!/usr/bin/env redscript
 void run(void)
 {
     RedScript::Compiler::Parser parser(std::make_unique<RedScript::Compiler::Tokenizer>(source));
-    try
-    {
-        parser.parse();
-    } catch (const RedScript::Runtime::SyntaxError &e)
-    {
-        fprintf(stderr, "%s at %d:%d\n", e.message().c_str(), e.row(), e.col());
-        throw;
-    }
+    parser.parse();
 }
 
 int main()
