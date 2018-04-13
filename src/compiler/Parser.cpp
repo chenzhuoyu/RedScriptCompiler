@@ -1134,7 +1134,7 @@ void Parser::parseAssignTarget(std::unique_ptr<AST::Composite> &comp, std::uniqu
         std::unique_ptr<AST::Expression> result(new AST::Expression(token, parse ## TermType()));       \
                                                                                                         \
         /* check for consecutive operands */                                                            \
-        for (token = _lexer->peek(); token->is<Token::Type::Operators>(); token = _lexer->peek())       \
+        while ((token = _lexer->peek())->is<Token::Type::Operators>())                                  \
         {                                                                                               \
             /* check the operator */                                                                    \
             switch (token->asOperator())                                                                \
@@ -1152,9 +1152,6 @@ void Parser::parseAssignTarget(std::unique_ptr<AST::Composite> &comp, std::uniqu
                 default:                                                                                \
                     return result;                                                                      \
             }                                                                                           \
-                                                                                                        \
-            /* peek next token */                                                                       \
-            token = _lexer->peek();                                                                     \
         }                                                                                               \
                                                                                                         \
         return result;                                                                                  \

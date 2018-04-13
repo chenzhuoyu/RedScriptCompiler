@@ -86,7 +86,6 @@ static const std::unordered_map<std::string, Token::Operator> Operators = {
     { "in"  , Token::Operator::In                   },
     { "="   , Token::Operator::Assign               },
     { "->"  , Token::Operator::Lambda               },
-    { ".."  , Token::Operator::Range                },
     { "@"   , Token::Operator::Decorator            },
 };
 
@@ -399,6 +398,7 @@ Token::Ptr Tokenizer::readOperator(void)
         case '{' : return Token::createOperator(row, col, Token::Operator::BlockLeft      );
         case '}' : return Token::createOperator(row, col, Token::Operator::BlockRight     );
         case '~' : return Token::createOperator(row, col, Token::Operator::BitNot         );
+        case '.' : return Token::createOperator(row, col, Token::Operator::Point          );
         case ',' : return Token::createOperator(row, col, Token::Operator::Comma          );
         case ':' : return Token::createOperator(row, col, Token::Operator::Colon          );
         case ';' : return Token::createOperator(row, col, Token::Operator::Semicolon      );
@@ -412,18 +412,6 @@ Token::Ptr Tokenizer::readOperator(void)
                 throw Runtime::SyntaxError(this, "Invalid operator '!'");
             else
                 return Token::createOperator(row, col, Token::Operator::Neq);
-        }
-
-        /* . .. */
-        case '.':
-        {
-            /* . */
-            if (peekChar() != '.')
-                return Token::createOperator(row, col, Token::Operator::Point);
-
-            /* .. */
-            nextChar();
-            return Token::createOperator(row, col, Token::Operator::Range);
         }
 
         case '+': /* + += */

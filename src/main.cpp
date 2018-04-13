@@ -1,17 +1,4 @@
-#include <iostream>
-
-#include "engine/Memory.h"
-#include "engine/GarbageCollector.h"
-
-#include "utils/Strings.h"
-#include "runtime/Object.h"
-#include "compiler/Parser.h"
-#include "compiler/Tokenizer.h"
-
-
-void run(void)
-{
-    const char *source = R"source(#!/usr/bin/env redscript
+const char *source = R"source(#!/usr/bin/env redscript
 
 # class Foo : Bar
 # {
@@ -32,8 +19,28 @@ void run(void)
 
 )source";
 
+#include <iostream>
+
+#include "engine/Memory.h"
+#include "engine/GarbageCollector.h"
+
+#include "utils/Strings.h"
+#include "runtime/Object.h"
+#include "compiler/Parser.h"
+#include "compiler/Tokenizer.h"
+
+
+void run(void)
+{
     RedScript::Compiler::Parser parser(std::make_unique<RedScript::Compiler::Tokenizer>(source));
-    parser.parse();
+    try
+    {
+        parser.parse();
+    } catch (const RedScript::Runtime::SyntaxError &e)
+    {
+        fprintf(stderr, "%s at %d:%d\n", e.message().c_str(), e.row(), e.col());
+        throw;
+    }
 }
 
 int main()

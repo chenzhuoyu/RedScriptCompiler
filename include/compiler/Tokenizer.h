@@ -113,7 +113,6 @@ public:
         In,
         Assign,
         Lambda,
-        Range,
         Decorator,
     };
 
@@ -323,7 +322,6 @@ public:
             case Operator::In                   : return "<Operator 'in'>";
             case Operator::Assign               : return "<Operator '='>";
             case Operator::Lambda               : return "<Operator '->'>";
-            case Operator::Range                : return "<Operator '..'>";
             case Operator::Decorator            : return "<Operator '@'>";
         }
     }
