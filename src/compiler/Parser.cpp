@@ -72,8 +72,45 @@ std::unique_ptr<AST::Try> Parser::parseTry(void)
     Token::Ptr token = _lexer->peek();
     std::unique_ptr<AST::Try> result(new AST::Try(token));
 
-    // TODO: parse try
-    throw Runtime::SyntaxError(token, "Not implemented yet");
+    /* try <stmt> */
+    _lexer->keywordExpected<Token::Keyword::For>();
+    result->body = parseStatement();
+
+    /* parse every "except" section */
+    while (_lexer->peek()->isKeyword<Token::Keyword::Except>())
+    {
+        AST::Try::Except except;
+
+        /* except (<expr>) */
+        _lexer->next();
+        _lexer->operatorExpected<Token::Operator::BracketLeft>();
+        except.exception = parseExpression();
+
+        /* optional exception alias */
+        if (_lexer->peek()->isKeyword<Token::Keyword::As>())
+        {
+            _lexer->next();
+            except.alias = parseName();
+        }
+
+        /* parse handler */
+        _lexer->operatorExpected<Token::Operator::BracketRight>();
+        except.handler = parseStatement();
+        result->excepts.emplace_back(std::move(except));
+    }
+
+    /* optional finally section */
+    if (_lexer->peek()->isKeyword<Token::Keyword::Finally>())
+    {
+        _lexer->next();
+        result->finally = parseStatement();
+    }
+
+    /* should have at least one of "finally" or "catch" section */
+    if (!(result->finally) && result->excepts.empty())
+        throw Runtime::SyntaxError(token, "\"except\" or \"finally\" expected");
+    else
+        return result;
 }
 
 std::unique_ptr<AST::Class> Parser::parseClass(void)

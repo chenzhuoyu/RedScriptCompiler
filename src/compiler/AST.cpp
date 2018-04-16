@@ -29,12 +29,30 @@ void Visitor::visitFor(const std::unique_ptr<For> &node)
 
 void Visitor::visitTry(const std::unique_ptr<Try> &node)
 {
-    // TODO visit try
+    visitStatement(node->body);
+
+    for (const auto &except : node->excepts)
+    {
+        visitExpression(except.exception);
+
+        if (except.alias)
+            visitName(except.alias);
+
+        visitStatement(except.handler);
+    }
+
+    if (node->finally)
+        visitStatement(node->finally);
 }
 
 void Visitor::visitClass(const std::unique_ptr<Class> &node)
 {
-    // TODO visit class
+    visitName(node->name);
+
+    if (node->super)
+        visitExpression(node->super);
+
+    visitStatement(node->body);
 }
 
 void Visitor::visitWhile(const std::unique_ptr<While> &node)
@@ -48,7 +66,16 @@ void Visitor::visitWhile(const std::unique_ptr<While> &node)
 
 void Visitor::visitSwitch(const std::unique_ptr<Switch> &node)
 {
-    // TODO visit switch
+    visitExpression(node->expr);
+
+    for (const auto &item : node->cases)
+    {
+        visitExpression(item.value);
+        visitStatement(item.body);
+    }
+
+    if (node->def)
+        visitStatement(node->def);
 }
 
 void Visitor::visitFunction(const std::unique_ptr<Function> &node)

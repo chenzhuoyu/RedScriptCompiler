@@ -136,6 +136,20 @@ struct For : public Node
 struct Try : public Node
 {
     AST_NODE(Try)
+
+public:
+    struct Except
+    {
+        std::unique_ptr<Name> alias;
+        std::unique_ptr<Statement> handler;
+        std::unique_ptr<Expression> exception;
+    };
+
+public:
+    std::vector<Except> excepts;
+    std::unique_ptr<Statement> body;
+    std::unique_ptr<Statement> finally;
+
 };
 
 struct Class : public Node
