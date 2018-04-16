@@ -1,7 +1,7 @@
 const char *source = R"source(#!/usr/bin/env redscript
-native 'C' class NativeClass(cflags = '-I/usr/local/include')
+native 'C' class NativeClass()
 {
-#include <stdio.h>
+int printf(const char *fmt, ...);
 
 int test(void)
 {
@@ -40,8 +40,17 @@ void run(void)
     std::cout << "---------------------------------------------" << std::endl;
 
     TCCState *tcc = tcc_new();
+    tcc_define_symbol(tcc, "__GNUC__", "4");
     tcc_set_output_type(tcc, TCC_OUTPUT_MEMORY);
-    std::cout << "tcc-compile: " << tcc_compile_string(tcc, native->code.c_str()) << std::endl;
+
+    int ret = tcc_compile_string(tcc, native->code.c_str());
+    std::cout << "tcc-compile: " << ret << std::endl;
+
+    if (ret < 0)
+    {
+        tcc_delete(tcc);
+        return;
+    }
 
     int size = tcc_relocate(tcc, nullptr);
     std::cout << "tcc-relocate(NULL): " << size << std::endl;
@@ -63,7 +72,7 @@ void run(void)
         return;
     }
 
-    int ret = tcc_relocate(tcc, mem);
+    ret = tcc_relocate(tcc, mem);
     std::cout << "tcc-relocate(" << mem << "): " << ret << std::endl;
 
     ret = mprotect(mem, len, PROT_READ | PROT_EXEC);
