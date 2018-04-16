@@ -15,6 +15,7 @@ namespace RedScript::Compiler
 {
 class Parser final
 {
+    int _cases;
     int _loops;
     int _functions;
     std::unique_ptr<Tokenizer> _lexer;
@@ -51,7 +52,8 @@ private:
     };
 
 public:
-    Parser(std::unique_ptr<Tokenizer> &&lexer) : _lexer(std::move(lexer)), _loops(0), _functions(0) {}
+    Parser(std::unique_ptr<Tokenizer> &&lexer) :
+        _lexer(std::move(lexer)), _cases(0), _loops(0), _functions(0) {}
 
 public:
     std::unique_ptr<AST::CompondStatement> parse(void);

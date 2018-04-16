@@ -141,6 +141,9 @@ struct Try : public Node
 struct Class : public Node
 {
     AST_NODE(Class)
+    std::unique_ptr<Name      > name;
+    std::unique_ptr<Statement > body;
+    std::unique_ptr<Expression> super;
 };
 
 struct While : public Node
@@ -154,6 +157,19 @@ struct While : public Node
 struct Switch : public Node
 {
     AST_NODE(Switch)
+
+public:
+    struct Case
+    {
+        std::unique_ptr<Statement> body;
+        std::unique_ptr<Expression> value;
+    };
+
+public:
+    std::vector<Case> cases;
+    std::unique_ptr<Statement> def;
+    std::unique_ptr<Expression> expr;
+
 };
 
 struct Function : public Node

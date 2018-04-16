@@ -81,8 +81,20 @@ std::unique_ptr<AST::Class> Parser::parseClass(void)
     Token::Ptr token = _lexer->peek();
     std::unique_ptr<AST::Class> result(new AST::Class(token));
 
-    // TODO: parse class
-    throw Runtime::SyntaxError(token, "Not implemented yet");
+    /* class <name> */
+    _lexer->keywordExpected<Token::Keyword::Class>();
+    result->name = parseName();
+
+    /* optional super class */
+    if (_lexer->peek()->isOperator<Token::Operator::Colon>())
+    {
+        _lexer->next();
+        result->super = parseExpression();
+    }
+
+    /* class body */
+    result->body = parseStatement();
+    return result;
 }
 
 std::unique_ptr<AST::While> Parser::parseWhile(void)
@@ -91,7 +103,7 @@ std::unique_ptr<AST::While> Parser::parseWhile(void)
     std::unique_ptr<AST::While> result(new AST::While(token));
 
     /* while (<expr>) <body> */
-    _lexer->keywordExpected<Token::Keyword::For>();
+    _lexer->keywordExpected<Token::Keyword::While>();
     _lexer->operatorExpected<Token::Operator::BracketLeft>();
     result->expr = parseExpression();
     _lexer->operatorExpected<Token::Operator::BracketRight>();
@@ -112,13 +124,73 @@ std::unique_ptr<AST::Switch> Parser::parseSwitch(void)
     Token::Ptr token = _lexer->peek();
     std::unique_ptr<AST::Switch> result(new AST::Switch(token));
 
-    // TODO: parse switch
-    throw Runtime::SyntaxError(token, "Not implemented yet");
+    /* switch (<expr>) { <cases> } */
+    _lexer->keywordExpected<Token::Keyword::Switch>();
+    _lexer->operatorExpected<Token::Operator::BracketLeft>();
+    result->expr = parseExpression();
+    _lexer->operatorExpected<Token::Operator::BracketRight>();
+    _lexer->operatorExpected<Token::Operator::BlockLeft>();
+
+    /* parse each case */
+    while (!((token = _lexer->peek())->isOperator<Token::Operator::BlockRight>()))
+    {
+        switch (token->asKeyword())
+        {
+            case Token::Keyword::Case:
+            {
+                /* permit for using "break" */
+                Scope _(_cases);
+                AST::Switch::Case item;
+
+                /* default section must be the last section */
+                if (result->def)
+                    throw Runtime::SyntaxError(token, "Can't place \"case\" after \"default\"");
+
+                /* case <value>: <stmt> */
+                _lexer->next();
+                item.value = parseExpression();
+                _lexer->operatorExpected<Token::Operator::Colon>();
+                token = _lexer->peek();
+
+                /* optional case body */
+                if (!(token->isKeyword<Token::Keyword::Case>()) && !(token->isKeyword<Token::Keyword::Default>()))
+                    item.body = parseStatement();
+
+                /* add to cases */
+                result->cases.emplace_back(std::move(item));
+                break;
+            }
+
+            case Token::Keyword::Default:
+            {
+                /* permit for using "break" */
+                Scope _(_cases);
+
+                /* can only have at most 1 default section */
+                if (result->def)
+                    throw Runtime::SyntaxError(token, "Duplicated \"default\" section");
+
+                /* default: <stmt> */
+                _lexer->next();
+                _lexer->operatorExpected<Token::Operator::Colon>();
+                result->def = parseStatement();
+                break;
+            }
+
+            default:
+                throw Runtime::SyntaxError(token, "Keyword \"case\" or \"default\" expected");
+        }
+    }
+
+    /* skip the block right operator */
+    _lexer->next();
+    return result;
 }
 
 std::unique_ptr<AST::Function> Parser::parseFunction(void)
 {
-    /* reset loop counter, and enter a new function scope */
+    /* reset "case" counter, loop counter, and enter a new function scope */
+    Reset cases(_cases);
     Reset loops(_loops);
     Scope functions(_functions);
 
@@ -306,7 +378,8 @@ std::unique_ptr<AST::Import> Parser::parseImport(void)
 
 std::unique_ptr<AST::Function> Parser::parseLambda(void)
 {
-    /* reset loop counter, and enter a new function scope */
+    /* reset "case" counter, loop counter, and enter a new function scope */
+    Reset cases(_cases);
     Reset loops(_loops);
     Scope functions(_functions);
 
@@ -436,8 +509,8 @@ std::unique_ptr<AST::Break> Parser::parseBreak(void)
 {
     Token::Ptr token = _lexer->peek();
 
-    if (!_loops)
-        throw Runtime::SyntaxError(token, "`break` outside of loops");
+    if (!_cases && !_loops)
+        throw Runtime::SyntaxError(token, "`break` outside of loops or cases");
 
     _lexer->keywordExpected<Token::Keyword::Break>();
     return std::make_unique<AST::Break>(token);

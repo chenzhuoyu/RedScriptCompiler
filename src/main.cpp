@@ -1,22 +1,19 @@
 const char *source = R"source(#!/usr/bin/env redscript
 
-# class Foo : Bar
-# {
-#     def __init__(self, a, b = 10, *c, **d);
-#
-#     @classmethod
-#     def func(self, x, y)
-#     {
-#         if (x > y)
-#             println('hello, world %d' % (self.a + self.b + 1))
-#
-#         for (i in range(1, 10))
-#             self.a, self.b = self.b, self.a + 1
-#     }
-# }
+class Foo : Bar
+{
+    def __init__(self, a, b = 10, *c, **d);
 
-a, (b, c), d = 1, (2, 3,), 4,
-z(1)
+    @classmethod
+    def func(self, x, y)
+    {
+        if (x > y)
+            println('hello, world %d' % (self.a + self.b + 1))
+
+        for (i in range(1, 10))
+            self.a, self.b = self.b, self.a + 1
+    }
+}
 
 )source";
 
