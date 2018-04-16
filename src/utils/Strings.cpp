@@ -7,8 +7,13 @@ namespace RedScript::Utils::Strings
 {
 void lower(std::string &string)
 {
-    /* transform in-place */
-    std::transform(string.begin(), string.end(), string.begin(), std::ptr_fun<int, int>(std::tolower));
+    /* transform string in-place */
+    std::transform(
+        string.begin(),
+        string.end(),
+        string.begin(),
+        [](int c){ return std::tolower(c); }
+    );
 }
 
 std::string repr(const void *data, size_t size)
