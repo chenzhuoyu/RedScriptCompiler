@@ -156,6 +156,205 @@ std::unique_ptr<AST::While> Parser::parseWhile(void)
     return result;
 }
 
+std::unique_ptr<AST::Native> Parser::parseNative(void)
+{
+    Token::Ptr token = _lexer->peek();
+    std::unique_ptr<AST::Native> result(new AST::Native(token));
+
+    /* native '<lang>' */
+    if (!(_lexer->next()->isKeyword<Token::Keyword::Native>()))
+        throw Runtime::SyntaxError(token, "Keyword \"native\" expected");
+
+    /* must be an identifier */
+    std::string lang = _lexer->next()->asString();
+    Utils::Strings::lower(lang);
+
+    /* class <name> (<options>) */
+    _lexer->keywordExpected<Token::Keyword::Class>();
+    result->name = parseName();
+    _lexer->operatorExpected<Token::Operator::BracketLeft>();
+
+    /* parse each options, if any */
+    if (!(_lexer->peek()->isOperator<Token::Operator::BracketRight>()))
+    {
+        for (;;)
+        {
+            AST::Native::Option option;
+
+            /* <name> = <value> */
+            option.name = parseName();
+            _lexer->operatorExpected<Token::Operator::Assign>();
+            option.value = parseExpression();
+
+            /* check for end of options */
+            if (_lexer->peek()->isOperator<Token::Operator::BracketRight>())
+            {
+                result->opts.emplace_back(std::move(option));
+                break;
+            }
+
+            /* comma required if options not end */
+            result->opts.emplace_back(std::move(option));
+            _lexer->operatorExpected<Token::Operator::Comma>();
+        }
+    }
+
+    /* skip the ")" operator */
+    _lexer->next();
+    _lexer->operatorExpected<Token::Operator::BlockLeft>();
+
+    /* currently only supports C language */
+    if (lang != "c")
+        throw Runtime::SyntaxError(token, "Only \"C\" is supported for now");
+
+    /* bracket counter */
+    int bc = 0;
+    char ch = 0;
+    char next = 0;
+
+    /* parse C code in raw mode */
+    for (;;)
+    {
+        /* check the character */
+        switch ((next = _lexer->peekChar(true)))
+        {
+            /* EOF */
+            case 0:
+                throw Runtime::SyntaxError(_lexer, "EOF occured when parsing native C code");
+
+            /* count brackets */
+            case '{': bc += 1; break;
+            case '}': bc -= 1; break;
+
+            /* character and string literals  */
+            case '\'':
+            case '\"':
+            {
+                /* add to source code */
+                _lexer->nextChar(true);
+                result->code += next;
+
+                /* append every character in string as-is */
+                while ((ch = _lexer->nextChar(true)) != next)
+                {
+                    /* check for EOF */
+                    if (!ch)
+                        throw Runtime::SyntaxError(_lexer, "EOF occured when parsing native C code");
+
+                    /* check for escape character */
+                    if (ch != '\\')
+                    {
+                        result->code += ch;
+                        continue;
+                    }
+
+                    /* check for EOF */
+                    if (!(ch = _lexer->nextChar(true)))
+                        throw Runtime::SyntaxError(_lexer, "EOF occured when parsing native C code");
+
+                    /* append to source too */
+                    result->code += '\\';
+                    result->code += ch;
+                }
+
+                /* and the closing character */
+                result->code += next;
+                continue;
+            }
+
+            /* may be comment start */
+            case '/':
+            {
+                /* add to source code */
+                _lexer->nextChar(true);
+                result->code += next;
+
+                /* check for next character */
+                switch ((ch = _lexer->nextChar(true)))
+                {
+                    /* EOF */
+                    case 0:
+                        throw Runtime::SyntaxError(_lexer, "EOF occured when parsing native C code");
+
+                    /* single line comment */
+                    case '/':
+                    {
+                        do
+                        {
+                            result->code += ch;
+                            ch = _lexer->nextChar(true);
+                        } while (ch && (ch != '\r') && (ch != '\n'));
+
+                        /* check for character */
+                        if (!ch)
+                            throw Runtime::SyntaxError(_lexer, "EOF occured when parsing native C code");
+
+                        /* add line feed */
+                        result->code += ch;
+                        continue;
+                    }
+
+                    /* block comment */
+                    case '*':
+                    {
+                        for (;;)
+                        {
+                            result->code += ch;
+                            ch = _lexer->nextChar(true);
+
+                            /* check for character */
+                            if (!ch)
+                                throw Runtime::SyntaxError(_lexer, "EOF occured when parsing native C code");
+
+                            /* maybe end of block comment */
+                            if (ch == '*')
+                            {
+                                if (!(ch = _lexer->nextChar(true)))
+                                    throw Runtime::SyntaxError(_lexer, "EOF occured when parsing native C code");
+
+                                /* indeed an end of block comment */
+                                if (ch == '/')
+                                {
+                                    result->code += "*/";
+                                    break;
+                                }
+
+                                /* not, append the star to source */
+                                result->code += '*';
+                            }
+                        }
+
+                        continue;
+                    }
+
+                    /* other characters, add to source code */
+                    default:
+                    {
+                        result->code += ch;
+                        continue;
+                    }
+                }
+            }
+
+            /* other characters, append to source by default */
+            default:
+                break;
+        }
+
+        /* more bracket than needed, the native source ended */
+        if (bc < 0)
+            break;
+
+        /* add to source code */
+        _lexer->nextChar(true);
+        result->code += next;
+    }
+
+    /* check for end of native code */
+    _lexer->operatorExpected<Token::Operator::BlockRight>();
+    return result;
+}
+
 std::unique_ptr<AST::Switch> Parser::parseSwitch(void)
 {
     Token::Ptr token = _lexer->peek();
@@ -1497,6 +1696,7 @@ std::unique_ptr<AST::Statement> Parser::parseStatement(void)
             case Token::Keyword::Try      : return std::make_unique<AST::Statement>(token, parseTry());
             case Token::Keyword::Class    : return std::make_unique<AST::Statement>(token, parseClass());
             case Token::Keyword::While    : return std::make_unique<AST::Statement>(token, parseWhile());
+            case Token::Keyword::Native   : return std::make_unique<AST::Statement>(token, parseNative());
             case Token::Keyword::Switch   : return std::make_unique<AST::Statement>(token, parseSwitch());
             case Token::Keyword::Function : return std::make_unique<AST::Statement>(token, parseFunction());
 

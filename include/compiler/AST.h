@@ -22,6 +22,7 @@ public:
         Try,
         Class,
         While,
+        Native,
         Switch,
         Foreach,
         Function,
@@ -81,6 +82,7 @@ struct For;
 struct Try;
 struct Class;
 struct While;
+struct Native;
 struct Switch;
 struct Function;
 
@@ -166,6 +168,24 @@ struct While : public Node
     std::unique_ptr<Expression> expr;
     std::unique_ptr<Statement > body;
     std::unique_ptr<Statement > branch;
+};
+
+struct Native : public Node
+{
+    AST_NODE(Native)
+
+public:
+    struct Option
+    {
+        std::unique_ptr<Name> name;
+        std::unique_ptr<Expression> value;
+    };
+
+public:
+    std::string code;
+    std::vector<Option> opts;
+    std::unique_ptr<Name> name;
+
 };
 
 struct Switch : public Node
@@ -512,6 +532,7 @@ public:
         Try,
         Class,
         While,
+        Native,
         Switch,
         Function,
 
@@ -540,6 +561,7 @@ public:
     std::unique_ptr<AST::Try> tryStatement;
     std::unique_ptr<AST::Class> classStatement;
     std::unique_ptr<AST::While> whileStatement;
+    std::unique_ptr<AST::Native> nativeStatement;
     std::unique_ptr<AST::Switch> switchStatement;
     std::unique_ptr<AST::Function> functionStatement;
 
@@ -568,6 +590,7 @@ public:
     explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::Try> &&value) : Node(Node::Type::Statement, token), stype(StatementType::Try), tryStatement(std::move(value)) {}
     explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::Class> &&value) : Node(Node::Type::Statement, token), stype(StatementType::Class), classStatement(std::move(value)) {}
     explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::While> &&value) : Node(Node::Type::Statement, token), stype(StatementType::While), whileStatement(std::move(value)) {}
+    explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::Native> &&value) : Node(Node::Type::Statement, token), stype(StatementType::Native), nativeStatement(std::move(value)) {}
     explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::Switch> &&value) : Node(Node::Type::Statement, token), stype(StatementType::Switch), switchStatement(std::move(value)) {}
     explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::Function> &&value) : Node(Node::Type::Statement, token), stype(StatementType::Function), functionStatement(std::move(value)) {}
 
@@ -614,6 +637,7 @@ public:
     virtual void visitTry(const std::unique_ptr<Try> &node);
     virtual void visitClass(const std::unique_ptr<Class> &node);
     virtual void visitWhile(const std::unique_ptr<While> &node);
+    virtual void visitNative(const std::unique_ptr<Native> &node);
     virtual void visitSwitch(const std::unique_ptr<Switch> &node);
     virtual void visitFunction(const std::unique_ptr<Function> &node);
 

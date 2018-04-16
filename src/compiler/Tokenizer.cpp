@@ -22,6 +22,7 @@ static const std::unordered_map<std::string, Token::Keyword> Keywords = {
     { "raise"   , Token::Keyword::Raise     },
 
     { "class"   , Token::Keyword::Class     },
+    { "native"  , Token::Keyword::Native    },
     { "def"     , Token::Keyword::Function  },
 
     { "as"      , Token::Keyword::As        },
@@ -109,7 +110,7 @@ Tokenizer::Tokenizer(const std::string &source) : _source(source)
     _state = &(_stack.back());
 }
 
-char Tokenizer::peekChar(void)
+char Tokenizer::peekChar(bool isRaw)
 {
     /* check for overflow */
     if (_state->pos >= _source.size())
@@ -117,10 +118,10 @@ char Tokenizer::peekChar(void)
 
     /* peek next char */
     char result = _source[_state->pos];
-    return result == '\r' ? (char)'\n' : result;
+    return !isRaw && (result == '\r') ? (char)'\n' : result;
 }
 
-char Tokenizer::nextChar(void)
+char Tokenizer::nextChar(bool isRaw)
 {
     /* check for overflow */
     if (_state->pos >= _source.size())
@@ -129,27 +130,19 @@ char Tokenizer::nextChar(void)
     /* peek next char */
     char result = _source[_state->pos];
 
-    switch (result)
+    /* convert the line ending if not in raw mode */
+    if (!isRaw && (result == '\r' || result == '\n'))
     {
-        case 0:
-            return 0;
+        /* move to next line */
+        _state->row++;
+        _state->col = 0;
 
-        case '\r':
-        case '\n':
-        {
-            _state->row++;
-            _state->col = 0;
+        /* '\r\n' or '\n\r' */
+        if (_state->pos < _source.size() && _source[_state->pos + 1] == (result == '\n' ? '\r' : '\n'))
+            _state->pos++;
 
-            /* '\r\n' or '\n\r' */
-            if (_state->pos < _source.size() && _source[_state->pos + 1] == (result == '\n' ? '\r' : '\n'))
-                _state->pos++;
-
-            result = '\n';
-            break;
-        }
-
-        default:
-            break;
+        /* always convert to UNIX line ending */
+        result = '\n';
     }
 
     _state->col++;

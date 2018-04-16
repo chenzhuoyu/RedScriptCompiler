@@ -64,6 +64,17 @@ void Visitor::visitWhile(const std::unique_ptr<While> &node)
         visitStatement(node->branch);
 }
 
+void Visitor::visitNative(const std::unique_ptr<Native> &node)
+{
+    visitName(node->name);
+
+    for (const auto &pair : node->opts)
+    {
+        visitName(pair.name);
+        visitExpression(pair.value);
+    }
+}
+
 void Visitor::visitSwitch(const std::unique_ptr<Switch> &node)
 {
     visitExpression(node->expr);
@@ -270,6 +281,7 @@ void Visitor::visitStatement(const std::unique_ptr<Statement> &node)
         case Statement::StatementType::Try              : visitTry(node->tryStatement); break;
         case Statement::StatementType::Class            : visitClass(node->classStatement); break;
         case Statement::StatementType::While            : visitWhile(node->whileStatement); break;
+        case Statement::StatementType::Native           : visitNative(node->nativeStatement); break;
         case Statement::StatementType::Switch           : visitSwitch(node->switchStatement); break;
         case Statement::StatementType::Function         : visitFunction(node->functionStatement); break;
 

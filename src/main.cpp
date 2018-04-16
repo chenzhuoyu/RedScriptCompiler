@@ -1,23 +1,21 @@
 const char *source = R"source(#!/usr/bin/env redscript
-
-class Foo : Bar
+native 'C' class NativeClass(cflags = '-I/usr/local/include')
 {
-    def __init__(self, a, b = 10, *c, **d);
+#include <stdio.h>
 
-    @classmethod
-    def func(self, x, y)
-    {
-        if (x > y)
-            println('hello, world %d' % (self.a + self.b + 1))
-
-        for (i in range(1, 10))
-            self.a, self.b = self.b, self.a + 1
-    }
+int test(void)
+{
+    printf("hello, world from native code\n");
+    return 12345;
 }
-
+}
 )source";
 
 #include <iostream>
+
+#include <unistd.h>
+#include <libtcc.h>
+#include <sys/mman.h>
 
 #include "engine/Memory.h"
 #include "engine/GarbageCollector.h"
@@ -31,7 +29,53 @@ class Foo : Bar
 void run(void)
 {
     RedScript::Compiler::Parser parser(std::make_unique<RedScript::Compiler::Tokenizer>(source));
-    parser.parse();
+    auto native = parser.parseNative();
+    std::cout << "---------------- native code ----------------" << std::endl;
+    std::cout << native->code << std::endl;
+    std::cout << "---------------------------------------------" << std::endl;
+
+    std::cout << "raw usage: " << RedScript::Engine::Memory::rawUsage() << std::endl;
+    std::cout << "array usage: " << RedScript::Engine::Memory::arrayUsage() << std::endl;
+    std::cout << "object usage: " << RedScript::Engine::Memory::objectUsage() << std::endl;
+    std::cout << "---------------------------------------------" << std::endl;
+
+    TCCState *tcc = tcc_new();
+    tcc_set_output_type(tcc, TCC_OUTPUT_MEMORY);
+    std::cout << "tcc-compile: " << tcc_compile_string(tcc, native->code.c_str()) << std::endl;
+
+    int size = tcc_relocate(tcc, nullptr);
+    std::cout << "tcc-relocate(NULL): " << size << std::endl;
+
+    if (size < 0)
+    {
+        tcc_delete(tcc);
+        return;
+    }
+
+    long ps = sysconf(_SC_PAGESIZE);
+    auto len = (static_cast<size_t>(size) / ps + 1) * ps;
+    void *mem = mmap(nullptr, len, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
+    std::cout << "mmap(" << len << "): " << mem << std::endl;
+
+    if (mem == MAP_FAILED)
+    {
+        tcc_delete(tcc);
+        return;
+    }
+
+    int ret = tcc_relocate(tcc, mem);
+    std::cout << "tcc-relocate(" << mem << "): " << ret << std::endl;
+
+    ret = mprotect(mem, len, PROT_READ | PROT_EXEC);
+    std::cout << "mprotect(" << mem << ", 'r-x'): " << ret << std::endl;
+
+    void *func = tcc_get_symbol(tcc, "test");
+    std::cout << "tcc-get-symbol(test): " << func << std::endl;
+
+    ret = ((int (*)(void))func)();
+    std::cout << "native.test(): " << ret << std::endl;
+    tcc_delete(tcc);
+    munmap(mem, len);
 }
 
 int main()

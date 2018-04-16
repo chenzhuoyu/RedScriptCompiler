@@ -2,10 +2,13 @@
 #define REDSCRIPT_UTILS_STRINGS_H
 
 #include <string>
+#include <algorithm>
 #include <fmt/printf.h>
 
 namespace RedScript::Utils::Strings
 {
+void lower(std::string &string);
+
 std::string repr(const void *data, size_t size);
 std::string hexdump(const void *data, size_t size);
 

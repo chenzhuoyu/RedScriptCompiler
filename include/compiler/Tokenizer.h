@@ -48,6 +48,7 @@ public:
         Raise,
 
         Class,
+        Native,
         Function,
 
         As,
@@ -253,6 +254,7 @@ public:
             case Keyword::Raise     : return "<Keyword raise>";
 
             case Keyword::Class     : return "<Keyword class>";
+            case Keyword::Native    : return "<Keyword native>";
             case Keyword::Function  : return "<Keyword def>";
 
             case Keyword::As        : return "<Keyword as>";
@@ -361,9 +363,9 @@ private:
 public:
     explicit Tokenizer(const std::string &source);
 
-private:
-    char peekChar(void);
-    char nextChar(void);
+public:
+    char peekChar(bool isRaw = false);
+    char nextChar(bool isRaw = false);
 
 private:
     void skipSpaces(void);

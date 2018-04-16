@@ -8,9 +8,6 @@
 #include "compiler/AST.h"
 #include "compiler/Tokenizer.h"
 
-#include "utils/Strings.h"
-#include "runtime/Object.h"
-
 namespace RedScript::Compiler
 {
 class Parser final
@@ -19,7 +16,6 @@ class Parser final
     int _loops;
     int _functions;
     std::unique_ptr<Tokenizer> _lexer;
-    std::unordered_map<std::string, Runtime::ObjectRef> _builtins;
 
 private:
     class Scope
@@ -58,15 +54,6 @@ public:
 public:
     std::unique_ptr<AST::CompondStatement> parse(void);
 
-public:
-    void addBuiltin(const std::string &name, Runtime::ObjectRef object)
-    {
-        if (_builtins.find(name) == _builtins.end())
-            _builtins.insert({ name, object });
-        else
-            throw std::invalid_argument(Utils::Strings::format("Object named \"%s\" already exists", name));
-    }
-
 /*** Basic Language Structures ***/
 
 public:
@@ -75,6 +62,7 @@ public:
     std::unique_ptr<AST::Try>           parseTry(void);
     std::unique_ptr<AST::Class>         parseClass(void);
     std::unique_ptr<AST::While>         parseWhile(void);
+    std::unique_ptr<AST::Native>        parseNative(void);
     std::unique_ptr<AST::Switch>        parseSwitch(void);
     std::unique_ptr<AST::Function>      parseFunction(void);
 

@@ -50,4 +50,4 @@ set(SOURCE_FILES
         src/main.cpp)
 
 add_executable(rsc ${SOURCE_FILES})
-target_link_libraries(rsc -lfmt -ljemalloc)
+target_link_libraries(rsc -ldl -ltcc -lfmt -ljemalloc)
