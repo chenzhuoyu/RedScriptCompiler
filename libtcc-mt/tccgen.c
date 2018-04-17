@@ -7162,8 +7162,7 @@ static int decl0(TCCState *s1, int l, int is_for_loop_init, Sym *func_sym)
                 /* static inline functions are just recorded as a kind
                    of macro. Their code will be emitted at the end of
                    the compilation unit only if they are used */
-                if ((type.t & (VT_INLINE | VT_STATIC)) ==
-                    (VT_INLINE | VT_STATIC)) {
+                if ((type.t & (VT_INLINE | VT_STATIC)) == (VT_INLINE | VT_STATIC)) {
                     struct InlineFunc *fn;
                     const char *filename;
 
