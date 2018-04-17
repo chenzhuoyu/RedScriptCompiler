@@ -6147,31 +6147,31 @@ static void skip_or_save_block(TCCState *s1, TokenString **str)
     int braces = s1->tok == '{';
     int level = 0;
     if (str)
-      *str = tok_str_alloc(s1);
+        *str = tok_str_alloc(s1);
 
     while ((level > 0 || (s1->tok != '}' && s1->tok != ',' && s1->tok != ';' && s1->tok != ')'))) {
-    int t;
-    if (s1->tok == TOK_EOF) {
-         if (str || level > 0)
-           tcc_error(s1, "unexpected end of s1->file");
-         else
-           break;
-    }
-    if (str)
-      tok_str_add_tok(s1, *str);
-    t = s1->tok;
-    next(s1);
-    if (t == '{' || t == '(') {
-        level++;
-    } else if (t == '}' || t == ')') {
-        level--;
-        if (level == 0 && braces && t == '}')
-          break;
-    }
+        int t;
+        if (s1->tok == TOK_EOF) {
+             if (str || level > 0)
+                tcc_error(s1, "unexpected end of s1->file");
+             else
+                break;
+        }
+        if (str)
+            tok_str_add_tok(s1, *str);
+        t = s1->tok;
+        next(s1);
+        if (t == '{' || t == '(') {
+            level++;
+        } else if (t == '}' || t == ')') {
+            level--;
+            if (level == 0 && braces && t == '}')
+                break;
+        }
     }
     if (str) {
-    tok_str_add(s1, *str, -1);
-    tok_str_add(s1, *str, 0);
+        tok_str_add(s1, *str, -1);
+        tok_str_add(s1, *str, 0);
     }
 }
 
