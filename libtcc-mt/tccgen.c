@@ -1163,7 +1163,7 @@ static void store_packed_bf(TCCState *s1, int bit_pos, int bit_size)
             gen_op(s1, '|'); // X B V2
         }
         vdup(s1), s1->vtop[-1] = s1->vtop[-2]; // X B B V2
-        vstore(s1), vswap(s1); // X B
+        vstore(s1), vpop(s1); // X B
         bits += n, bit_size -= n, bit_pos = 0, o = 1;
     } while (bit_size);
     vpop(s1), vpop(s1);
