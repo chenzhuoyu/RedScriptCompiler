@@ -17,8 +17,8 @@ set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 
 add_compile_options(-g3)
 add_compile_options(-pthread)
-add_compile_options(-D_BSD_SOURCE)
 
+add_definitions(-D_BSD_SOURCE)
 add_definitions(-DONE_SOURCE=0)
 add_definitions(-DTCC_TARGET_X86_64)
 add_definitions(-DCONFIG_TRIPLET="x86_64-linux-gnu")
