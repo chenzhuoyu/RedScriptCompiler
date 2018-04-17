@@ -453,7 +453,7 @@ private:
     }
 
 public:
-    DoublyLinkedList()
+    DoublyLinkedList() : _count(0)
     {
         /* initialize list head and tail */
         _head.setUnsafe(_mem.alloc());
