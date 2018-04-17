@@ -212,6 +212,10 @@ std::unique_ptr<AST::Native> Parser::parseNative(void)
     char ch = 0;
     char next = 0;
 
+    /* pad with space, for better error message */
+    result->code = std::string(static_cast<size_t>(_lexer->row() - 1), '\n');
+    result->code += std::string(static_cast<size_t>(_lexer->col() - 1), ' ');
+
     /* parse C code in raw mode */
     for (;;)
     {
