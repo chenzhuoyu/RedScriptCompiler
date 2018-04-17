@@ -204,7 +204,7 @@ ST_FUNC int tccgen_compile(TCCState *s1)
 #endif
 
 #ifdef INC_DEBUG
-    printf("%s: **** new s1->file\n", s1->file->filename);
+    printf("%s: **** new file\n", s1->file->filename);
 #endif
 
     s1->parse_flags = PARSE_FLAG_PREPROCESS | PARSE_FLAG_TOK_NUM | PARSE_FLAG_TOK_STR;
@@ -6153,7 +6153,7 @@ static void skip_or_save_block(TCCState *s1, TokenString **str)
         int t;
         if (s1->tok == TOK_EOF) {
              if (str || level > 0)
-                tcc_error(s1, "unexpected end of s1->file");
+                tcc_error(s1, "unexpected end of file");
              else
                 break;
         }
@@ -7105,7 +7105,7 @@ static int decl0(TCCState *s1, int l, int is_for_loop_init, Sym *func_sym)
 
             if ((type.t & VT_BTYPE) == VT_FUNC) {
                 if ((type.t & VT_STATIC) && (l == VT_LOCAL)) {
-                    tcc_error(s1, "function without s1->file scope cannot be static");
+                    tcc_error(s1, "function without file scope cannot be static");
                 }
                 /* if old style function prototype, we accept a
                    declaration list */
