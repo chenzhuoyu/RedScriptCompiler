@@ -7082,9 +7082,9 @@ static int decl0(TCCState *s1, int l, int is_for_loop_init, Sym *func_sym)
             if ((btype.t & VT_BTYPE) == VT_STRUCT) {
                 int vt = btype.ref->v;
                 if (!(vt & SYM_FIELD) && (vt & ~SYM_STRUCT) >= SYM_FIRST_ANOM)
-                        tcc_warning(s1, "unnamed struct/union that defines no instances");
-                        next(s1);
-                        continue;
+                    tcc_warning(s1, "unnamed struct/union that defines no instances");
+                next(s1);
+                continue;
             }
             if (IS_ENUM(btype.t)) {
                 next(s1);
@@ -7143,12 +7143,17 @@ static int decl0(TCCState *s1, int l, int is_for_loop_init, Sym *func_sym)
                 /* reject abstract declarators in function definition
                    make old style params without decl have int type */
                 sym = type.ref;
+                printf("----- FUNCTION -----\n");
+                printf("**** func name: %s\n", get_tok_str(s1, v, NULL));
+                printf("**** ret type: %d\n", sym->type.t);
                 while ((sym = sym->next) != NULL) {
                     if (!(sym->v & ~SYM_FIELD))
                         expect(s1, "identifier");
                     if (sym->type.t == VT_VOID)
                         sym->type = s1->int_type;
+                    printf("**** arg: %s, type: %d\n", get_tok_str(s1, sym->v & ~SYM_FIELD, NULL), sym->type.t);
                 }
+                printf("--------------------\n");
 
                 /* XXX: cannot do better now: convert extern line to static inline */
                 if ((type.t & (VT_EXTERN | VT_INLINE)) == (VT_EXTERN | VT_INLINE))

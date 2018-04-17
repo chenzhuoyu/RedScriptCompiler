@@ -4,10 +4,10 @@ native 'C' class NativeClass()
 int printf(const char *fmt, ...);
 
 static int b = 1000;
-int test(int a)
+long test(int arg0)
 {
-    a += 100;
-    b += a;
+    arg0 += 100;
+    b += arg0;
     const char *fmt = "hello, world from native code, b = %d, &b = %p, this = %p, fmt = %p\n";
     printf(fmt, b, &b, (void *)test, (void *)fmt);
     return 12345;
@@ -68,8 +68,8 @@ void run(void)
     void *func = tcc_get_symbol(tcc, "test");
     std::cout << "tcc-get-symbol(test): " << func << std::endl;
 
-    ret = ((int (*)(int))func)(555);
-    std::cout << "native.test(): " << ret << std::endl;
+    auto val = ((long (*)(int))func)(555);
+    std::cout << "native.test(): " << val << std::endl;
     tcc_delete(tcc);
 }
 
