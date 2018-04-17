@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(RedScriptCompiler)
+project(RedScriptCompiler C CXX)
 
 if (${CMAKE_BUILD_TYPE} MATCHES "Debug")
     add_definitions(-D_GLIBCXX_DEBUG)
@@ -11,6 +11,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     set(CMAKE_CXX_COMPILER /usr/bin/clang++-5.0)
 endif()
 
+set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 
@@ -18,10 +19,34 @@ add_compile_options(-g3)
 add_compile_options(-pthread)
 add_compile_options(-D_BSD_SOURCE)
 
+add_definitions(-DONE_SOURCE=0)
+add_definitions(-DTCC_TARGET_X86_64)
+add_definitions(-DCONFIG_TRIPLET="x86_64-linux-gnu")
+
 link_directories(/usr/local/lib)
-include_directories(/usr/local/include ${CMAKE_SOURCE_DIR}/include)
+include_directories(/usr/local/include ${CMAKE_SOURCE_DIR}/libtcc-mt ${CMAKE_SOURCE_DIR}/include)
+
+set(LIBTCC_MT
+        libtcc-mt/tccelf.h
+        libtcc-mt/i386-asm.c
+        libtcc-mt/i386-asm.h
+        libtcc-mt/i386-tok.h
+        libtcc-mt/libtcc.c
+        libtcc-mt/libtcc.h
+        libtcc-mt/tccasm.c
+        libtcc-mt/tccelf.c
+        libtcc-mt/tccgen.c
+        libtcc-mt/tcc.h
+        libtcc-mt/tccpp.c
+        libtcc-mt/tccrun.c
+        libtcc-mt/tcctok.h
+        libtcc-mt/x86_64-asm.h
+        libtcc-mt/x86_64-defs.h
+        libtcc-mt/x86_64-gen.c
+        libtcc-mt/x86_64-link.c)
 
 set(SOURCE_FILES
+        ${LIBTCC_MT}
         include/compiler/AST.h
         include/compiler/Parser.h
         include/compiler/Tokenizer.h
@@ -50,4 +75,4 @@ set(SOURCE_FILES
         src/main.cpp)
 
 add_executable(rsc ${SOURCE_FILES})
-target_link_libraries(rsc -ldl -ltcc -lfmt -ljemalloc)
+target_link_libraries(rsc -ldl -lfmt -ljemalloc)

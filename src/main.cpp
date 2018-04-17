@@ -40,7 +40,7 @@ void run(void)
     std::cout << "---------------------------------------------" << std::endl;
 
     TCCState *tcc = tcc_new();
-    tcc_define_symbol(tcc, "__GNUC__", "4");
+    tcc_set_options(tcc, "-nostdlib");
     tcc_set_output_type(tcc, TCC_OUTPUT_MEMORY);
 
     int ret = tcc_compile_string(tcc, native->code.c_str());
