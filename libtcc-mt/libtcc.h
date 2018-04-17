@@ -82,13 +82,12 @@ LIBTCCAPI int tcc_output_file(TCCState *s, const char *filename);
 LIBTCCAPI int tcc_run(TCCState *s, int argc, char **argv);
 
 /* do all relocations (needed before using tcc_get_symbol()) */
-LIBTCCAPI int tcc_relocate(TCCState *s1, void *ptr);
-/* possible values for 'ptr':
-   - TCC_RELOCATE_AUTO : Allocate and manage memory internally
+LIBTCCAPI int tcc_relocate(TCCState *s1);
+LIBTCCAPI int tcc_relocate_ex(TCCState *s1, void *code_seg, void *data_seg, size_t *cs_size, size_t *ds_size);
+/* possible values for 'code_seg' and 'data_seg':
    - NULL              : return required memory size for the step below
-   - memory address    : copy code to memory passed by the caller
+   - memory address    : copy code and data to memory passed by the caller
    returns -1 if error. */
-#define TCC_RELOCATE_AUTO (void*)1
 
 /* return symbol value or NULL if not found */
 LIBTCCAPI void *tcc_get_symbol(TCCState *s, const char *name);

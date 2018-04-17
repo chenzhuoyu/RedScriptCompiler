@@ -3,12 +3,13 @@ native 'C' class NativeClass()
 {
 int printf(const char *fmt, ...);
 
-static int b;
+static int b = 1000;
 int test(int a)
 {
     a += 100;
-    b = a;
-    printf("hello, world from native code, b = %d\n", b);
+    b += a;
+    const char *fmt = "hello, world from native code, b = %d, &b = %p, this = %p, fmt = %p\n";
+    printf(fmt, b, &b, (void *)test, (void *)fmt);
     return 12345;
 }
 }
@@ -55,31 +56,14 @@ void run(void)
         return;
     }
 
-    int size = tcc_relocate(tcc, nullptr);
-    std::cout << "tcc-relocate(NULL): " << size << std::endl;
+    ret = tcc_relocate(tcc);
+    std::cout << "tcc-relocate(NULL): " << ret << std::endl;
 
-    if (size < 0)
+    if (ret < 0)
     {
         tcc_delete(tcc);
         return;
     }
-
-    long ps = sysconf(_SC_PAGESIZE);
-    auto len = (static_cast<size_t>(size) / ps + 1) * ps;
-    void *mem = mmap(nullptr, len, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
-    std::cout << "mmap(" << len << "): " << mem << std::endl;
-
-    if (mem == MAP_FAILED)
-    {
-        tcc_delete(tcc);
-        return;
-    }
-
-    ret = tcc_relocate(tcc, mem);
-    std::cout << "tcc-relocate(" << mem << "): " << ret << std::endl;
-
-    ret = mprotect(mem, len, PROT_READ | PROT_EXEC);
-    std::cout << "mprotect(" << mem << ", 'r-x'): " << ret << std::endl;
 
     void *func = tcc_get_symbol(tcc, "test");
     std::cout << "tcc-get-symbol(test): " << func << std::endl;
@@ -87,7 +71,6 @@ void run(void)
     ret = ((int (*)(int))func)(555);
     std::cout << "native.test(): " << ret << std::endl;
     tcc_delete(tcc);
-    munmap(mem, len);
 }
 
 int main()

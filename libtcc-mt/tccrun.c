@@ -42,9 +42,6 @@ static void rt_error(TCCState *s1, ucontext_t *uc, const char *fmt, ...);
 static void set_exception_handler(void);
 #endif
 
-static void set_pages_executable(TCCState *s1, void *ptr, unsigned long length);
-static int tcc_relocate_ex(TCCState *s1, void *ptr, addr_t ptr_diff);
-
 #ifdef _WIN64
 static void *win64_add_function_table(TCCState *s1);
 static void win64_del_function_table(void *);
@@ -54,60 +51,183 @@ static void win64_del_function_table(void *);
 /* Do all relocations (needed before using tcc_get_symbol())
    Returns -1 on error. */
 
-LIBTCCAPI int tcc_relocate(TCCState *s1, void *ptr)
+LIBTCCAPI int tcc_relocate(TCCState *s1)
 {
-    int size;
-    addr_t ptr_diff = 0;
+    int ret;
+    void *base;
+    size_t cs_size;
+    size_t ds_size;
+    size_t alloc_size;
+    static long page_size = 0;
 
-    if (TCC_RELOCATE_AUTO != ptr)
-        return tcc_relocate_ex(s1, ptr, 0);
+#ifdef _WIN64
+    if (!page_size) {
+        SYSTEM_INFO si;
+        GetSystemInfo(&si);
+        page_size = si.dwPageSize;
+    }
+#else
+    if (!page_size)
+        page_size = sysconf(_SC_PAGESIZE);
+#endif
 
-    size = tcc_relocate_ex(s1, NULL, 0);
-    if (size < 0)
+    /* get segment size */
+    if ((ret = tcc_relocate_ex(s1, NULL, NULL, &cs_size, &ds_size)) < 0)
+        return ret;
+
+    /* align with page size */
+    cs_size = (cs_size + (page_size - 1)) & ~(page_size - 1);
+    ds_size = (ds_size + (page_size - 1)) & ~(page_size - 1);
+    alloc_size = cs_size + ds_size;
+
+#ifdef _WIN64
+    /* alloc memory pages */
+    if (!(base = VirtualAlloc(NULL, alloc_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE)))
+        tcc_error(s1, "tccrun: could not alloc memory pages");
+#else
+    /* map memory pages */
+    if ((base = mmap(NULL, alloc_size, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0)) == MAP_FAILED)
+	    tcc_error(s1, "tccrun: could not map memory pages");
+#endif
+
+    /* do the actual relocation, pages will be free'd later */
+    dynarray_add(s1, &s1->runtime_mem, &s1->nb_runtime_mem, base);
+    dynarray_add(s1, &s1->runtime_mem, &s1->nb_runtime_mem, (void *)alloc_size);
+    tcc_relocate_ex(s1, base, (void *)((uintptr_t)base + cs_size), &cs_size, &ds_size);
+
+#ifdef _WIN64
+    /* protect code pages, cannot be write to */
+    VirtualProtect(base, cs_size, PAGE_EXECUTE_READ, NULL);
+#else
+    /* protect code pages, cannot be write to */
+    mprotect(base, cs_size, PROT_READ | PROT_EXEC);
+#endif
+
+    return 0;
+}
+
+#if defined TCC_TARGET_I386 || defined TCC_TARGET_X86_64
+#define RUN_SECTION_ALIGNMENT 63
+#else
+#define RUN_SECTION_ALIGNMENT 15
+#endif
+
+/* relocate code. Return -1 on error, required size if ptr is NULL,
+   otherwise copy code into buffer passed by the caller */
+LIBTCCAPI int tcc_relocate_ex(TCCState *s1, void *code_seg, void *data_seg, size_t *cs_size, size_t *ds_size)
+{
+    int i, k;
+    Section *s;
+
+    size_t code_off, data_off;
+    intptr_t code_mem, data_mem;
+
+    if ((code_seg == NULL) != (data_seg == NULL))
         return -1;
 
-#ifdef HAVE_SELINUX
-{
-    /* Using mmap instead of malloc */
-    void *prx;
-    char tmpfname[] = "/tmp/.tccrunXXXXXX";
-    int fd = mkstemp(tmpfname);
-    unlink(tmpfname);
-    ftruncate(fd, size);
-
-    ptr = mmap (NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
-    prx = mmap (NULL, size, PROT_READ|PROT_EXEC, MAP_SHARED, fd, 0);
-    if (ptr == MAP_FAILED || prx == MAP_FAILED)
-	tcc_error(s1, "tccrun: could not map memory");
-    dynarray_add(s1, &s1->runtime_mem, &s1->nb_runtime_mem, (void*)(addr_t)size);
-    dynarray_add(s1, &s1->runtime_mem, &s1->nb_runtime_mem, prx);
-    ptr_diff = (char*)prx - (char*)ptr;
-}
+    if (!code_seg || !data_seg) {
+        s1->nb_errors = 0;
+#ifdef TCC_TARGET_PE
+        pe_output_file(s1, NULL);
 #else
-    ptr = tcc_malloc(s1, size);
+        tcc_add_runtime(s1);
+        resolve_common_syms(s1);
+        build_got_entries(s1);
 #endif
-    tcc_relocate_ex(s1, ptr, ptr_diff); /* no more errors expected */
-    dynarray_add(s1, &s1->runtime_mem, &s1->nb_runtime_mem, ptr);
+        if (s1->nb_errors)
+            return -1;
+    }
+
+    code_off = 0; code_mem = (intptr_t)code_seg;
+    data_off = 0; data_mem = (intptr_t)data_seg;
+
+    if ((code_mem & 0x0f) || (data_mem & 0x0f))
+        return -1;
+
+    for (k = 0; k < 2; ++k) {
+        for(i = 1; i < s1->nb_sections; i++) {
+            s = s1->sections[i];
+            if (0 == (s->sh_flags & SHF_ALLOC))
+                continue;
+            if (k != !(s->sh_flags & SHF_EXECINSTR))
+                continue;
+            if (s->sh_flags & SHF_EXECINSTR) {
+                s->sh_addr = code_mem ? (addr_t)(code_mem + code_off) : 0;
+                code_off = (code_off + s->data_offset + 0x0f) & ~0x0f;
+            }
+            else {
+                s->sh_addr = data_mem ? (addr_t)(data_mem + data_off) : 0;
+                data_off = (data_off + s->data_offset + 0x0f) & ~0x0f;
+            }
+        }
+    }
+
+    if (!code_seg || !data_seg) {
+        if (!cs_size || !ds_size)
+            return -1;
+
+        *cs_size = (code_off + RUN_SECTION_ALIGNMENT) & ~RUN_SECTION_ALIGNMENT;
+        *ds_size = (data_off + RUN_SECTION_ALIGNMENT) & ~RUN_SECTION_ALIGNMENT;
+        return 0;
+    }
+
+    /* segment overlapped */
+    if (code_mem + code_off > data_mem)
+        return -1;
+
+#ifdef TCC_TARGET_PE
+    s1->pe_imagebase = code_mem;
+#endif
+
+    /* relocate symbols */
+    relocate_syms(s1, s1->symtab, 1);
+    if (s1->nb_errors)
+        return -1;
+
+    /* relocate each section */
+    for(i = 1; i < s1->nb_sections; i++) {
+        s = s1->sections[i];
+        if (s->reloc)
+            relocate_section(s1, s);
+    }
+    relocate_plt(s1);
+
+    for(i = 1; i < s1->nb_sections; i++) {
+        s = s1->sections[i];
+        if (0 == (s->sh_flags & SHF_ALLOC))
+            continue;
+        if (NULL == s->data || s->sh_type == SHT_NOBITS)
+            memset((void *)s->sh_addr, 0, s->data_offset);
+        else
+            memcpy((void *)s->sh_addr, s->data, s->data_offset);
+    }
+
+#ifdef _WIN64
+    code_mem = win64_add_function_table(s1);
+    dynarray_add(s1, &s1->function_table, &s1->nb_function_table, code_mem);
+#endif
+
     return 0;
 }
 
 ST_FUNC void tcc_run_free(TCCState *s1)
 {
-    int i;
+    int i = 0;
+    while (i < s1->nb_runtime_mem) {
+        void *mem = s1->runtime_mem[i++];
+        size_t size = (size_t)s1->runtime_mem[i++];
 
-    for (i = 0; i < s1->nb_runtime_mem; ++i) {
-#ifdef HAVE_SELINUX
-        unsigned size = (unsigned)(addr_t)s1->runtime_mem[i++];
-        munmap(s1->runtime_mem[i++], size);
-        munmap(s1->runtime_mem[i], size);
-#else
 #ifdef _WIN64
-        win64_del_function_table(*(void**)s1->runtime_mem[i]);
-#endif
-        tcc_free(s1, s1->runtime_mem[i]);
+        VirtualFree(mem, size, MEM_RELEASE);
+#else
+        munmap(mem, size);
 #endif
     }
-    tcc_free(s1, s1->runtime_mem);
+
+#ifdef _WIN64
+    for (i = 0; i < s1->nb_function_table; i++)
+        win64_del_function_table(s1->function_table[i]);
+#endif
 }
 
 /* launch the compiled program with the given arguments */
@@ -120,7 +240,7 @@ LIBTCCAPI int tcc_run(TCCState *s1, int argc, char **argv)
     s1->runtime_main = "main";
     if ((s1->dflag & 16) && !find_elf_sym(s1->symtab, s1->runtime_main))
         return 0;
-    if (tcc_relocate(s1, TCC_RELOCATE_AUTO) < 0)
+    if (tcc_relocate(s1) < 0)
         return -1;
     prog_main = tcc_get_symbol_err(s1, s1->runtime_main);
 
@@ -171,139 +291,6 @@ LIBTCCAPI int tcc_run(TCCState *s1, int argc, char **argv)
     ret = (*prog_main)(argc, argv);
     _tcc_state = NULL;
     return ret;
-}
-
-#if defined TCC_TARGET_I386 || defined TCC_TARGET_X86_64
- #define RUN_SECTION_ALIGNMENT 63
-#else
- #define RUN_SECTION_ALIGNMENT 15
-#endif
-
-/* relocate code. Return -1 on error, required size if ptr is NULL,
-   otherwise copy code into buffer passed by the caller */
-static int tcc_relocate_ex(TCCState *s1, void *ptr, addr_t ptr_diff)
-{
-    Section *s;
-    unsigned offset, length, fill, i, k;
-    addr_t mem;
-
-    if (NULL == ptr) {
-        s1->nb_errors = 0;
-#ifdef TCC_TARGET_PE
-        pe_output_file(s1, NULL);
-#else
-        tcc_add_runtime(s1);
-	resolve_common_syms(s1);
-        build_got_entries(s1);
-#endif
-        if (s1->nb_errors)
-            return -1;
-    }
-
-    offset = 0, mem = (addr_t)ptr;
-    fill = -mem & RUN_SECTION_ALIGNMENT;
-#ifdef _WIN64
-    offset += sizeof (void*);
-#endif
-    for (k = 0; k < 2; ++k) {
-        for(i = 1; i < s1->nb_sections; i++) {
-            s = s1->sections[i];
-            if (0 == (s->sh_flags & SHF_ALLOC))
-                continue;
-            if (k != !(s->sh_flags & SHF_EXECINSTR))
-                continue;
-            offset += fill;
-            if (!mem)
-                s->sh_addr = 0;
-            else if (s->sh_flags & SHF_EXECINSTR)
-                s->sh_addr = mem + offset + ptr_diff;
-            else
-                s->sh_addr = mem + offset;
-#if 0
-            if (mem)
-                printf("%-16s +%02lx %p %04x\n",
-                    s->name, fill, (void*)s->sh_addr, (unsigned)s->data_offset);
-#endif
-            offset += s->data_offset;
-            fill = -(mem + offset) & 15;
-        }
-#if RUN_SECTION_ALIGNMENT > 15
-        /* To avoid that x86 processors would reload cached instructions each time
-           when data is written in the near, we need to make sure that code and data
-           do not share the same 64 byte unit */
-        fill = -(mem + offset) & RUN_SECTION_ALIGNMENT;
-#endif
-    }
-
-    /* relocate symbols */
-    relocate_syms(s1, s1->symtab, 1);
-    if (s1->nb_errors)
-        return -1;
-
-    if (0 == mem)
-        return offset + RUN_SECTION_ALIGNMENT;
-
-#ifdef TCC_TARGET_PE
-    s1->pe_imagebase = mem;
-#endif
-
-    /* relocate each section */
-    for(i = 1; i < s1->nb_sections; i++) {
-        s = s1->sections[i];
-        if (s->reloc)
-            relocate_section(s1, s);
-    }
-    relocate_plt(s1);
-
-    for(i = 1; i < s1->nb_sections; i++) {
-        s = s1->sections[i];
-        if (0 == (s->sh_flags & SHF_ALLOC))
-            continue;
-        length = s->data_offset;
-        ptr = (void*)s->sh_addr;
-        if (s->sh_flags & SHF_EXECINSTR)
-            ptr = (char*)ptr - ptr_diff;
-        if (NULL == s->data || s->sh_type == SHT_NOBITS)
-            memset(ptr, 0, length);
-        else
-            memcpy(ptr, s->data, length);
-        /* mark executable sections as executable in memory */
-        if (s->sh_flags & SHF_EXECINSTR)
-            set_pages_executable(s1, (char*)ptr + ptr_diff, length);
-    }
-
-#ifdef _WIN64
-    *(void**)mem = win64_add_function_table(s1);
-#endif
-
-    return 0;
-}
-
-/* ------------------------------------------------------------- */
-/* allow to run code in memory */
-
-static void set_pages_executable(TCCState *s1, void *ptr, unsigned long length)
-{
-#ifdef _WIN32
-    unsigned long old_protect;
-    VirtualProtect(ptr, length, PAGE_EXECUTE_READWRITE, &old_protect);
-#else
-    void __clear_cache(void *beginning, void *end);
-# ifndef HAVE_SELINUX
-    addr_t start, end;
-#  ifndef PAGESIZE
-#   define PAGESIZE 4096
-#  endif
-    start = (addr_t)ptr & ~(PAGESIZE - 1);
-    end = (addr_t)ptr + length;
-    end = (end + PAGESIZE - 1) & ~(PAGESIZE - 1);
-    if (mprotect((void *)start, end - start, PROT_READ | PROT_WRITE | PROT_EXEC))
-        tcc_error(s1, "mprotect failed: did you mean to configure --with-selinux?");
-# endif
-# if defined TCC_TARGET_ARM || defined TCC_TARGET_ARM64
-    __clear_cache(ptr, (char *)ptr + length);
-# endif
-#endif
 }
 
 #ifdef _WIN64

@@ -797,6 +797,11 @@ struct TCCState {
 # endif
 #endif
 
+#ifdef _WIN64
+    void **function_table;
+    int nb_function_table;
+#endif
+
 #ifdef TCC_IS_NATIVE
     const char *runtime_main;
     void **runtime_mem;
