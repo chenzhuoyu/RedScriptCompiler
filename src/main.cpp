@@ -3,9 +3,12 @@ native 'C' class NativeClass()
 {
 int printf(const char *fmt, ...);
 
-int test(void)
+static int b;
+int test(int a)
 {
-    printf("hello, world from native code\n");
+    a += 100;
+    b = a;
+    printf("hello, world from native code, b = %d\n", b);
     return 12345;
 }
 }
@@ -81,7 +84,7 @@ void run(void)
     void *func = tcc_get_symbol(tcc, "test");
     std::cout << "tcc-get-symbol(test): " << func << std::endl;
 
-    ret = ((int (*)(void))func)();
+    ret = ((int (*)(int))func)(555);
     std::cout << "native.test(): " << ret << std::endl;
     tcc_delete(tcc);
     munmap(mem, len);
