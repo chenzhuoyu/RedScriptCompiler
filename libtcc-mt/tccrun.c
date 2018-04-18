@@ -51,7 +51,7 @@ static void win64_del_function_table(void *);
 /* Do all relocations (needed before using tcc_get_symbol())
    Returns -1 on error. */
 
-LIBTCCAPI int tcc_relocate(TCCState *s1)
+LIBTCCAPI int tcc_relocate(TCCState *s)
 {
     int ret;
     void *base;
@@ -72,7 +72,7 @@ LIBTCCAPI int tcc_relocate(TCCState *s1)
 #endif
 
     /* get segment size */
-    if ((ret = tcc_relocate_ex(s1, NULL, NULL, &cs_size, &ds_size)) < 0)
+    if ((ret = tcc_relocate_ex(s, NULL, NULL, &cs_size, &ds_size)) < 0)
         return ret;
 
     /* align with page size */
@@ -87,13 +87,13 @@ LIBTCCAPI int tcc_relocate(TCCState *s1)
 #else
     /* map memory pages */
     if ((base = mmap(NULL, alloc_size, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0)) == MAP_FAILED)
-	    tcc_error(s1, "tccrun: could not map memory pages");
+	    tcc_error(s, "tccrun: could not map memory pages");
 #endif
 
     /* do the actual relocation, pages will be free'd later */
-    dynarray_add(s1, &s1->runtime_mem, &s1->nb_runtime_mem, base);
-    dynarray_add(s1, &s1->runtime_mem, &s1->nb_runtime_mem, (void *)alloc_size);
-    tcc_relocate_ex(s1, base, (void *)((uintptr_t)base + cs_size), &cs_size, &ds_size);
+    dynarray_add(s, &s->runtime_mem, &s->nb_runtime_mem, base);
+    dynarray_add(s, &s->runtime_mem, &s->nb_runtime_mem, (void *)alloc_size);
+    tcc_relocate_ex(s, base, (void *)((uintptr_t)base + cs_size), &cs_size, &ds_size);
 
 #ifdef _WIN64
     /* protect code pages, cannot be write to */
@@ -114,10 +114,10 @@ LIBTCCAPI int tcc_relocate(TCCState *s1)
 
 /* relocate code. Return -1 on error, required size if ptr is NULL,
    otherwise copy code into buffer passed by the caller */
-LIBTCCAPI int tcc_relocate_ex(TCCState *s1, void *code_seg, void *data_seg, size_t *cs_size, size_t *ds_size)
+LIBTCCAPI int tcc_relocate_ex(TCCState *s, void *code_seg, void *data_seg, size_t *cs_size, size_t *ds_size)
 {
     int i, k;
-    Section *s;
+    Section *sec;
 
     size_t code_off, data_off;
     intptr_t code_mem, data_mem;
@@ -126,15 +126,15 @@ LIBTCCAPI int tcc_relocate_ex(TCCState *s1, void *code_seg, void *data_seg, size
         return -1;
 
     if (!code_seg || !data_seg) {
-        s1->nb_errors = 0;
+        s->nb_errors = 0;
 #ifdef TCC_TARGET_PE
         pe_output_file(s1, NULL);
 #else
-        tcc_add_runtime(s1);
-        resolve_common_syms(s1);
-        build_got_entries(s1);
+        tcc_add_runtime(s);
+        resolve_common_syms(s);
+        build_got_entries(s);
 #endif
-        if (s1->nb_errors)
+        if (s->nb_errors)
             return -1;
     }
 
@@ -145,19 +145,19 @@ LIBTCCAPI int tcc_relocate_ex(TCCState *s1, void *code_seg, void *data_seg, size
         return -1;
 
     for (k = 0; k < 2; ++k) {
-        for(i = 1; i < s1->nb_sections; i++) {
-            s = s1->sections[i];
-            if (0 == (s->sh_flags & SHF_ALLOC))
+        for(i = 1; i < s->nb_sections; i++) {
+            sec = s->sections[i];
+            if (0 == (sec->sh_flags & SHF_ALLOC))
                 continue;
-            if (k != !(s->sh_flags & SHF_EXECINSTR))
+            if (k != !(sec->sh_flags & SHF_EXECINSTR))
                 continue;
-            if (s->sh_flags & SHF_EXECINSTR) {
-                s->sh_addr = code_mem ? (addr_t)(code_mem + code_off) : 0;
-                code_off = (code_off + s->data_offset + 0x0f) & ~0x0f;
+            if (sec->sh_flags & SHF_EXECINSTR) {
+                sec->sh_addr = code_mem ? (addr_t)(code_mem + code_off) : 0;
+                code_off = (code_off + sec->data_offset + 0x0f) & ~0x0f;
             }
             else {
-                s->sh_addr = data_mem ? (addr_t)(data_mem + data_off) : 0;
-                data_off = (data_off + s->data_offset + 0x0f) & ~0x0f;
+                sec->sh_addr = data_mem ? (addr_t)(data_mem + data_off) : 0;
+                data_off = (data_off + sec->data_offset + 0x0f) & ~0x0f;
             }
         }
     }
@@ -180,26 +180,26 @@ LIBTCCAPI int tcc_relocate_ex(TCCState *s1, void *code_seg, void *data_seg, size
 #endif
 
     /* relocate symbols */
-    relocate_syms(s1, s1->symtab, 1);
-    if (s1->nb_errors)
+    relocate_syms(s, s->symtab, 1);
+    if (s->nb_errors)
         return -1;
 
     /* relocate each section */
-    for(i = 1; i < s1->nb_sections; i++) {
-        s = s1->sections[i];
-        if (s->reloc)
-            relocate_section(s1, s);
+    for(i = 1; i < s->nb_sections; i++) {
+        sec = s->sections[i];
+        if (sec->reloc)
+            relocate_section(s, sec);
     }
-    relocate_plt(s1);
+    relocate_plt(s);
 
-    for(i = 1; i < s1->nb_sections; i++) {
-        s = s1->sections[i];
-        if (0 == (s->sh_flags & SHF_ALLOC))
+    for(i = 1; i < s->nb_sections; i++) {
+        sec = s->sections[i];
+        if (0 == (sec->sh_flags & SHF_ALLOC))
             continue;
-        if (NULL == s->data || s->sh_type == SHT_NOBITS)
-            memset((void *)s->sh_addr, 0, s->data_offset);
+        if (NULL == sec->data || sec->sh_type == SHT_NOBITS)
+            memset((void *)sec->sh_addr, 0, sec->data_offset);
         else
-            memcpy((void *)s->sh_addr, s->data, s->data_offset);
+            memcpy((void *)sec->sh_addr, sec->data, sec->data_offset);
     }
 
 #ifdef _WIN64

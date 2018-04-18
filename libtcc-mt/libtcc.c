@@ -1211,7 +1211,7 @@ static void del_type(TCCState *s1, TCCType *type)
         for (i = 0; i < type->nb_values; i++)
             type->values[i] = 0;
     }
-    else if ((type->t & VT_BTYPE) == VT_STRUCT) {
+    else if ((type->t & VT_FUNC) || ((type->t & VT_BTYPE) == VT_STRUCT)) {
         for (i = 0; i < type->nb_values; i++)
             type->types[i] = NULL;
     }
@@ -1241,6 +1241,10 @@ static void free_type(TCCState *s1, TCCType *type)
 
 static void free_function(TCCState *s1, TCCFunction *func)
 {
+    int i;
+    for (i = 0; i < func->nb_args; i++)
+        func->args[i] = NULL;
+
     tcc_free(s1, func->name);
     dynarray_reset(s1, &func->args, &func->nb_args);
     dynarray_reset(s1, &func->arg_names, &func->nb_arg_names);
@@ -1413,10 +1417,10 @@ ST_FUNC TCCType *tcc_resolver_add_type(TCCState *s1, CType *type)
             }
 
             while (sym) {
-                int id = sym->v & ~(SYM_STRUCT | SYM_FIELD | SYM_FIRST_ANOM);
-                const char *key = get_tok_str(s1, id, NULL);
+                int id = sym->v & ~(SYM_STRUCT | SYM_FIELD);
+                const char *name = get_tok_str(s1, id, NULL);
 
-                dynarray_add(s1, &vtype->names, &vtype->nb_names, tcc_strdup(s1, key));
+                dynarray_add(s1, &vtype->names, &vtype->nb_names, tcc_strdup(s1, name));
                 dynarray_add(s1, &vtype->types, &vtype->nb_values, tcc_resolver_add_type(s1, &sym->type));
                 sym = sym->next;
             }
@@ -1449,6 +1453,46 @@ ST_FUNC TCCFunction *tcc_resolver_add_func(TCCState *s1, const char *funcname, C
     func->name = tcc_strdup(s1, funcname);
     hashmap_insert(s1, &s1->funcs, funcname, func, (hashdtor_t)free_function);
     return func;
+}
+
+LIBTCCAPI TCCFunction *tcc_find_function(TCCState *s, const char *name)
+{
+    void **pf = hashmap_lookup(s, &s->funcs, name);
+    return pf ? *(TCCFunction **)pf : NULL;
+}
+
+LIBTCCAPI void *tcc_function_get_addr(TCCState *s, TCCFunction *f)
+{
+    if (!f->addr)
+        f->addr = tcc_get_symbol(s, f->name);
+
+#ifndef _WIN64
+    if (!f->addr)
+        f->addr = dlsym(RTLD_DEFAULT, f->name);
+#endif
+
+    return f->addr;
+}
+
+/* function return type */
+LIBTCCAPI TCCType *tcc_function_get_return_type(TCCFunction *f)
+{
+    return f->ret;
+}
+
+LIBTCCAPI size_t tcc_function_get_nargs(TCCFunction *f)
+{
+    return (size_t)f->nb_args;
+}
+
+LIBTCCAPI TCCType *tcc_function_get_arg_type(TCCFunction *f, size_t index)
+{
+    return index < f->nb_args ? f->args[index] : NULL;
+}
+
+LIBTCCAPI const char *tcc_function_get_arg_name(TCCFunction *f, size_t index)
+{
+    return index < f->nb_arg_names ? f->arg_names[index] : NULL;
 }
 
 LIBTCCAPI int tcc_add_library_path(TCCState *s, const char *pathname)

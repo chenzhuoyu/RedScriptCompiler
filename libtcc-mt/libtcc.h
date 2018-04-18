@@ -85,9 +85,9 @@ LIBTCCAPI int tcc_output_file(TCCState *s, const char *filename);
    tcc_relocate() before. */
 LIBTCCAPI int tcc_run(TCCState *s, int argc, char **argv);
 
-/* do all relocations (needed before using tcc_get_symbol()) */
-LIBTCCAPI int tcc_relocate(TCCState *s1);
-LIBTCCAPI int tcc_relocate_ex(TCCState *s1, void *code_seg, void *data_seg, size_t *cs_size, size_t *ds_size);
+/* do all relocations (needed before using tcc_get_symbol() or tcc_function_get_addr()) */
+LIBTCCAPI int tcc_relocate(TCCState *s);
+LIBTCCAPI int tcc_relocate_ex(TCCState *s, void *code_seg, void *data_seg, size_t *cs_size, size_t *ds_size);
 /* possible values for 'code_seg' and 'data_seg':
    - NULL              : return required memory size for the step below
    - memory address    : copy code and data to memory passed by the caller
@@ -95,6 +95,20 @@ LIBTCCAPI int tcc_relocate_ex(TCCState *s1, void *code_seg, void *data_seg, size
 
 /* return symbol value or NULL if not found */
 LIBTCCAPI void *tcc_get_symbol(TCCState *s, const char *name);
+
+/* return function info or NULL if not found */
+LIBTCCAPI TCCFunction *tcc_find_function(TCCState *s, const char *name);
+
+/* return function address or NULL if not found */
+LIBTCCAPI void *tcc_function_get_addr(TCCState *s, TCCFunction *f);
+
+/* function return type */
+LIBTCCAPI TCCType *tcc_function_get_return_type(TCCFunction *f);
+
+/* function argument inspection */
+LIBTCCAPI size_t tcc_function_get_nargs(TCCFunction *f);
+LIBTCCAPI TCCType *tcc_function_get_arg_type(TCCFunction *f, size_t index);
+LIBTCCAPI const char *tcc_function_get_arg_name(TCCFunction *f, size_t index);
 
 /* The current value can be: */
 #define VT_VALMASK   0x003f  /* mask for value location, register or: */

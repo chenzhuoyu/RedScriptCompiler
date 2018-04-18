@@ -7054,6 +7054,7 @@ static char *make_arg_name(TCCState *s1, int arg) {
 static int decl0(TCCState *s1, int l, int is_for_loop_init, Sym *func_sym)
 {
     int v, has_init, r, i;
+    char *argname;
     CType type, btype;
     Sym *sym;
     AttributeDef ad;
@@ -7235,9 +7236,10 @@ static int decl0(TCCState *s1, int l, int is_for_loop_init, Sym *func_sym)
                                 if (sym->type.t == VT_VOID)
                                     sym->type = s1->int_type;
                                 if (!(sym->v & ~SYM_FIELD))
-                                    dynarray_add(s1, &func->arg_names, &func->nb_arg_names, make_arg_name(s1, i));
+                                    argname = make_arg_name(s1, i);
                                 else
-                                    dynarray_add(s1, &func->arg_names, &func->nb_arg_names, tcc_strdup(s1, get_tok_str(s1, sym->v & ~SYM_FIELD, NULL)));
+                                    argname = tcc_strdup(s1, get_tok_str(s1, sym->v & ~SYM_FIELD, NULL));
+                                dynarray_add(s1, &func->arg_names, &func->nb_arg_names, argname);
                                 dynarray_add(s1, &func->args, &func->nb_args, tcc_resolver_add_type(s1, &sym->type));
                                 i++;
                             }

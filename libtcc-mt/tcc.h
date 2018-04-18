@@ -645,7 +645,7 @@ struct switch_t {
 
 /* -------------------------------------------------- */
 
-#define HASHMAP_INIT        256
+#define HASHMAP_INIT        64
 #define HASHMAP_LOAD_FAC    0.75
 
 typedef void (*hashdtor_t)(TCCState *, void *);

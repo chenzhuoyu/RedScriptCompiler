@@ -1,6 +1,16 @@
 const char *source = R"source(#!/usr/bin/env redscript
 native 'C' class NativeClass()
 {
+struct tc_comp_t
+{
+    int val_1;
+    int val_2;
+    struct {
+        int x;
+        int y;
+    };
+};
+
 typedef int (*ff)(long, float);
 int *fun(ff);
 int *fun(ff f) {
@@ -13,34 +23,30 @@ typedef struct tc_comp_t TestComposite;
 
 static int b = 1000;
 
-long test(TestComposite ts);
-static TestComposite test_func(int arg0);
-extern int printf(const char *fmt, ...);
+long test(TestComposite ts, float f);
+static TestComposite test_func(int arg0, float arg1);
 
-struct tc_comp_t
-{
-    int val_1;
-    int val_2;
-};
+extern int scanf(const char *fmt, ...);
+extern int printf(const char *fmt, ...);
 
 typedef enum {
     item_1,
     item_2,
 } test_enum_t;
 
-long test(TestComposite ts)
+long test(TestComposite ts, float f)
 {
     typedef struct tc_comp_t Test123;
     printf("this is test\n");
-    return test_func((int)(Test123)ts).val_1;
+    return test_func(ts.val_1, f).val_2;
 }
 
-static TestComposite test_func(int arg0)
+static TestComposite test_func(int arg0, float arg1)
 {
-    b += ((TestComposite)arg0).val_1;
-    const char *fmt = "hello, world from native code, b = %d, &b = %p, this = %p, fmt = %p\n";
-    printf(fmt, b, &b, (void *)test, (void *)fmt);
+    b += arg0;
+    printf("hello, world from native code, b = %d, &b = %p, this = %p, arg1 = %f\n", b, &b, (void *)test, arg1);
     TestComposite tc;
+    tc.val_1 = 999;
     tc.val_2 = 12345;
     return tc;
 }
@@ -97,10 +103,31 @@ void run(void)
         return;
     }
 
-    void *func = tcc_get_symbol(tcc, "test");
-    std::cout << "tcc-get-symbol(test): " << func << std::endl;
+    TCCFunction *func = tcc_find_function(tcc, "scanf");
+    std::cout << "tcc-find-function(scanf): " << func << std::endl;
 
-    auto val = ((long (*)(int))func)(555);
+    void *fp = tcc_function_get_addr(tcc, func);
+    std::cout << "tcc-function-get-addr(scanf): " << fp << std::endl;
+
+    func = tcc_find_function(tcc, "test");
+    std::cout << "tcc-find-function(test): " << func << std::endl;
+
+    size_t nargs = tcc_function_get_nargs(func);
+    TCCType *rettype = tcc_function_get_return_type(func);
+    std::cout << "tcc-function-get-nargs(test): " << nargs << std::endl;
+    std::cout << "tcc-function-get-return-type(test): " << rettype << std::endl;
+
+    for (size_t i = 0; i < nargs; i++)
+    {
+        TCCType *t = tcc_function_get_arg_type(func, i);
+        const char *n = tcc_function_get_arg_name(func, i);
+        std::cout << "- arg " << i << ": name=" << std::string(n) << ", type=" << t << std::endl;
+    }
+
+    fp = tcc_function_get_addr(tcc, func);
+    std::cout << "tcc-function-get-addr(test): " << fp << std::endl;
+
+    auto val = ((long (*)(int, float))fp)(555, 1.234);
     std::cout << "native.test(): " << val << std::endl;
     tcc_delete(tcc);
 }
