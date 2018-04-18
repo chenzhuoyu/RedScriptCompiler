@@ -633,6 +633,42 @@ struct sym_attr {
 #endif
 };
 
+struct case_t {
+    int64_t v1, v2;
+    int sym;
+};
+
+struct switch_t {
+    struct case_t **p; int n; /* list of case ranges */
+    int def_sym; /* default symbol */
+};
+
+/* -------------------------------------------------- */
+
+#define HASHMAP_INIT        256
+#define HASHMAP_LOAD_FAC    0.75
+
+typedef void (*hashdtor_t)(TCCState *, void *);
+typedef size_t (*hashprobe_t)(TCCState *, const char *, size_t, size_t);
+
+struct hashitem_t {
+    struct hashitem_t *prev;
+    struct hashitem_t *next;
+    int use;
+    int hash;
+    char *key;
+    void *value;
+    hashdtor_t dtor;
+};
+
+struct hashmap_t {
+    size_t count;
+    size_t bucket_size;
+    hashprobe_t prob_func;
+    struct hashitem_t list;
+    struct hashitem_t *bucket;
+};
+
 struct TCCState {
 
     int verbose; /* if true, display some information during compilation */
@@ -870,20 +906,11 @@ struct TCCState {
     int rt_num_callers;
     const char **rt_bound_error_msg;
     void *rt_prog_main;
-
     int local_scope;
     int in_sizeof;
     int section_sym;
     int new_undef_sym;
-
-    struct switch_t {
-        struct case_t {
-            int64_t v1, v2;
-    	int sym;
-        } **p; int n; /* list of case ranges */
-        int def_sym; /* default symbol */
-    } *cur_switch; /* current switch */
-
+    struct switch_t *cur_switch; /* current switch */
     TokenSym *hash_ident[TOK_HASH_SIZE];
     char token_buf[STRING_MAX_SIZE + 1];
     CString cstr_buf;
@@ -894,12 +921,34 @@ struct TCCState {
     int pp_once;
     int pp_expr;
     int pp_counter;
-
     struct TinyAlloc *toksym_alloc;
     struct TinyAlloc *tokstr_alloc;
     struct TinyAlloc *cstr_alloc;
-
     TokenString *macro_stack;
+
+    /* types and functions */
+    struct hashmap_t funcs;
+    struct hashmap_t types;
+};
+
+struct TCCType {
+    int t;
+    char *name;
+    union {
+        TCCType **fields;
+        long long *values;
+    };
+    char **names;
+    int nb_names;
+    int nb_values;
+};
+
+struct TCCFunction {
+    char *name;
+    void *addr;
+    TCCType *ret;
+    TCCType **args;
+    int nb_args;
 };
 
 struct filespec {
@@ -907,81 +956,6 @@ struct filespec {
     char alacarte;
     char name[1];
 };
-
-/* The current value can be: */
-#define VT_VALMASK   0x003f  /* mask for value location, register or: */
-#define VT_CONST     0x0030  /* constant in vc (must be first non register value) */
-#define VT_LLOCAL    0x0031  /* lvalue, offset on stack */
-#define VT_LOCAL     0x0032  /* offset on stack */
-#define VT_CMP       0x0033  /* the value is stored in processor flags (in vc) */
-#define VT_JMP       0x0034  /* value is the consequence of jmp true (even) */
-#define VT_JMPI      0x0035  /* value is the consequence of jmp false (odd) */
-#define VT_LVAL      0x0100  /* var is an lvalue */
-#define VT_SYM       0x0200  /* a symbol value is added */
-#define VT_MUSTCAST  0x0400  /* value must be casted to be correct (used for
-                                char/short stored in integer registers) */
-#define VT_MUSTBOUND 0x0800  /* bound checking must be done before
-                                dereferencing value */
-#define VT_BOUNDED   0x8000  /* value is bounded. The address of the
-                                bounding function call point is in vc */
-#define VT_LVAL_BYTE     0x1000  /* lvalue is a byte */
-#define VT_LVAL_SHORT    0x2000  /* lvalue is a short */
-#define VT_LVAL_UNSIGNED 0x4000  /* lvalue is unsigned */
-#define VT_LVAL_TYPE     (VT_LVAL_BYTE | VT_LVAL_SHORT | VT_LVAL_UNSIGNED)
-
-/* types */
-#define VT_BTYPE       0x000f  /* mask for basic type */
-#define VT_VOID             0  /* void type */
-#define VT_BYTE             1  /* signed byte type */
-#define VT_SHORT            2  /* short type */
-#define VT_INT              3  /* integer type */
-#define VT_LLONG            4  /* 64 bit integer */
-#define VT_PTR              5  /* pointer */
-#define VT_FUNC             6  /* function type */
-#define VT_STRUCT           7  /* struct/union definition */
-#define VT_FLOAT            8  /* IEEE float */
-#define VT_DOUBLE           9  /* IEEE double */
-#define VT_LDOUBLE         10  /* IEEE long double */
-#define VT_BOOL            11  /* ISOC99 boolean type */
-#define VT_QLONG           13  /* 128-bit integer. Only used for x86-64 ABI */
-#define VT_QFLOAT          14  /* 128-bit float. Only used for x86-64 ABI */
-
-#define VT_UNSIGNED    0x0010  /* unsigned type */
-#define VT_DEFSIGN     0x0020  /* explicitly signed or unsigned */
-#define VT_ARRAY       0x0040  /* array type (also has VT_PTR) */
-#define VT_BITFIELD    0x0080  /* bitfield modifier */
-#define VT_CONSTANT    0x0100  /* const modifier */
-#define VT_VOLATILE    0x0200  /* volatile modifier */
-#define VT_VLA         0x0400  /* VLA type (also has VT_PTR and VT_ARRAY) */
-#define VT_LONG        0x0800  /* long type (also has VT_INT rsp. VT_LLONG) */
-
-/* storage */
-#define VT_EXTERN  0x00001000  /* extern definition */
-#define VT_STATIC  0x00002000  /* static variable */
-#define VT_TYPEDEF 0x00004000  /* typedef definition */
-#define VT_INLINE  0x00008000  /* inline definition */
-/* currently unused: 0x000[1248]0000  */
-
-#define VT_STRUCT_SHIFT 20     /* shift for bitfield shift values (32 - 2*6) */
-#define VT_STRUCT_MASK (((1 << (6+6)) - 1) << VT_STRUCT_SHIFT | VT_BITFIELD)
-#define BIT_POS(t) (((t) >> VT_STRUCT_SHIFT) & 0x3f)
-#define BIT_SIZE(t) (((t) >> (VT_STRUCT_SHIFT + 6)) & 0x3f)
-
-#define VT_UNION    (1 << VT_STRUCT_SHIFT | VT_STRUCT)
-#define VT_ENUM     (2 << VT_STRUCT_SHIFT) /* integral type is an enum really */
-#define VT_ENUM_VAL (3 << VT_STRUCT_SHIFT) /* integral type is an enum constant really */
-
-#define IS_ENUM(t) ((t & VT_STRUCT_MASK) == VT_ENUM)
-#define IS_ENUM_VAL(t) ((t & VT_STRUCT_MASK) == VT_ENUM_VAL)
-#define IS_UNION(t) ((t & (VT_STRUCT_MASK|VT_BTYPE)) == VT_UNION)
-
-/* type mask (except storage) */
-#define VT_STORAGE (VT_EXTERN | VT_STATIC | VT_TYPEDEF | VT_INLINE)
-#define VT_TYPE (~(VT_STORAGE|VT_STRUCT_MASK))
-
-/* symbol was created by tccasm.c first */
-#define VT_ASM (VT_VOID | VT_UNSIGNED)
-#define IS_ASM_SYM(sym) (((sym)->type.t & (VT_BTYPE | VT_ASM)) == VT_ASM)
 
 /* token values */
 
@@ -1198,6 +1172,10 @@ ST_FUNC void cstr_wccat(TCCState *s1, CString *cstr, int ch);
 ST_FUNC void cstr_new(TCCState *s1, CString *cstr);
 ST_FUNC void cstr_free(TCCState *s1, CString *cstr);
 ST_FUNC void cstr_reset(TCCState *s1, CString *cstr);
+ST_FUNC void hashmap_new(TCCState *s1, struct hashmap_t *map, hashprobe_t prob_func);
+ST_FUNC void hashmap_free(TCCState *s1, struct hashmap_t *map);
+ST_FUNC void hashmap_insert(TCCState *s1, struct hashmap_t *map, const char *key, void *value, hashdtor_t dtor);
+ST_FUNC void **hashmap_lookup(TCCState *s1, struct hashmap_t *map, const char *key);
 
 ST_INLN void sym_free(TCCState *s1, Sym *sym);
 ST_FUNC Sym *sym_push2(TCCState *s1, Sym **ps, int v, int t, int c);
@@ -1229,6 +1207,10 @@ ST_FUNC int tcc_add_file_internal(TCCState *s1, const char *filename, int flags)
 #define AFF_BINTYPE_AR  3
 #define AFF_BINTYPE_C67 4
 
+ST_FUNC void tcc_resolver_free(TCCState *s1);
+ST_FUNC void tcc_resolver_reset(TCCState *s1);
+ST_FUNC TCCType *tcc_resolver_add_type(TCCState *s1, CType *type);
+ST_FUNC TCCFunction *tcc_resolver_add_func(TCCState *s1, const char *funcname, CType *ret);
 
 ST_FUNC int tcc_add_crt(TCCState *s, const char *filename);
 ST_FUNC int tcc_add_dll(TCCState *s, const char *filename, int flags);
@@ -1363,6 +1345,7 @@ ST_FUNC void vpop(TCCState *s1);
 ST_FUNC void gen_op(TCCState *s1, int op);
 ST_FUNC int type_size(CType *type, int *a);
 ST_FUNC void mk_pointer(TCCState *s1, CType *type);
+ST_FUNC void type_to_str(TCCState *s1, char *buf, int buf_size, CType *type, const char *varstr);
 ST_FUNC void vstore(TCCState *s1);
 ST_FUNC void inc(TCCState *s1, int post, int c);
 ST_FUNC void parse_mult_str (TCCState *s1, CString *astr, const char *msg);

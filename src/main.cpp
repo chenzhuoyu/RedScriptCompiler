@@ -1,16 +1,36 @@
 const char *source = R"source(#!/usr/bin/env redscript
 native 'C' class NativeClass()
 {
-int printf(const char *fmt, ...);
+struct tc_comp_t;
+typedef struct tc_comp_t TestComposite;
 
 static int b = 1000;
-long test(int arg0)
+
+long test(TestComposite ts);
+static TestComposite test_func(int arg0);
+extern int printf(const char *fmt, ...);
+
+struct tc_comp_t
 {
-    arg0 += 100;
-    b += arg0;
+    int val_1;
+    int val_2;
+};
+
+long test(TestComposite ts)
+{
+    typedef struct tc_comp_t Test123;
+    printf("this is test\n");
+    return test_func((int)(Test123)ts).val_1;
+}
+
+static TestComposite test_func(int arg0)
+{
+    b += ((TestComposite)arg0).val_1;
     const char *fmt = "hello, world from native code, b = %d, &b = %p, this = %p, fmt = %p\n";
     printf(fmt, b, &b, (void *)test, (void *)fmt);
-    return 12345;
+    TestComposite tc;
+    tc.val_2 = 12345;
+    return tc;
 }
 }
 )source";
@@ -57,7 +77,7 @@ void run(void)
     }
 
     ret = tcc_relocate(tcc);
-    std::cout << "tcc-relocate(NULL): " << ret << std::endl;
+    std::cout << "tcc-relocate(): " << ret << std::endl;
 
     if (ret < 0)
     {

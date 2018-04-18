@@ -37,6 +37,7 @@ static void decl_initializer(TCCState *s1, CType *type, Section *sec, unsigned l
 static void block(TCCState *s1, int *bsym, int *csym, int is_expr);
 static void decl_initializer_alloc(TCCState *s1, CType *type, AttributeDef *ad, int r, int has_init, int v, int scope);
 static void decl(TCCState *s1, int l);
+static void decl_comp(TCCState *s1, CType *type);
 static int decl0(TCCState *s1, int l, int is_for_loop_init, Sym *);
 static void expr_eq(TCCState *s1);
 static void vla_runtime_type_size(TCCState *s1, CType *type, int *a);
@@ -2752,8 +2753,8 @@ static int is_compatible_unqualified_types(CType *type1, CType *type2)
    printed in the type */
 /* XXX: union */
 /* XXX: add array and function pointers */
-static void type_to_str(TCCState *s1, char *buf, int buf_size,
-                 CType *type, const char *varstr)
+ST_FUNC void type_to_str(TCCState *s1, char *buf, int buf_size,
+                         CType *type, const char *varstr)
 {
     int bt, v, t;
     Sym *s, *sa;
@@ -4331,11 +4332,11 @@ static CType *type_decl(TCCState *s1, CType *type, AttributeDef *ad, int *v, int
         case TOK_RESTRICT2:
         case TOK_RESTRICT3:
             goto redo;
-    /* XXX: clarify attribute handling */
-    case TOK_ATTRIBUTE1:
-    case TOK_ATTRIBUTE2:
-        parse_attribute(s1, ad);
-        break;
+        /* XXX: clarify attribute handling */
+        case TOK_ATTRIBUTE1:
+        case TOK_ATTRIBUTE2:
+            parse_attribute(s1, ad);
+            break;
         }
         mk_pointer(s1, type);
         type->t |= qualifiers;
@@ -4345,25 +4346,25 @@ static CType *type_decl(TCCState *s1, CType *type, AttributeDef *ad, int *v, int
     }
 
     if (s1->tok == '(') {
-    /* This is possibly a parameter type list for abstract declarators
-       ('int ()'), use post_type for testing this.  */
-    if (!post_type(s1, type, ad, 0, td)) {
-        /* It's not, so it's a nested declarator, and the post operations
-           apply to the innermost pointed to type (if any).  */
-        /* XXX: this is not correct to modify 'ad' at this point, but
-           the syntax is not clear */
-        parse_attribute(s1, ad);
-        post = type_decl(s1, type, ad, v, td);
-        skip(s1, ')');
-    }
+        /* This is possibly a parameter type list for abstract declarators
+           ('int ()'), use post_type for testing this.  */
+        if (!post_type(s1, type, ad, 0, td)) {
+            /* It's not, so it's a nested declarator, and the post operations
+               apply to the innermost pointed to type (if any).  */
+            /* XXX: this is not correct to modify 'ad' at this point, but
+               the syntax is not clear */
+            parse_attribute(s1, ad);
+            post = type_decl(s1, type, ad, v, td);
+            skip(s1, ')');
+        }
     } else if (s1->tok >= TOK_IDENT && (td & TYPE_DIRECT)) {
-    /* type identifier */
-    *v = s1->tok;
-    next(s1);
+        /* type identifier */
+        *v = s1->tok;
+        next(s1);
     } else {
-    if (!(td & TYPE_ABSTRACT))
-      expect(s1, "identifier");
-    *v = 0;
+        if (!(td & TYPE_ABSTRACT))
+            expect(s1, "identifier");
+        *v = 0;
     }
     post_type(s1, post, ad, storage, 0);
     parse_attribute(s1, ad);
@@ -7043,6 +7044,21 @@ ST_FUNC void free_inline_functions(TCCState *s)
     dynarray_reset(s, &s->inline_fns, &s->nb_inline_fns);
 }
 
+static void decl_comp(TCCState *s1, CType *type)
+{
+    char buf[1024];
+    type_to_str(s1, buf, 1024, type, NULL);
+    if (IS_ENUM(type->t)) {
+        printf("----- ENUM: %s -----\n", buf);
+    }
+    else if (IS_UNION(type->t)) {
+        printf("----- UNION: %s -----\n", buf);
+    }
+    else if ((type->t & VT_BTYPE) == VT_STRUCT) {
+        printf("----- STRUCT: %s -----\n", buf);
+    }
+}
+
 /* 'l' is VT_LOCAL or VT_CONST to define default storage type, or VT_CMP
    if parsing old style parameter decl list (and FUNC_SYM is set then) */
 static int decl0(TCCState *s1, int l, int is_for_loop_init, Sym *func_sym)
@@ -7051,6 +7067,7 @@ static int decl0(TCCState *s1, int l, int is_for_loop_init, Sym *func_sym)
     CType type, btype;
     Sym *sym;
     AttributeDef ad;
+    TCCFunction *func;
 
     while (1) {
         if (!parse_btype(s1, &btype, &ad)) {
@@ -7083,10 +7100,14 @@ static int decl0(TCCState *s1, int l, int is_for_loop_init, Sym *func_sym)
                 int vt = btype.ref->v;
                 if (!(vt & SYM_FIELD) && (vt & ~SYM_STRUCT) >= SYM_FIRST_ANOM)
                     tcc_warning(s1, "unnamed struct/union that defines no instances");
+                if (btype.ref->next && !s1->local_scope)
+                    decl_comp(s1, &btype);
                 next(s1);
                 continue;
             }
             if (IS_ENUM(btype.t)) {
+                if (btype.ref->next && !s1->local_scope)
+                    decl_comp(s1, &btype);
                 next(s1);
                 continue;
             }
@@ -7143,17 +7164,12 @@ static int decl0(TCCState *s1, int l, int is_for_loop_init, Sym *func_sym)
                 /* reject abstract declarators in function definition
                    make old style params without decl have int type */
                 sym = type.ref;
-                printf("----- FUNCTION -----\n");
-                printf("**** func name: %s\n", get_tok_str(s1, v, NULL));
-                printf("**** ret type: %d\n", sym->type.t);
                 while ((sym = sym->next) != NULL) {
                     if (!(sym->v & ~SYM_FIELD))
                         expect(s1, "identifier");
                     if (sym->type.t == VT_VOID)
                         sym->type = s1->int_type;
-                    printf("**** arg: %s, type: %d\n", get_tok_str(s1, sym->v & ~SYM_FIELD, NULL), sym->type.t);
                 }
-                printf("--------------------\n");
 
                 /* XXX: cannot do better now: convert extern line to static inline */
                 if ((type.t & (VT_EXTERN | VT_INLINE)) == (VT_EXTERN | VT_INLINE))
@@ -7189,8 +7205,8 @@ static int decl0(TCCState *s1, int l, int is_for_loop_init, Sym *func_sym)
                 if (l == VT_CMP) {
                     /* find parameter in function parameter list */
                     for (sym = func_sym->next; sym; sym = sym->next)
-                    if ((sym->v & ~SYM_FIELD) == v)
-                        goto found;
+                        if ((sym->v & ~SYM_FIELD) == v)
+                            goto found;
                     tcc_error(s1, "declaration for parameter '%s' but no such parameter", get_tok_str(s1, v, NULL));
                 found:
                     if (type.t & VT_STORAGE) /* 'register' is okay */
@@ -7208,6 +7224,11 @@ static int decl0(TCCState *s1, int l, int is_for_loop_init, Sym *func_sym)
                             tcc_error(s1, "incompatible redefinition of '%s'", get_tok_str(s1, v, NULL));
                         sym->type = type;
                     } else {
+                        if (!s1->local_scope) {
+                            char buf[1024];
+                            type_to_str(s1, buf, 1024, &type, NULL);
+                            printf("----- TYPEDEF %s{def=%p} %s -----\n", buf, type.ref ? type.ref->next : NULL, get_tok_str(s1, v, NULL));
+                        }
                         sym = sym_push(s1, v, &type, 0, 0);
                     }
                     sym->a = ad.a;
@@ -7217,7 +7238,22 @@ static int decl0(TCCState *s1, int l, int is_for_loop_init, Sym *func_sym)
                     if ((type.t & VT_BTYPE) == VT_FUNC) {
                         /* external function definition */
                         /* specific case for func_call attribute */
+                        sym = sym_find(s1, v);
                         type.ref->f = ad.f;
+                        if (!(type.t & VT_STATIC) && !(sym && sym->sym_scope == s1->local_scope)) {
+                            sym = type.ref;
+                            func = tcc_resolver_add_func(s1, get_tok_str(s1, v, NULL), &sym->type);
+                            printf("----- FUNCTION DECL -----\n");
+                            printf("**** func name: %s\n", func->name);
+                            printf("**** ret type.t: %#x, type.ref: %p\n", sym->type.t, sym->type.ref);
+                            while ((sym = sym->next) != NULL) {
+                                if (sym->type.t == VT_VOID)
+                                    sym->type = s1->int_type;
+                                printf("**** arg: %s, type.t: %#x, type.ref: %p\n",
+                                       get_tok_str(s1, sym->v & ~SYM_FIELD, NULL), sym->type.t, sym->type.ref);
+                            }
+                            printf("--------------------\n");
+                        }
                     } else if (!(type.t & VT_ARRAY)) {
                         /* not lvalue if array */
                         r |= lvalue_type(type.t);

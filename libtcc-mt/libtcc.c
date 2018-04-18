@@ -408,6 +408,146 @@ ST_FUNC void dynarray_reset(TCCState *s1, void *pp, int *n)
     *(void**)pp = NULL;
 }
 
+static int djb_hash(const char *s)
+{
+    int x = 5381;
+	while (*s) x = (x << 5) + x + (*s++);
+	return x;
+}
+
+static size_t hmp_linear(TCCState *s1,
+                         const char *key,
+                         size_t p,
+                         size_t size)
+{
+    p += 1;
+    p %= size;
+    return p;
+}
+
+static struct hashitem_t *hm_rehash(TCCState *s1,
+                                    hashprobe_t prob_func,
+                                    struct hashitem_t *list,
+                                    size_t size)
+{
+    size_t cap = size * sizeof(struct hashitem_t);
+    struct hashitem_t *node = list->next;
+    struct hashitem_t *bucket = tcc_mallocz(s1, cap);
+
+    list->prev = list;
+    list->next = list;
+
+    while (node != list) {
+        size_t p = node->hash % size;
+
+        while (bucket[p].use)
+            p = prob_func(s1, node->key, p, size);
+
+        bucket[p].key = node->key;
+        bucket[p].dtor = node->dtor;
+        bucket[p].hash = node->hash;
+        bucket[p].value = node->value;
+
+        bucket[p].use = 1;
+        bucket[p].next = list;
+        bucket[p].prev = list->prev;
+
+        list->prev->next = &(bucket[p]);
+        list->prev = &(bucket[p]);
+        node = node->next;
+    }
+
+    return bucket;
+}
+
+ST_FUNC void hashmap_new(TCCState *s1, struct hashmap_t *map, hashprobe_t prob_func)
+{
+    if (!prob_func)
+        prob_func = hmp_linear;
+
+    map->count = 0;
+    map->prob_func = prob_func;
+    map->bucket_size = HASHMAP_INIT;
+
+    map->bucket = tcc_mallocz(s1, map->bucket_size * sizeof(struct hashitem_t));
+    map->list.prev = &map->list;
+    map->list.next = &map->list;
+}
+
+ST_FUNC void hashmap_free(TCCState *s1, struct hashmap_t *map)
+{
+    if (!map->bucket)
+        return;
+
+    struct hashitem_t *node = map->list.next;
+    while (node != &map->list) {
+        if (node->use && node->dtor) {
+            tcc_free(s1, node->key);
+            node->dtor(s1, node->value);
+        }
+        node = node->next;
+    }
+
+    tcc_free(s1, map->bucket);
+    map->bucket = NULL;
+    map->list.prev = &map->list;
+    map->list.next = &map->list;
+}
+
+ST_FUNC void hashmap_insert(TCCState *s1, struct hashmap_t *map, const char *key, void *value, hashdtor_t dtor)
+{
+    int hash = djb_hash(key);
+    size_t pos = hash % map->bucket_size;
+    struct hashitem_t *bucket = map->bucket;
+
+    while (bucket[pos].use) {
+        if ((bucket[pos].hash == hash) && !strcmp(bucket[pos].key, key)) {
+            bucket[pos].dtor(s1, bucket[pos].value);
+            bucket[pos].dtor = dtor;
+            bucket[pos].value = value;
+            return;
+        }
+        pos = map->prob_func(s1, key, pos, map->bucket_size);
+    }
+
+    bucket[pos].use = 1;
+    bucket[pos].key = tcc_strdup(s1, key);
+    bucket[pos].dtor = dtor;
+    bucket[pos].hash = hash;
+    bucket[pos].value = value;
+
+    bucket[pos].use = 1;
+    bucket[pos].next = &map->list;
+    bucket[pos].prev = map->list.prev;
+
+    map->list.prev->next = &(bucket[pos]);
+    map->list.prev = &(bucket[pos]);
+
+    if (++map->count >= map->bucket_size * HASHMAP_LOAD_FAC) {
+        struct hashitem_t *b = map->bucket;
+        struct hashitem_t *nb = hm_rehash(s1, map->prob_func, &map->list, map->bucket_size * 2);
+
+        map->bucket = nb;
+        map->bucket_size *= 2;
+        tcc_free(s1, b);
+    }
+}
+
+ST_FUNC void **hashmap_lookup(TCCState *s1, struct hashmap_t *map, const char *key)
+{
+    int hash = djb_hash(key);
+    size_t pos = hash % map->bucket_size;
+    struct hashitem_t *bucket = map->bucket;
+
+    while (bucket[pos].use) {
+        if ((bucket[pos].hash == hash) && !strcmp(bucket[pos].key, key))
+            return &(bucket[pos].value);
+        pos = map->prob_func(s1, key, pos, map->bucket_size);
+    }
+
+    return NULL;
+}
+
 static void tcc_split_path(TCCState *s, void *p_ary, int *p_nb_ary, const char *in)
 {
     const char *p;
@@ -438,7 +578,7 @@ static void tcc_split_path(TCCState *s, void *p_ary, int *p_nb_ary, const char *
 
 static void strcat_vprintf(char *buf, int buf_size, const char *fmt, va_list ap)
 {
-    int len;
+    size_t len;
     len = strlen(buf);
     vsnprintf(buf + len, buf_size - len, fmt, ap);
 }
@@ -458,15 +598,14 @@ static void error1(TCCState *s1, int is_warning, const char *fmt, va_list ap)
 
     buf[0] = '\0';
     /* use upper file if inline ":asm:" or token ":paste:" */
-    for (f = s1->file; f && f->filename[0] == ':'; f = f->prev)
-     ;
+    for (f = s1->file; f && f->filename[0] == ':'; f = f->prev);
     if (f) {
         for(pf = s1->include_stack; pf < s1->include_stack_ptr; pf++)
             strcat_printf(buf, sizeof(buf), "In file included from %s:%d:\n",
                 (*pf)->filename, (*pf)->line_num);
         if (s1->error_set_jmp_enabled) {
             strcat_printf(buf, sizeof(buf), "%s:%d: ",
-                f->filename, f->line_num - !!(s1->tok_flags & TOK_FLAG_BOL));
+                f->filename, f->line_num - ((s1->tok_flags & TOK_FLAG_BOL) != 0));
         } else {
             strcat_printf(buf, sizeof(buf), "%s: ",
                 f->filename);
@@ -604,6 +743,8 @@ static int tcc_compile(TCCState *s1)
     define_start = s1->define_stack;
     filetype = s1->filetype;
     is_asm = filetype == AFF_TYPE_ASM || filetype == AFF_TYPE_ASMPP;
+
+    tcc_resolver_reset(s1);
     tccelf_begin_file(s1);
 
     if (setjmp(s1->error_jmp_buf) == 0) {
@@ -702,7 +843,6 @@ LIBTCCAPI TCCState *tcc_new(void)
     if (!s)
         return NULL;
 
-    memset(s, 0, sizeof(TCCState));
     s->gnu_ext = 1;
     s->tcc_ext = 1;
     s->rt_num_callers = 6;
@@ -899,6 +1039,7 @@ LIBTCCAPI void tcc_delete(TCCState *s1)
     tcc_run_free(s1);
 #endif
 
+    tcc_resolver_free(s1);
     tcc_free(s1, s1);
 }
 
@@ -1061,6 +1202,60 @@ LIBTCCAPI int tcc_add_file(TCCState *s, const char *filename)
         s->filetype = filetype;
     }
     return tcc_add_file_internal(s, filename, flags);
+}
+
+static void free_type(TCCState *s1, TCCType *type)
+{
+    int i;
+    if (IS_ENUM(type->t)) {
+        for (i = 0; i < type->nb_values; i++)
+            type->values[i] = 0;
+    }
+    else if ((type->t & VT_BTYPE) == VT_STRUCT) {
+        for (i = 0; i < type->nb_values; i++)
+            type->fields[i] = NULL;
+    }
+
+    dynarray_reset(s1, &type->names, &type->nb_names);
+    dynarray_reset(s1, &type->values, &type->nb_values);
+    tcc_free(s1, type);
+}
+
+static void free_function(TCCState *s1, TCCFunction *func)
+{
+    tcc_free(s1, func->name);
+    dynarray_reset(s1, &func->args, &func->nb_args);
+}
+
+ST_FUNC void tcc_resolver_free(TCCState *s1)
+{
+    hashmap_free(s1, &s1->funcs);
+    hashmap_free(s1, &s1->types);
+}
+
+ST_FUNC void tcc_resolver_reset(TCCState *s1)
+{
+    tcc_resolver_free(s1);
+    hashmap_new(s1, &s1->funcs, NULL);
+    hashmap_new(s1, &s1->types, NULL);
+}
+
+ST_FUNC TCCType *tcc_resolver_add_type(TCCState *s1, CType *type)
+{
+    TCCType *t = tcc_mallocz(s1, sizeof(TCCType));
+    char buf[256];
+    type_to_str(s1, buf, 256, type, NULL);
+    printf("TYPE: %s{def=%p}\n", buf, type->ref ? type->ref->next : NULL);
+    return t;
+}
+
+ST_FUNC TCCFunction *tcc_resolver_add_func(TCCState *s1, const char *funcname, CType *ret)
+{
+    TCCFunction *func = tcc_mallocz(s1, sizeof(TCCFunction));
+    func->ret = tcc_resolver_add_type(s1, ret);
+    func->name = tcc_strdup(s1, funcname);
+    hashmap_insert(s1, &s1->funcs, funcname, func, (hashdtor_t)free_function);
+    return func;
 }
 
 LIBTCCAPI int tcc_add_library_path(TCCState *s, const char *pathname)

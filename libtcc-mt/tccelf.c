@@ -938,33 +938,30 @@ static struct sym_attr * put_got_entry(TCCState *s1, int dyn_reloc_type,
     name = (char *) s1->symtab_section->link->data + sym->st_name;
 
     if (s1->dynsym) {
-	if (ELFW(ST_BIND)(sym->st_info) == STB_LOCAL) {
-	    /* Hack alarm.  We don't want to emit dynamic symbols
-	       and symbol based relocs for STB_LOCAL symbols, but rather
-	       want to resolve them directly.  At this point the symbol
-	       values aren't final yet, so we must defer this.  We will later
-	       have to create a RELATIVE reloc anyway, so we misuse the
-	       relocation slot to smuggle the symbol reference until
-	       fill_local_got_entries.  Not that the sym_index is
-	       relative to symtab_section, not s1->dynsym!  Nevertheless
-	       we use s1->dyn_sym so that if this is the first call
-	       that got->reloc is correctly created.  Also note that
-	       RELATIVE relocs are not normally created for the .got,
-	       so the types serves as a marker for later (and is retained
-	       also for the final output, which is okay because then the
-	       got is just normal data).  */
-	    put_elf_reloc(s1, s1->dynsym, s1->got, got_offset, R_RELATIVE,
-			  sym_index);
-	} else {
-	    if (0 == attr->dyn_index)
-                attr->dyn_index = set_elf_sym(s1, s1->dynsym, sym->st_value, size,
-					      info, 0, sym->st_shndx, name);
-	    put_elf_reloc(s1, s1->dynsym, s1->got, got_offset, dyn_reloc_type,
-			  attr->dyn_index);
-	}
+        if (ELFW(ST_BIND)(sym->st_info) == STB_LOCAL) {
+            /* Hack alarm.  We don't want to emit dynamic symbols
+               and symbol based relocs for STB_LOCAL symbols, but rather
+               want to resolve them directly.  At this point the symbol
+               values aren't final yet, so we must defer this.  We will later
+               have to create a RELATIVE reloc anyway, so we misuse the
+               relocation slot to smuggle the symbol reference until
+               fill_local_got_entries.  Not that the sym_index is
+               relative to symtab_section, not s1->dynsym!  Nevertheless
+               we use s1->dyn_sym so that if this is the first call
+               that got->reloc is correctly created.  Also note that
+               RELATIVE relocs are not normally created for the .got,
+               so the types serves as a marker for later (and is retained
+               also for the final output, which is okay because then the
+               got is just normal data).  */
+            put_elf_reloc(s1, s1->dynsym, s1->got, got_offset, R_RELATIVE, sym_index);
+        } else {
+            if (0 == attr->dyn_index)
+                attr->dyn_index = set_elf_sym(s1, s1->dynsym, sym->st_value, size, info, 0, sym->st_shndx, name);
+
+            put_elf_reloc(s1, s1->dynsym, s1->got, got_offset, dyn_reloc_type, attr->dyn_index);
+        }
     } else {
-        put_elf_reloc(s1, s1->symtab_section, s1->got, got_offset, dyn_reloc_type,
-                      sym_index);
+        put_elf_reloc(s1, s1->symtab_section, s1->got, got_offset, dyn_reloc_type, sym_index);
     }
 
     if (need_plt_entry) {

@@ -9,9 +9,13 @@
 extern "C" {
 #endif
 
+struct TCCType;
 struct TCCState;
+struct TCCFunction;
 
+typedef struct TCCType TCCType;
 typedef struct TCCState TCCState;
+typedef struct TCCFunction TCCFunction;
 
 /* create a new TCC compilation context */
 LIBTCCAPI TCCState *tcc_new(void);
@@ -91,6 +95,83 @@ LIBTCCAPI int tcc_relocate_ex(TCCState *s1, void *code_seg, void *data_seg, size
 
 /* return symbol value or NULL if not found */
 LIBTCCAPI void *tcc_get_symbol(TCCState *s, const char *name);
+
+/* The current value can be: */
+#define VT_VALMASK   0x003f  /* mask for value location, register or: */
+#define VT_CONST     0x0030  /* constant in vc (must be first non register value) */
+#define VT_LLOCAL    0x0031  /* lvalue, offset on stack */
+#define VT_LOCAL     0x0032  /* offset on stack */
+#define VT_CMP       0x0033  /* the value is stored in processor flags (in vc) */
+#define VT_JMP       0x0034  /* value is the consequence of jmp true (even) */
+#define VT_JMPI      0x0035  /* value is the consequence of jmp false (odd) */
+#define VT_LVAL      0x0100  /* var is an lvalue */
+#define VT_SYM       0x0200  /* a symbol value is added */
+#define VT_MUSTCAST  0x0400  /* value must be casted to be correct (used for
+                                char/short stored in integer registers) */
+#define VT_MUSTBOUND 0x0800  /* bound checking must be done before
+                                dereferencing value */
+#define VT_BOUNDED   0x8000  /* value is bounded. The address of the
+                                bounding function call point is in vc */
+
+#define VT_LVAL_BYTE     0x1000  /* lvalue is a byte */
+#define VT_LVAL_SHORT    0x2000  /* lvalue is a short */
+#define VT_LVAL_UNSIGNED 0x4000  /* lvalue is unsigned */
+#define VT_LVAL_TYPE     (VT_LVAL_BYTE | VT_LVAL_SHORT | VT_LVAL_UNSIGNED)
+
+/* types */
+#define VT_BTYPE       0x000f  /* mask for basic type */
+#define VT_VOID             0  /* void type */
+#define VT_BYTE             1  /* signed byte type */
+#define VT_SHORT            2  /* short type */
+#define VT_INT              3  /* integer type */
+#define VT_LLONG            4  /* 64 bit integer */
+#define VT_PTR              5  /* pointer */
+#define VT_FUNC             6  /* function type */
+#define VT_STRUCT           7  /* struct/union definition */
+#define VT_FLOAT            8  /* IEEE float */
+#define VT_DOUBLE           9  /* IEEE double */
+#define VT_LDOUBLE         10  /* IEEE long double */
+#define VT_BOOL            11  /* ISOC99 boolean type */
+#define VT_QLONG           13  /* 128-bit integer. Only used for x86-64 ABI */
+#define VT_QFLOAT          14  /* 128-bit float. Only used for x86-64 ABI */
+
+#define VT_UNSIGNED    0x0010  /* unsigned type */
+#define VT_DEFSIGN     0x0020  /* explicitly signed or unsigned */
+#define VT_ARRAY       0x0040  /* array type (also has VT_PTR) */
+#define VT_BITFIELD    0x0080  /* bitfield modifier */
+#define VT_CONSTANT    0x0100  /* const modifier */
+#define VT_VOLATILE    0x0200  /* volatile modifier */
+#define VT_VLA         0x0400  /* VLA type (also has VT_PTR and VT_ARRAY) */
+#define VT_LONG        0x0800  /* long type (also has VT_INT rsp. VT_LLONG) */
+
+/* storage */
+#define VT_EXTERN  0x00001000  /* extern definition */
+#define VT_STATIC  0x00002000  /* static variable */
+#define VT_TYPEDEF 0x00004000  /* typedef definition */
+#define VT_INLINE  0x00008000  /* inline definition */
+#define VT_FORWARD 0x00010000  /* forward declaration, Only used for TCCType::t */
+/* currently unused: 0x000[124]00000  */
+
+#define VT_STRUCT_SHIFT 20     /* shift for bitfield shift values (32 - 2*6) */
+#define VT_STRUCT_MASK (((1 << (6+6)) - 1) << VT_STRUCT_SHIFT | VT_BITFIELD)
+#define BIT_POS(t) (((t) >> VT_STRUCT_SHIFT) & 0x3f)
+#define BIT_SIZE(t) (((t) >> (VT_STRUCT_SHIFT + 6)) & 0x3f)
+
+#define VT_UNION    (1 << VT_STRUCT_SHIFT | VT_STRUCT)
+#define VT_ENUM     (2 << VT_STRUCT_SHIFT) /* integral type is an enum really */
+#define VT_ENUM_VAL (3 << VT_STRUCT_SHIFT) /* integral type is an enum constant really */
+
+#define IS_ENUM(t) ((t & VT_STRUCT_MASK) == VT_ENUM)
+#define IS_ENUM_VAL(t) ((t & VT_STRUCT_MASK) == VT_ENUM_VAL)
+#define IS_UNION(t) ((t & (VT_STRUCT_MASK|VT_BTYPE)) == VT_UNION)
+
+/* type mask (except storage) */
+#define VT_STORAGE (VT_EXTERN | VT_STATIC | VT_TYPEDEF | VT_INLINE)
+#define VT_TYPE (~(VT_STORAGE|VT_STRUCT_MASK))
+
+/* symbol was created by tccasm.c first */
+#define VT_ASM (VT_VOID | VT_UNSIGNED)
+#define IS_ASM_SYM(sym) (((sym)->type.t & (VT_BTYPE | VT_ASM)) == VT_ASM)
 
 #ifdef __cplusplus
 }
