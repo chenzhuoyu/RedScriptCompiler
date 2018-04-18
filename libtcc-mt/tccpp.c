@@ -527,13 +527,13 @@ ST_FUNC const char *get_tok_str(TCCState *s1, int v, CValue *cv)
                 }
                 q += 3;
             }
-        if (v >= 127) {
-            sprintf(s1->cstr_buf.data, "<%02x>", v);
-            return s1->cstr_buf.data;
-        }
-        addv:
-            *p++ = v;
-            *p = '\0';
+            if (v >= 127) {
+                sprintf(s1->cstr_buf.data, "<%02x>", v);
+                return s1->cstr_buf.data;
+            }
+            addv:
+                *p++ = v;
+                *p = '\0';
         } else if (v < s1->tok_ident) {
             return s1->table_ident[v - TOK_IDENT]->str;
         } else if (v >= SYM_FIRST_ANOM) {

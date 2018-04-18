@@ -933,9 +933,11 @@ struct TCCState {
 
 struct TCCType {
     int t;
+    int rc;
     char *name;
+    TCCType *ref;
     union {
-        TCCType **fields;
+        TCCType **types;
         long long *values;
     };
     char **names;
@@ -948,7 +950,9 @@ struct TCCFunction {
     void *addr;
     TCCType *ret;
     TCCType **args;
+    char **arg_names;
     int nb_args;
+    int nb_arg_names;
 };
 
 struct filespec {
@@ -1209,6 +1213,7 @@ ST_FUNC int tcc_add_file_internal(TCCState *s1, const char *filename, int flags)
 
 ST_FUNC void tcc_resolver_free(TCCState *s1);
 ST_FUNC void tcc_resolver_reset(TCCState *s1);
+ST_FUNC void tcc_resolver_ref_type(TCCState *s1, CType *type, const char *name);
 ST_FUNC TCCType *tcc_resolver_add_type(TCCState *s1, CType *type);
 ST_FUNC TCCFunction *tcc_resolver_add_func(TCCState *s1, const char *funcname, CType *ret);
 

@@ -1,6 +1,13 @@
 const char *source = R"source(#!/usr/bin/env redscript
 native 'C' class NativeClass()
 {
+typedef int (*ff)(long, float);
+int *fun(ff);
+int *fun(ff f) {
+    static int x = 1;
+    return &x;
+}
+
 struct tc_comp_t;
 typedef struct tc_comp_t TestComposite;
 
@@ -15,6 +22,11 @@ struct tc_comp_t
     int val_1;
     int val_2;
 };
+
+typedef enum {
+    item_1,
+    item_2,
+} test_enum_t;
 
 long test(TestComposite ts)
 {

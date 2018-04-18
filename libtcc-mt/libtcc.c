@@ -1204,7 +1204,7 @@ LIBTCCAPI int tcc_add_file(TCCState *s, const char *filename)
     return tcc_add_file_internal(s, filename, flags);
 }
 
-static void free_type(TCCState *s1, TCCType *type)
+static void del_type(TCCState *s1, TCCType *type)
 {
     int i;
     if (IS_ENUM(type->t)) {
@@ -1213,18 +1213,46 @@ static void free_type(TCCState *s1, TCCType *type)
     }
     else if ((type->t & VT_BTYPE) == VT_STRUCT) {
         for (i = 0; i < type->nb_values; i++)
-            type->fields[i] = NULL;
+            type->types[i] = NULL;
     }
 
     dynarray_reset(s1, &type->names, &type->nb_names);
     dynarray_reset(s1, &type->values, &type->nb_values);
-    tcc_free(s1, type);
+}
+
+static void copy_type(TCCType *dest, TCCType *src)
+{
+    dest->t = src->t;
+    dest->ref = src->ref;
+    dest->name = src->name;
+    dest->names = src->names;
+    dest->values = src->values;
+    dest->nb_names = src->nb_names;
+    dest->nb_values = src->nb_values;
+}
+
+static void free_type(TCCState *s1, TCCType *type)
+{
+    if (--type->rc == 0) {
+        del_type(s1, type);
+        tcc_free(s1, type);
+    }
 }
 
 static void free_function(TCCState *s1, TCCFunction *func)
 {
     tcc_free(s1, func->name);
     dynarray_reset(s1, &func->args, &func->nb_args);
+    dynarray_reset(s1, &func->arg_names, &func->nb_arg_names);
+}
+
+static char *pstrcatresize(TCCState *s1, char *s, const char *t) {
+    size_t a = strlen(s);
+    size_t b = strlen(t);
+    char *p = tcc_realloc(s1, s, a + b + 1);
+    strcpy(p + a, t);
+    p[a + b] = 0;
+    return p;
 }
 
 ST_FUNC void tcc_resolver_free(TCCState *s1)
@@ -1240,13 +1268,178 @@ ST_FUNC void tcc_resolver_reset(TCCState *s1)
     hashmap_new(s1, &s1->types, NULL);
 }
 
+ST_FUNC void tcc_resolver_ref_type(TCCState *s1, CType *type, const char *name)
+{
+    TCCType *ptype = tcc_resolver_add_type(s1, type);
+    ptype->rc++;
+    hashmap_insert(s1, &s1->types, name, ptype, (hashdtor_t)free_type);
+}
+
 ST_FUNC TCCType *tcc_resolver_add_type(TCCState *s1, CType *type)
 {
-    TCCType *t = tcc_mallocz(s1, sizeof(TCCType));
-    char buf[256];
-    type_to_str(s1, buf, 256, type, NULL);
-    printf("TYPE: %s{def=%p}\n", buf, type->ref ? type->ref->next : NULL);
-    return t;
+    int bt = type->t & VT_BTYPE;
+    TCCType *vtype = tcc_mallocz(s1, sizeof(TCCType));
+    TCCType **ptype;
+
+    static const char *type_names[] = {
+        "void",
+        "char",
+        "short",
+        "int",
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        "float",
+        "double",
+        "long double",
+        "_Bool",
+        "__int128",
+        "__float128",
+    };
+
+    vtype->t = type->t;
+    vtype->rc = 1;
+
+    switch (bt) {
+        case VT_BYTE: {
+            if (!(type->t & VT_DEFSIGN))
+                vtype->name = tcc_strdup(s1, "char");
+            else if (!(type->t & VT_UNSIGNED))
+                vtype->name = tcc_strdup(s1, "signed char");
+            else
+                vtype->name = tcc_strdup(s1, "unsigned char");
+
+            break;
+        }
+
+        case VT_SHORT: {
+            if (!(type->t & VT_UNSIGNED))
+                vtype->name = tcc_strdup(s1, "short");
+            else
+                vtype->name = tcc_strdup(s1, "unsigned short");
+
+            break;
+        }
+
+        case VT_VOID:
+        case VT_FLOAT:
+        case VT_DOUBLE:
+        case VT_LDOUBLE:
+        case VT_BOOL:
+        case VT_QLONG:
+        case VT_QFLOAT: {
+            vtype->name = tcc_strdup(s1, type_names[bt]);
+            break;
+        }
+
+        case VT_INT:
+        case VT_LLONG: {
+            if (!IS_ENUM(type->t)) {
+                if (!(type->t & VT_UNSIGNED)) {
+                    if (type->t & VT_LONG)
+                        vtype->name = tcc_strdup(s1, "long");
+                    else if (bt == VT_INT)
+                        vtype->name = tcc_strdup(s1, "int");
+                    else
+                        vtype->name = tcc_strdup(s1, "long long");
+                }
+                else {
+                    if (type->t & VT_LONG)
+                        vtype->name = tcc_strdup(s1, "unsigned long");
+                    else if (bt == VT_INT)
+                        vtype->name = tcc_strdup(s1, "unsigned int");
+                    else
+                        vtype->name = tcc_strdup(s1, "unsigned long long");
+                }
+            }
+            else {
+                Sym *sym = type->ref->next;
+                vtype->name = tcc_strdup(s1, get_tok_str(s1, type->ref->v & ~SYM_STRUCT, NULL));
+
+                if (!sym) {
+                    vtype->t |= VT_FORWARD;
+                    break;
+                }
+
+                while (sym) {
+                    long long val = sym->enum_val;
+                    const char *key = get_tok_str(s1, sym->v & ~SYM_STRUCT, NULL);
+
+                    dynarray_add(s1, &vtype->names, &vtype->nb_names, tcc_strdup(s1, key));
+                    dynarray_add(s1, &vtype->values, &vtype->nb_values, (void *)val);
+                    sym = sym->next;
+                }
+            }
+
+            break;
+        }
+
+        case VT_PTR: {
+            vtype->ref = tcc_resolver_add_type(s1, &type->ref->type);
+            vtype->name = tcc_mallocz(s1, strlen(vtype->ref->name) + 2);
+            strcat(strcpy(vtype->name, vtype->ref->name), "*");
+            break;
+        }
+
+        case VT_FUNC: {
+            Sym *sym = type->ref->next;
+            char *name = NULL;
+            TCCType *pt;
+
+            vtype->ref = tcc_resolver_add_type(s1, &type->ref->type);
+            name = pstrcatresize(s1, tcc_strdup(s1, vtype->ref->name), "()(");
+
+            while (sym) {
+                pt = tcc_resolver_add_type(s1, &sym->type);
+                sym = sym->next;
+                name = pstrcatresize(s1, name, pt->name);
+                name = pstrcatresize(s1, name, ",");
+                dynarray_add(s1, &vtype->types, &vtype->nb_values, pt);
+            }
+
+            vtype->name = name;
+            name[strlen(name) - 1] = ')';
+            break;
+        }
+
+        case VT_STRUCT: {
+            Sym *sym = type->ref->next;
+            vtype->name = tcc_strdup(s1, get_tok_str(s1, type->ref->v & ~SYM_STRUCT, NULL));
+
+            if (!sym) {
+                vtype->t |= VT_FORWARD;
+                break;
+            }
+
+            while (sym) {
+                int id = sym->v & ~(SYM_STRUCT | SYM_FIELD | SYM_FIRST_ANOM);
+                const char *key = get_tok_str(s1, id, NULL);
+
+                dynarray_add(s1, &vtype->names, &vtype->nb_names, tcc_strdup(s1, key));
+                dynarray_add(s1, &vtype->types, &vtype->nb_values, tcc_resolver_add_type(s1, &sym->type));
+                sym = sym->next;
+            }
+
+            break;
+        }
+
+        default:
+            tcc_error(s1, "unknown type");
+    }
+
+    if (!(ptype = (TCCType **)hashmap_lookup(s1, &s1->types, vtype->name))) {
+        hashmap_insert(s1, &s1->types, vtype->name, vtype, (hashdtor_t)free_type);
+        return vtype;
+    }
+
+    if (!(vtype->t & VT_FORWARD) && ((*ptype)->t & VT_FORWARD)) {
+        del_type(s1, *ptype);
+        copy_type(*ptype, vtype);
+    }
+
+    tcc_free(s1, vtype);
+    return *ptype;
 }
 
 ST_FUNC TCCFunction *tcc_resolver_add_func(TCCState *s1, const char *funcname, CType *ret)

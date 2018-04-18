@@ -37,7 +37,6 @@ static void decl_initializer(TCCState *s1, CType *type, Section *sec, unsigned l
 static void block(TCCState *s1, int *bsym, int *csym, int is_expr);
 static void decl_initializer_alloc(TCCState *s1, CType *type, AttributeDef *ad, int r, int has_init, int v, int scope);
 static void decl(TCCState *s1, int l);
-static void decl_comp(TCCState *s1, CType *type);
 static int decl0(TCCState *s1, int l, int is_for_loop_init, Sym *);
 static void expr_eq(TCCState *s1);
 static void vla_runtime_type_size(TCCState *s1, CType *type, int *a);
@@ -7044,26 +7043,17 @@ ST_FUNC void free_inline_functions(TCCState *s)
     dynarray_reset(s, &s->inline_fns, &s->nb_inline_fns);
 }
 
-static void decl_comp(TCCState *s1, CType *type)
-{
-    char buf[1024];
-    type_to_str(s1, buf, 1024, type, NULL);
-    if (IS_ENUM(type->t)) {
-        printf("----- ENUM: %s -----\n", buf);
-    }
-    else if (IS_UNION(type->t)) {
-        printf("----- UNION: %s -----\n", buf);
-    }
-    else if ((type->t & VT_BTYPE) == VT_STRUCT) {
-        printf("----- STRUCT: %s -----\n", buf);
-    }
+static char *make_arg_name(TCCState *s1, int arg) {
+    char *s = tcc_mallocz(s1, 16);
+    snprintf(s, 16, "_arg%d_", arg);
+    return s;
 }
 
 /* 'l' is VT_LOCAL or VT_CONST to define default storage type, or VT_CMP
    if parsing old style parameter decl list (and FUNC_SYM is set then) */
 static int decl0(TCCState *s1, int l, int is_for_loop_init, Sym *func_sym)
 {
-    int v, has_init, r;
+    int v, has_init, r, i;
     CType type, btype;
     Sym *sym;
     AttributeDef ad;
@@ -7101,13 +7091,13 @@ static int decl0(TCCState *s1, int l, int is_for_loop_init, Sym *func_sym)
                 if (!(vt & SYM_FIELD) && (vt & ~SYM_STRUCT) >= SYM_FIRST_ANOM)
                     tcc_warning(s1, "unnamed struct/union that defines no instances");
                 if (btype.ref->next && !s1->local_scope)
-                    decl_comp(s1, &btype);
+                    tcc_resolver_add_type(s1, &btype);
                 next(s1);
                 continue;
             }
             if (IS_ENUM(btype.t)) {
                 if (btype.ref->next && !s1->local_scope)
-                    decl_comp(s1, &btype);
+                    tcc_resolver_add_type(s1, &btype);
                 next(s1);
                 continue;
             }
@@ -7224,11 +7214,8 @@ static int decl0(TCCState *s1, int l, int is_for_loop_init, Sym *func_sym)
                             tcc_error(s1, "incompatible redefinition of '%s'", get_tok_str(s1, v, NULL));
                         sym->type = type;
                     } else {
-                        if (!s1->local_scope) {
-                            char buf[1024];
-                            type_to_str(s1, buf, 1024, &type, NULL);
-                            printf("----- TYPEDEF %s{def=%p} %s -----\n", buf, type.ref ? type.ref->next : NULL, get_tok_str(s1, v, NULL));
-                        }
+                        if (!s1->local_scope)
+                            tcc_resolver_ref_type(s1, &type, get_tok_str(s1, v, NULL));
                         sym = sym_push(s1, v, &type, 0, 0);
                     }
                     sym->a = ad.a;
@@ -7241,18 +7228,19 @@ static int decl0(TCCState *s1, int l, int is_for_loop_init, Sym *func_sym)
                         sym = sym_find(s1, v);
                         type.ref->f = ad.f;
                         if (!(type.t & VT_STATIC) && !(sym && sym->sym_scope == s1->local_scope)) {
+                            i = 0;
                             sym = type.ref;
                             func = tcc_resolver_add_func(s1, get_tok_str(s1, v, NULL), &sym->type);
-                            printf("----- FUNCTION DECL -----\n");
-                            printf("**** func name: %s\n", func->name);
-                            printf("**** ret type.t: %#x, type.ref: %p\n", sym->type.t, sym->type.ref);
                             while ((sym = sym->next) != NULL) {
                                 if (sym->type.t == VT_VOID)
                                     sym->type = s1->int_type;
-                                printf("**** arg: %s, type.t: %#x, type.ref: %p\n",
-                                       get_tok_str(s1, sym->v & ~SYM_FIELD, NULL), sym->type.t, sym->type.ref);
+                                if (!(sym->v & ~SYM_FIELD))
+                                    dynarray_add(s1, &func->arg_names, &func->nb_arg_names, make_arg_name(s1, i));
+                                else
+                                    dynarray_add(s1, &func->arg_names, &func->nb_arg_names, tcc_strdup(s1, get_tok_str(s1, sym->v & ~SYM_FIELD, NULL)));
+                                dynarray_add(s1, &func->args, &func->nb_args, tcc_resolver_add_type(s1, &sym->type));
+                                i++;
                             }
-                            printf("--------------------\n");
                         }
                     } else if (!(type.t & VT_ARRAY)) {
                         /* not lvalue if array */
