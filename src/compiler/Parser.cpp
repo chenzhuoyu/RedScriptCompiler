@@ -870,7 +870,10 @@ std::unique_ptr<AST::Invoke> Parser::parseInvoke(void)
 
         /* check for the comma seperator */
         if (token->isOperator<Token::Operator::Comma>())
+        {
             _lexer->next();
+            token = _lexer->peek();
+        }
 
         /* check for the `BracketRight` operator */
         else if (token->isOperator<Token::Operator::BracketRight>())
