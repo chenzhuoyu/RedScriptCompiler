@@ -1461,6 +1461,20 @@ LIBTCCAPI TCCFunction *tcc_find_function(TCCState *s, const char *name)
     return pf ? *(TCCFunction **)pf : NULL;
 }
 
+LIBTCCAPI size_t tcc_list_functions(TCCState *s, tcc_function_enum_t enum_cb, void *opaque)
+{
+    size_t n = 0;
+    struct hashitem_t *node = s->funcs.list.next;
+
+    while ((node != &s->funcs.list) &&
+           enum_cb(s, node->key, node->value, opaque)) {
+        n++;
+        node = node->next;
+    }
+
+    return n;
+}
+
 LIBTCCAPI void *tcc_function_get_addr(TCCState *s, TCCFunction *f)
 {
     if (!f->addr)
@@ -1480,6 +1494,11 @@ LIBTCCAPI TCCType *tcc_function_get_return_type(TCCFunction *f)
     return f->ret;
 }
 
+LIBTCCAPI const char *tcc_function_get_name(TCCFunction *f)
+{
+    return f->name;
+}
+
 LIBTCCAPI size_t tcc_function_get_nargs(TCCFunction *f)
 {
     return (size_t)f->nb_args;
@@ -1493,6 +1512,90 @@ LIBTCCAPI TCCType *tcc_function_get_arg_type(TCCFunction *f, size_t index)
 LIBTCCAPI const char *tcc_function_get_arg_name(TCCFunction *f, size_t index)
 {
     return index < f->nb_arg_names ? f->arg_names[index] : NULL;
+}
+
+LIBTCCAPI TCCType *tcc_find_type(TCCState *s, const char *name)
+{
+    void **pf = hashmap_lookup(s, &s->types, name);
+    return pf ? *(TCCType **)pf : NULL;
+}
+
+LIBTCCAPI size_t tcc_list_types(TCCState *s, tcc_type_enum_t enum_cb, void *opaque)
+{
+    size_t n = 0;
+    struct hashitem_t *node = s->types.list.next;
+
+    while ((node != &s->types.list) &&
+           enum_cb(s, node->key, node->value, opaque)) {
+        n++;
+        node = node->next;
+    }
+
+    return n;
+}
+
+LIBTCCAPI int tcc_type_get_id(TCCType *t)
+{
+    return t->t;
+}
+
+LIBTCCAPI TCCType *tcc_type_get_ref(TCCType *t)
+{
+    return IS_PTR(t->t) || IS_FUNC(t->t) ? t->ref : NULL;
+}
+
+LIBTCCAPI const char *tcc_type_get_name(TCCType *t)
+{
+    return t->name;
+}
+
+LIBTCCAPI ssize_t tcc_type_get_nkeys(TCCType *t)
+{
+    return IS_ENUM(t->t) || IS_STRUCT(t->t) ? t->nb_names : -1;
+}
+
+LIBTCCAPI ssize_t tcc_type_get_nvalues(TCCType *t)
+{
+    return IS_ENUM(t->t) || IS_STRUCT(t->t) || IS_FUNC(t->t) ? t->nb_values : -1;
+}
+
+LIBTCCAPI ssize_t tcc_type_list_args(TCCState *s, TCCType *t, tcc_type_arg_enum_t enum_cb, void *opaque)
+{
+    if (!IS_FUNC(t->t))
+        return -1;
+
+    int i;
+    for (i = 0; i < t->nb_values; i++)
+        if (!enum_cb(s, t, t->types[i], opaque))
+            break;
+
+    return i;
+}
+
+LIBTCCAPI ssize_t tcc_type_list_items(TCCState *s, TCCType *t, tcc_type_item_enum_t enum_cb, void *opaque)
+{
+    if (!IS_ENUM(t->t) || (t->nb_names != t->nb_values))
+        return -1;
+
+    int i;
+    for (i = 0; i < t->nb_names; i++)
+        if (!enum_cb(s, t, t->names[i], t->values[i], opaque))
+            break;
+
+    return i;
+}
+
+LIBTCCAPI ssize_t tcc_type_list_fields(TCCState *s, TCCType *t, tcc_type_field_enum_t enum_cb, void *opaque)
+{
+    if (!IS_STRUCT(t->t) || (t->nb_names != t->nb_values))
+        return -1;
+
+    int i;
+    for (i = 0; i < t->nb_names; i++)
+        if (!enum_cb(s, t, t->names[i], t->types[i], opaque))
+            break;
+
+    return i;
 }
 
 LIBTCCAPI int tcc_add_library_path(TCCState *s, const char *pathname)

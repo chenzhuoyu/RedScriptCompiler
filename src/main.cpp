@@ -67,6 +67,65 @@ static TestComposite test_func(int arg0, float arg1)
 #include "compiler/Parser.h"
 #include "compiler/Tokenizer.h"
 
+static std::string type2str(TCCState *s, TCCType *t, const char *n)
+{
+    int id = tcc_type_get_id(t);
+    std::string name = n ?: tcc_type_get_name(t);
+
+    if (!n || !strcmp(n, tcc_type_get_name(t)))
+    {
+        if (IS_ENUM(id))
+            name = "enum " + name;
+        else if (IS_UNION(id))
+            name = "union " + name;
+        else if (IS_STRUCT(id))
+            name = "struct " + name;
+    }
+    else
+    {
+        name += " (aka. \"";
+
+        if (IS_ENUM(id))
+            name += "enum ";
+        else if (IS_UNION(id))
+            name += "union ";
+        else if (IS_STRUCT(id))
+            name += "struct ";
+
+        name += tcc_type_get_name(t);
+        name += "\")";
+    }
+
+    if (IS_ENUM(id))
+    {
+        name += " { ";
+        tcc_type_list_items(s, t, [](TCCState *s, TCCType *t, const char *name, long long val, void *pn) -> char
+        {
+            *(std::string *)pn += name;
+            *(std::string *)pn += " = ";
+            *(std::string *)pn += std::to_string(val);
+            *(std::string *)pn += ", ";
+            return 1;
+        }, &name);
+        name += "}";
+    }
+
+    else if (IS_UNION(id) || IS_STRUCT(id))
+    {
+        name += " { ";
+        tcc_type_list_fields(s, t, [](TCCState *s, TCCType *t, const char *name, TCCType *type, void *pn) -> char
+        {
+            *(std::string *)pn += type2str(s, type, nullptr);
+            *(std::string *)pn += " ";
+            *(std::string *)pn += name;
+            *(std::string *)pn += "; ";
+            return 1;
+        }, &name);
+        name += "}";
+    }
+
+    return name;
+}
 
 void run(void)
 {
@@ -103,29 +162,38 @@ void run(void)
         return;
     }
 
-    TCCFunction *func = tcc_find_function(tcc, "scanf");
-    std::cout << "tcc-find-function(scanf): " << func << std::endl;
+    tcc_list_types(tcc, [](TCCState *s, const char *name, TCCType *type, void *) -> char
+    {
+        std::cout << "* TYPE :: " << type2str(s, type, name) << std::endl;
+        return 1;
+    }, nullptr);
+
+    tcc_list_functions(tcc, [](TCCState *s, const char *name, TCCFunction *func, void *) -> char
+    {
+        void *fp = tcc_function_get_addr(s, func);
+        size_t nargs = tcc_function_get_nargs(func);
+        TCCType *rettype = tcc_function_get_return_type(func);
+        std::cout << "----------- FUNCTION \"" << name << "\" -----------" << std::endl;
+        std::cout << "tcc-function-get-addr(): " << fp << std::endl;
+        std::cout << "tcc-function-get-nargs(): " << nargs << std::endl;
+        std::cout << "tcc-function-get-return-type(): " << type2str(s, rettype, nullptr) << std::endl;
+
+        for (size_t i = 0; i < nargs; i++)
+        {
+            TCCType *t = tcc_function_get_arg_type(func, i);
+            const char *n = tcc_function_get_arg_name(func, i);
+            std::cout << "- arg " << i << ": name=" << std::string(n) << ", type=" << type2str(s, t, nullptr) << std::endl;
+        }
+
+        return 1;
+    }, nullptr);
+    std::cout << "----------- END FUNCTION -----------" << std::endl;
+
+    TCCFunction *func = tcc_find_function(tcc, "test");
+    std::cout << "tcc-find-function(\"test\"): " << func << std::endl;
 
     void *fp = tcc_function_get_addr(tcc, func);
-    std::cout << "tcc-function-get-addr(scanf): " << fp << std::endl;
-
-    func = tcc_find_function(tcc, "test");
-    std::cout << "tcc-find-function(test): " << func << std::endl;
-
-    size_t nargs = tcc_function_get_nargs(func);
-    TCCType *rettype = tcc_function_get_return_type(func);
-    std::cout << "tcc-function-get-nargs(test): " << nargs << std::endl;
-    std::cout << "tcc-function-get-return-type(test): " << rettype << std::endl;
-
-    for (size_t i = 0; i < nargs; i++)
-    {
-        TCCType *t = tcc_function_get_arg_type(func, i);
-        const char *n = tcc_function_get_arg_name(func, i);
-        std::cout << "- arg " << i << ": name=" << std::string(n) << ", type=" << t << std::endl;
-    }
-
-    fp = tcc_function_get_addr(tcc, func);
-    std::cout << "tcc-function-get-addr(test): " << fp << std::endl;
+    std::cout << "tcc-function-get-addr(\"test\"): " << fp << std::endl;
 
     auto val = ((long (*)(int, float))fp)(555, 1.234);
     std::cout << "native.test(): " << val << std::endl;

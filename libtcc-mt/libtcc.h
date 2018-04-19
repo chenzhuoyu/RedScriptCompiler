@@ -99,18 +99,51 @@ LIBTCCAPI void *tcc_get_symbol(TCCState *s, const char *name);
 /* return function info or NULL if not found */
 LIBTCCAPI TCCFunction *tcc_find_function(TCCState *s, const char *name);
 
+/* list all functions, return `false` in `tcc_function_enum_t` to stop enumeration */
+typedef char (*tcc_function_enum_t)(TCCState *s, const char *name, TCCFunction *f, void *opaque);
+LIBTCCAPI size_t tcc_list_functions(TCCState *s, tcc_function_enum_t enum_cb, void *opaque);
+
 /* return function address or NULL if not found */
 LIBTCCAPI void *tcc_function_get_addr(TCCState *s, TCCFunction *f);
 
-/* function return type */
+/* function inspection */
 LIBTCCAPI TCCType *tcc_function_get_return_type(TCCFunction *f);
-
-/* function argument inspection */
+LIBTCCAPI const char *tcc_function_get_name(TCCFunction *f);
 LIBTCCAPI size_t tcc_function_get_nargs(TCCFunction *f);
 LIBTCCAPI TCCType *tcc_function_get_arg_type(TCCFunction *f, size_t index);
 LIBTCCAPI const char *tcc_function_get_arg_name(TCCFunction *f, size_t index);
 
-/* The current value can be: */
+/* return type info or NULL if not found */
+LIBTCCAPI TCCType *tcc_find_type(TCCState *s, const char *name);
+
+/* list all types, return `false` in `tcc_type_enum_t` to stop enumeration */
+typedef char (*tcc_type_enum_t)(TCCState *s, const char *name, TCCType *t, void *opaque);
+LIBTCCAPI size_t tcc_list_types(TCCState *s, tcc_type_enum_t enum_cb, void *opaque);
+
+/* type inspection */
+LIBTCCAPI int tcc_type_get_id(TCCType *t);
+LIBTCCAPI TCCType *tcc_type_get_ref(TCCType *t);
+LIBTCCAPI const char *tcc_type_get_name(TCCType *t);
+
+/* return field count / enum item count */
+LIBTCCAPI ssize_t tcc_type_get_nkeys(TCCType *t);
+
+/* return field count / enum item count / function argument count */
+LIBTCCAPI ssize_t tcc_type_get_nvalues(TCCType *t);
+
+/* list function args, return `false` in `tcc_type_arg_enum_t` to stop enumeration */
+typedef char (*tcc_type_arg_enum_t)(TCCState *s, TCCType *t, TCCType *type, void *opaque);
+LIBTCCAPI ssize_t tcc_type_list_args(TCCState *s, TCCType *t, tcc_type_arg_enum_t enum_cb, void *opaque);
+
+/* list enum items, return `false` in `tcc_type_item_enum_t` to stop enumeration */
+typedef char (*tcc_type_item_enum_t)(TCCState *s, TCCType *t, const char *key, long long val, void *opaque);
+LIBTCCAPI ssize_t tcc_type_list_items(TCCState *s, TCCType *t, tcc_type_item_enum_t enum_cb, void *opaque);
+
+/* list struct fields, return `false` in `tcc_type_field_enum_t` to stop enumeration */
+typedef char (*tcc_type_field_enum_t)(TCCState *s, TCCType *t, const char *name, TCCType *type, void *opaque);
+LIBTCCAPI ssize_t tcc_type_list_fields(TCCState *s, TCCType *t, tcc_type_field_enum_t enum_cb, void *opaque);
+
+/* The current type ID value can be: */
 #define VT_VALMASK   0x003f  /* mask for value location, register or: */
 #define VT_CONST     0x0030  /* constant in vc (must be first non register value) */
 #define VT_LLOCAL    0x0031  /* lvalue, offset on stack */
@@ -178,6 +211,10 @@ LIBTCCAPI const char *tcc_function_get_arg_name(TCCFunction *f, size_t index);
 #define IS_ENUM(t) ((t & VT_STRUCT_MASK) == VT_ENUM)
 #define IS_ENUM_VAL(t) ((t & VT_STRUCT_MASK) == VT_ENUM_VAL)
 #define IS_UNION(t) ((t & (VT_STRUCT_MASK|VT_BTYPE)) == VT_UNION)
+
+#define IS_PTR(t) ((t & VT_BTYPE) == VT_PTR)
+#define IS_FUNC(t) ((t & VT_BTYPE) == VT_FUNC)
+#define IS_STRUCT(t) ((t & VT_BTYPE) == VT_STRUCT)
 
 /* type mask (except storage) */
 #define VT_STORAGE (VT_EXTERN | VT_STATIC | VT_TYPEDEF | VT_INLINE)
