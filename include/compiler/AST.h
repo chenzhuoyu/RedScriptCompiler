@@ -54,7 +54,7 @@ public:
         Expression,
 
         Statement,
-        CompondStatement,
+        CompoundStatement,
     };
 
 private:
@@ -113,7 +113,7 @@ struct Decorator;
 struct Expression;
 
 struct Statement;
-struct CompondStatement;
+struct CompoundStatement;
 
 /*** Basic Language Structures ***/
 
@@ -549,7 +549,7 @@ public:
 
         Decorator,
         Expression,
-        CompondStatement,
+        CompoundStatement,
     };
 
 public:
@@ -582,7 +582,7 @@ public:
 public:
     std::unique_ptr<AST::Decorator> decorator;
     std::unique_ptr<AST::Expression> expression;
-    std::unique_ptr<AST::CompondStatement> compondStatement;
+    std::unique_ptr<AST::CompoundStatement> compoundStatement;
 
 public:
     explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::If> &&value) : Node(Node::Type::Statement, token), stype(StatementType::If), ifStatement(std::move(value)) {}
@@ -611,13 +611,13 @@ public:
 public:
     explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::Decorator> &&value) : Node(Node::Type::Statement, token), stype(StatementType::Decorator), decorator(std::move(value)) {}
     explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::Expression> &&value) : Node(Node::Type::Statement, token), stype(StatementType::Expression), expression(std::move(value)) {}
-    explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::CompondStatement> &&value) : Node(Node::Type::Statement, token), stype(StatementType::CompondStatement), compondStatement(std::move(value)) {}
+    explicit Statement(const Token::Ptr &token, std::unique_ptr<AST::CompoundStatement> &&value) : Node(Node::Type::Statement, token), stype(StatementType::CompoundStatement), compoundStatement(std::move(value)) {}
 
 };
 
-struct CompondStatement : public Node
+struct CompoundStatement : public Node
 {
-    AST_NODE(CompondStatement)
+    AST_NODE(CompoundStatement)
     std::vector<std::unique_ptr<Statement>> statements;
 };
 
@@ -687,7 +687,7 @@ public:
 
 public:
     virtual void visitStatement(const std::unique_ptr<Statement> &node);
-    virtual void visitCompondStatement(const std::unique_ptr<CompondStatement> &node);
+    virtual void visitCompoundStatement(const std::unique_ptr<CompoundStatement> &node);
 
 };
 }

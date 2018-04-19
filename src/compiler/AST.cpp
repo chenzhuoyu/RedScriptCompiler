@@ -276,33 +276,33 @@ void Visitor::visitStatement(const std::unique_ptr<Statement> &node)
 {
     switch (node->stype)
     {
-        case Statement::StatementType::If               : visitIf(node->ifStatement); break;
-        case Statement::StatementType::For              : visitFor(node->forStatement); break;
-        case Statement::StatementType::Try              : visitTry(node->tryStatement); break;
-        case Statement::StatementType::Class            : visitClass(node->classStatement); break;
-        case Statement::StatementType::While            : visitWhile(node->whileStatement); break;
-        case Statement::StatementType::Native           : visitNative(node->nativeStatement); break;
-        case Statement::StatementType::Switch           : visitSwitch(node->switchStatement); break;
-        case Statement::StatementType::Function         : visitFunction(node->functionStatement); break;
+        case Statement::StatementType::If                : visitIf(node->ifStatement); break;
+        case Statement::StatementType::For               : visitFor(node->forStatement); break;
+        case Statement::StatementType::Try               : visitTry(node->tryStatement); break;
+        case Statement::StatementType::Class             : visitClass(node->classStatement); break;
+        case Statement::StatementType::While             : visitWhile(node->whileStatement); break;
+        case Statement::StatementType::Native            : visitNative(node->nativeStatement); break;
+        case Statement::StatementType::Switch            : visitSwitch(node->switchStatement); break;
+        case Statement::StatementType::Function          : visitFunction(node->functionStatement); break;
 
-        case Statement::StatementType::Assign           : visitAssign(node->assignStatement); break;
-        case Statement::StatementType::Incremental      : visitIncremental(node->incrementalStatement); break;
+        case Statement::StatementType::Assign            : visitAssign(node->assignStatement); break;
+        case Statement::StatementType::Incremental       : visitIncremental(node->incrementalStatement); break;
 
-        case Statement::StatementType::Raise            : visitRaise(node->raiseStatement); break;
-        case Statement::StatementType::Delete           : visitDelete(node->deleteStatement); break;
-        case Statement::StatementType::Import           : visitImport(node->importStatement); break;
+        case Statement::StatementType::Raise             : visitRaise(node->raiseStatement); break;
+        case Statement::StatementType::Delete            : visitDelete(node->deleteStatement); break;
+        case Statement::StatementType::Import            : visitImport(node->importStatement); break;
 
-        case Statement::StatementType::Break            : visitBreak(node->breakStatement); break;
-        case Statement::StatementType::Return           : visitReturn(node->returnStatement); break;
-        case Statement::StatementType::Continue         : visitContinue(node->continueStatement); break;
+        case Statement::StatementType::Break             : visitBreak(node->breakStatement); break;
+        case Statement::StatementType::Return            : visitReturn(node->returnStatement); break;
+        case Statement::StatementType::Continue          : visitContinue(node->continueStatement); break;
 
-        case Statement::StatementType::Decorator        : visitDecorator(node->decorator); break;
-        case Statement::StatementType::Expression       : visitExpression(node->expression); break;
-        case Statement::StatementType::CompondStatement : visitCompondStatement(node->compondStatement); break;
+        case Statement::StatementType::Decorator         : visitDecorator(node->decorator); break;
+        case Statement::StatementType::Expression        : visitExpression(node->expression); break;
+        case Statement::StatementType::CompoundStatement : visitCompoundStatement(node->compoundStatement); break;
     }
 }
 
-void Visitor::visitCompondStatement(const std::unique_ptr<CompondStatement> &node)
+void Visitor::visitCompoundStatement(const std::unique_ptr<CompoundStatement> &node)
 {
     for (const auto &stmt : node->statements)
         visitStatement(stmt);

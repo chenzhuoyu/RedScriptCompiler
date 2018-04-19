@@ -19,7 +19,7 @@ typedef std::vector<std::string> StringList;
 typedef std::unordered_map<std::string, ObjectRef> Elements;
 
 /* the very first class */
-extern TypeRef MetaType;
+extern TypeRef TypeObject;
 
 /* simple object */
 class Object : public ReferenceCounted
@@ -30,7 +30,6 @@ class Object : public ReferenceCounted
 private:
     template <typename>
     friend class Reference;
-    friend class MetaClassInit;
 
 public:
     virtual ~Object();
@@ -38,8 +37,19 @@ public:
 
 public:
     TypeRef type(void) { return _type; }
-    ObjectRef self(void) { return Reference<Object>(this); }
+    ObjectRef self(void) { return ObjectRef::borrow(this); }
 
+public:
+    static void shutdown(void) {}
+    static void initialize(void);
+
+public:
+    template <typename T, typename ... Args>
+    static inline ObjectRef newObject(Args && ... args)
+    {
+        /* just a shortcut function */
+        return Reference<T>::newObject(std::forward<Args>(args) ...);
+    }
 };
 
 /* class object */
@@ -48,8 +58,8 @@ class Type : public Object
     TypeRef _super;
 
 public:
-    explicit Type() : Type(MetaType) {}
-    explicit Type(TypeRef super) : Object(MetaType), _super(super) {}
+    explicit Type() : Type(TypeObject) {}
+    explicit Type(TypeRef super) : Object(TypeObject), _super(super) {}
 
 public:
     TypeRef super(void) const { return _super; }

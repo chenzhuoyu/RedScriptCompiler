@@ -8,7 +8,7 @@ namespace RedScript::Runtime
 /* thread-local, so no atomic operations needed */
 static thread_local bool _isStaticObject = true;
 
-ReferenceCounted::ReferenceCounted() : _refCount(0)
+ReferenceCounted::ReferenceCounted() : _refCount(1)
 {
     _isStatic = _isStaticObject;
     _isStaticObject = true;

@@ -8,18 +8,26 @@ print('hello, world', **{'end': ''})
 #include <libtcc.h>
 #include <sys/mman.h>
 
+#include "RedScript.h"
 #include "engine/Memory.h"
-#include "engine/GarbageCollector.h"
 
 #include "utils/Strings.h"
 #include "runtime/Object.h"
 #include "compiler/Parser.h"
 #include "compiler/Tokenizer.h"
+#include "compiler/CodeGenerator.h"
 
 static void run(void)
 {
     RedScript::Compiler::Parser parser(std::make_unique<RedScript::Compiler::Tokenizer>(source));
-    parser.parse();
+    RedScript::Compiler::CodeGenerator codegen(parser.parse());
+    codegen.build();
+    std::cout << "---------------------------------------------" << std::endl;
+    std::cout << "raw usage: " << RedScript::Engine::Memory::rawUsage() << std::endl;
+    std::cout << "array usage: " << RedScript::Engine::Memory::arrayUsage() << std::endl;
+    std::cout << "object usage: " << RedScript::Engine::Memory::objectUsage() << std::endl;
+    std::cout << "---------------------------------------------" << std::endl;
+
 }
 
 #if 0
@@ -214,13 +222,12 @@ static void run(void)
 
 int main()
 {
-    RedScript::Engine::GarbageCollector::initialize(
-        1 * 1024 * 1024 * 1024,     /* Young,   1G */
-             512 * 1024 * 1024,     /* Old  , 512M */
-             128 * 1024 * 1024      /* Perm , 128M */
-    );
+    size_t young = 1 * 1024 * 1024 * 1024;     /* Young,   1G */
+    size_t old   =      512 * 1024 * 1024;     /* Old  , 512M */
+    size_t perm  =      128 * 1024 * 1024;     /* Perm , 128M */
 
+    RedScript::initialize(young, old, perm);
     run();
-    RedScript::Engine::GarbageCollector::shutdown();
+    RedScript::shutdown();
     return 0;
 }

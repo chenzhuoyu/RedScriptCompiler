@@ -48,14 +48,17 @@ set(LIBTCC_MT
 set(SOURCE_FILES
         ${LIBTCC_MT}
         include/compiler/AST.h
+        include/compiler/CodeGenerator.h
         include/compiler/Parser.h
         include/compiler/Tokenizer.h
+        include/engine/Bytecode.h
         include/engine/GarbageCollector.h
         include/engine/Memory.h
         include/engine/Thread.h
         include/lockfree/DoublyLinkedList.h
         include/lockfree/HazardMemory.h
         include/lockfree/IndexGenerator.h
+        include/runtime/CodeObject.h
         include/runtime/Object.h
         include/runtime/ReferenceCounted.h
         include/runtime/SyntaxError.h
@@ -63,15 +66,19 @@ set(SOURCE_FILES
         include/utils/NonCopyable.h
         include/utils/Preprocessor.h
         include/utils/Strings.h
+        include/RedScript.h
         src/compiler/AST.cpp
+        src/compiler/CodeGenerator.cpp
         src/compiler/Parser.cpp
         src/compiler/Tokenizer.cpp
         src/engine/GarbageCollector.cpp
         src/engine/Memory.cpp
         src/engine/Thread.cpp
+        src/runtime/CodeObject.cpp
         src/runtime/Object.cpp
         src/runtime/ReferenceCounted.cpp
         src/utils/Strings.cpp
+        src/RedScript.cpp
         src/main.cpp)
 
 add_executable(rsc ${SOURCE_FILES})

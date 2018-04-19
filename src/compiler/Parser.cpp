@@ -5,10 +5,10 @@
 
 namespace RedScript::Compiler
 {
-std::unique_ptr<AST::CompondStatement> Parser::parse(void)
+std::unique_ptr<AST::CompoundStatement> Parser::parse(void)
 {
     Token::Ptr token = _lexer->peek();
-    std::unique_ptr<AST::CompondStatement> result(new AST::CompondStatement(token));
+    std::unique_ptr<AST::CompoundStatement> result(new AST::CompoundStatement(token));
 
     /* parse each statement until end of file */
     while (!(token->is<Token::Type::Eof>()))
@@ -1655,11 +1655,11 @@ std::unique_ptr<AST::Statement> Parser::parseStatement(void)
     if (token->isOperator<Token::Operator::BlockLeft>())
         return std::make_unique<AST::Statement>(token, parseCompondStatement());
 
-    /* single semicolon, give an empty compond statement */
+    /* single semicolon, give an empty compound statement */
     else if (token->isOperator<Token::Operator::Semicolon>())
     {
         _lexer->next();
-        return std::make_unique<AST::Statement>(token, std::make_unique<AST::CompondStatement>(token));
+        return std::make_unique<AST::Statement>(token, std::make_unique<AST::CompoundStatement>(token));
     }
 
     /* decorator expression, parse as assigning invocation */
@@ -1818,10 +1818,10 @@ std::unique_ptr<AST::Statement> Parser::parseStatement(void)
     return result;
 }
 
-std::unique_ptr<AST::CompondStatement> Parser::parseCompondStatement(void)
+std::unique_ptr<AST::CompoundStatement> Parser::parseCompondStatement(void)
 {
     Token::Ptr token = _lexer->next();
-    std::unique_ptr<AST::CompondStatement> result(new AST::CompondStatement(token));
+    std::unique_ptr<AST::CompoundStatement> result(new AST::CompoundStatement(token));
 
     /* block start */
     if (!(token->isOperator<Token::Operator::BlockLeft>()))

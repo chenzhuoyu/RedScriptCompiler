@@ -2,31 +2,27 @@
 
 namespace RedScript::Runtime
 {
-struct MetaClassInit
-{
-    MetaClassInit()
-    {
-        static Type rootClass(nullptr);
-        MetaType = rootClass._type = TypeRef::refStatic(rootClass);
-    }
-};
-
 /* the very first class */
-TypeRef MetaType;
-static MetaClassInit __META_CLASS_INIT__;
+TypeRef TypeObject;
 
 /*** Object Implementations ***/
 
 Object::~Object()
 {
-    if (_type != MetaType)
+    if (_type != TypeObject)
         _type->objectDestroy(self());
 }
 
 Object::Object(TypeRef type) : _type(type)
 {
-    if (_type != MetaType)
+    if (_type != TypeObject)
         _type->objectInit(self());
+}
+
+void Object::initialize(void)
+{
+    static Type rootClass(nullptr);
+    TypeObject = rootClass._type = TypeRef::refStatic(rootClass);
 }
 
 /*** Type Implementations ***/

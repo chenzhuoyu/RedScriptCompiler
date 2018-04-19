@@ -52,7 +52,7 @@ public:
         _lexer(std::move(lexer)), _cases(0), _loops(0), _functions(0) {}
 
 public:
-    std::unique_ptr<AST::CompondStatement> parse(void);
+    std::unique_ptr<AST::CompoundStatement> parse(void);
 
 /*** Basic Language Structures ***/
 
@@ -131,7 +131,7 @@ public:
 
 public:
     std::unique_ptr<AST::Statement>         parseStatement(void);
-    std::unique_ptr<AST::CompondStatement>  parseCompondStatement(void);
+    std::unique_ptr<AST::CompoundStatement>  parseCompondStatement(void);
 
 };
 }
