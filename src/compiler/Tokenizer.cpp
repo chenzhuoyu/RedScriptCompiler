@@ -55,7 +55,6 @@ static const std::unordered_map<std::string, Token::Operator> Operators = {
     { "and" , Token::Operator::BoolAnd              },
     { "or"  , Token::Operator::BoolOr               },
     { "not" , Token::Operator::BoolNot              },
-    { "xor" , Token::Operator::BoolXor              },
 
     { "+"   , Token::Operator::Plus                 },
     { "-"   , Token::Operator::Minus                },

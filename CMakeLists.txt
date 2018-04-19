@@ -59,8 +59,12 @@ set(SOURCE_FILES
         include/lockfree/HazardMemory.h
         include/lockfree/IndexGenerator.h
         include/runtime/CodeObject.h
+        include/runtime/DecimalObject.h
+        include/runtime/InternalError.h
+        include/runtime/IntObject.h
         include/runtime/Object.h
         include/runtime/ReferenceCounted.h
+        include/runtime/StringObject.h
         include/runtime/SyntaxError.h
         include/utils/Immovable.h
         include/utils/NonCopyable.h
@@ -75,11 +79,14 @@ set(SOURCE_FILES
         src/engine/Memory.cpp
         src/engine/Thread.cpp
         src/runtime/CodeObject.cpp
+        src/runtime/DecimalObject.cpp
+        src/runtime/IntObject.cpp
         src/runtime/Object.cpp
         src/runtime/ReferenceCounted.cpp
+        src/runtime/StringObject.cpp
         src/utils/Strings.cpp
         src/RedScript.cpp
-        src/main.cpp)
+        src/main.cpp include/runtime/RuntimeError.h)
 
 add_executable(rsc ${SOURCE_FILES})
 target_link_libraries(rsc -ldl -lfmt -ljemalloc)

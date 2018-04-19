@@ -1,5 +1,5 @@
 const char *source = R"source(#!/usr/bin/env redscript
-print('hello, world', **{'end': ''})
+a = 0 + 1 * 2 or 3 + 4 and 5
 )source";
 
 #include <iostream>
@@ -27,7 +27,26 @@ static void run(void)
     std::cout << "array usage: " << RedScript::Engine::Memory::arrayUsage() << std::endl;
     std::cout << "object usage: " << RedScript::Engine::Memory::objectUsage() << std::endl;
     std::cout << "---------------------------------------------" << std::endl;
-
+    const char *s = codegen.buffer().data();
+    const char *p = codegen.buffer().data();
+    const char *e = codegen.buffer().data() + codegen.buffer().size();
+    while (p < e)
+    {
+        uint8_t op = (uint8_t)*p;
+        if (!(RedScript::Engine::OpCodeFlags[op] & RedScript::Engine::OP_V))
+            printf("%.4lx :: %15s\n", p - s, RedScript::Engine::OpCodeNames[op]);
+        else
+        {
+            int32_t opv = *(int32_t *)(p + 1);
+            if (!(RedScript::Engine::OpCodeFlags[op] & RedScript::Engine::OP_REL))
+                printf("%.4lx :: %15s    %d\n", p - s, RedScript::Engine::OpCodeNames[op], opv);
+            else
+                printf("%.4lx :: %15s    %d -> %#lx\n", p - s, RedScript::Engine::OpCodeNames[op], opv, p - s + opv);
+            p += sizeof(int32_t);
+        }
+        p++;
+    }
+    printf("%.4lx :: (HLT)\n", e - s);
 }
 
 #if 0

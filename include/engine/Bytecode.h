@@ -1,102 +1,359 @@
 #ifndef REDSCRIPT_COMPILER_BYTECODE_H
 #define REDSCRIPT_COMPILER_BYTECODE_H
 
-#include <stdint.h>
+#include <cstdint>
 
-namespace RedScript::Engine::Bytecode
+namespace RedScript::Engine
 {
-/* indicates that the opcode has an operand */
-static const uint8_t OP_V    = 0x80;
-static const uint8_t OP_MASK = ~OP_V;
-
-enum OpCode : uint8_t
+enum class OpCode : uint8_t
 {
-    LOAD_CONST      = 0x00 | OP_V,          // LOAD_CONST       <const>     push <const>
-    LOAD_OBJECT     = 0x01 | OP_V,          // LOAD_OBJECT      <name>      push <name>
-    STOR_OBJECT     = 0x02 | OP_V,          // STOR_OBJECT      <name>      pop -> <name>
-    DEL_OBJECT      = 0x03 | OP_V,          // DEL_OBJECT       <name>      delete <name>
+    LOAD_CONST      = 0x00,         // LOAD_CONST       <const>     push <const>
+    LOAD_LOCAL      = 0x01,         // LOAD_LOCAL       <index>     Load local variable <index> into stack
+    STOR_LOCAL      = 0x02,         // STOR_LOCAL       <index>     Store local variable <index> from stack
+    DEL_LOCAL       = 0x03,         // DEL_LOCAL        <index>     Delete local variable <index> (by setting it to NULL)
 
-    DEF_ATTR        = 0x04 | OP_V,          // DEF_ATTR         <name>      define <stack_top>.<name> = None
-    GET_ATTR        = 0x05 | OP_V,          // GET_ATTR         <name>      <stack_top> = <stack_top>.<name>
-    SET_ATTR        = 0x06 | OP_V,          // SET_ATTR         <name>      <stack_top + 1>.<name> = <stack_top>
-    DEL_ATTR        = 0x07 | OP_V,          // DEL_ATTR         <name>      delete <stack_top>.name
+    LOAD_GLOBAL     = 0x04,         // LOAD_OBJECT      <name>      Load global <name> into stack
+    STOR_GLOBAL     = 0x05,         // STOR_OBJECT      <name>      Store global <name> from stack
+    DEL_GLOBAL      = 0x06,         // DEL_OBJECT       <name>      Delete global <name>
 
-    GET_ITEM        = 0x08,                 // GET_ITEM                     <stack_top> = <stack_top + 1>[<stack_top>]
-    SET_ITEM        = 0x09,                 // SET_ITEM                     <stack_top + 2>[<stack_top + 1>] = <stack_top>
-    DEL_ITEM        = 0x0a,                 // DEL_ITEM                     delete <stack_top + 1>[<stack_top>]
+    DEF_ATTR        = 0x07,         // DEF_ATTR         <name>      define <stack_top>.<name> = None
+    GET_ATTR        = 0x08,         // GET_ATTR         <name>      <stack_top> = <stack_top>.<name>
+    SET_ATTR        = 0x09,         // SET_ATTR         <name>      <stack_top + 1>.<name> = <stack_top>
+    DEL_ATTR        = 0x0a,         // DEL_ATTR         <name>      delete <stack_top>.name
 
-    POP_RETURN      = 0x0b,                 // POP_RETURN                   return <stack_top>
-    INVOKE_VARG     = 0x0c,                 // INVOKE_VARG                  <stack_top> = <stack_top>(expand(<stack_top + 1>))
+    GET_ITEM        = 0x0b,         // GET_ITEM                     <stack_top> = <stack_top + 1>[<stack_top>]
+    SET_ITEM        = 0x0c,         // SET_ITEM                     <stack_top + 2>[<stack_top + 1>] = <stack_top>
+    DEL_ITEM        = 0x0d,         // DEL_ITEM                     delete <stack_top + 1>[<stack_top>]
 
-    ADD             = 0x0d,                 // ADD                          <stack_top> = <stack_top + 1> + <stack_top>
-    SUB             = 0x0e,                 // ...
-    MUL             = 0x0f,
-    DIV             = 0x00,
-    MOD             = 0x11,
-    POW             = 0x12,
-    BIT_OR          = 0x13,
-    BIT_AND         = 0x14,
-    BIT_XOR         = 0x15,
-    BIT_NOT         = 0x16,                 // BIT_NOT                      <stack_top> = ~<stack_top>
-    LSHIFT          = 0x17,
-    RSHIFT          = 0x18,
+    POP_RETURN      = 0x0e,         // POP_RETURN                   Pop and return <stack_top>
+    CALL_FUNCTION   = 0x0f,         // CALL_FUNCTION    <args>      Call function at stack top
 
-    INP_ADD         = 0x19,                 // INP_ADD                      <stack_top + 1> += <stack_top>
-    INP_SUB         = 0x1a,                 // ...
-    INP_MUL         = 0x1b,
-    INP_DIV         = 0x1c,
-    INP_MOD         = 0x1d,
-    INP_POW         = 0x1e,
-    INP_BIT_OR      = 0x1f,
-    INP_BIT_AND     = 0x10,
-    INP_BIT_XOR     = 0x21,
-    INP_LSHIFT      = 0x22,
-    INP_RSHIFT      = 0x23,
+    DUP             = 0x10,         // DUP                          Duplicate <stack_top>
+    DUP2            = 0x11,         // DUP2                         Duplicate <stack_top> and <stack_top - 1>
+    DROP            = 0x12,         // DROP                         Drop <stack_top>
 
-    BOOL_OR         = 0x24,                 // BOOL_OR                      <stack_top> = <stack_top + 1> or <stack_top>
-    BOOL_AND        = 0x25,                 // ...
-    BOOL_XOR        = 0x26,
-    BOOL_NOT        = 0x27,                 // BOOL_NOT                     <stack_top> = not <stack_top>
+    ADD             = 0x20,         // ADD                          <stack_top> = <stack_top + 1> + <stack_top>
+    SUB             = 0x21,         // ...
+    MUL             = 0x22,
+    DIV             = 0x23,
+    MOD             = 0x24,
+    POWER           = 0x25,
+    BIT_OR          = 0x26,
+    BIT_AND         = 0x27,
+    BIT_XOR         = 0x28,
+    BIT_NOT         = 0x29,         // BIT_NOT                      <stack_top> = ~<stack_top>
+    LSHIFT          = 0x2a,
+    RSHIFT          = 0x2b,
 
-    EQ              = 0x28,                 // EQ                           <stack_top> = <stack_top + 1> == <stack_top>
-    LE              = 0x29,                 // ...
-    GE              = 0x2a,
-    NEQ             = 0x2b,
-    LEQ             = 0x2c,
-    GEQ             = 0x2d,
+    INP_ADD         = 0x2c,         // INP_ADD                      <stack_top + 1> += <stack_top>
+    INP_SUB         = 0x2d,         // ...
+    INP_MUL         = 0x2e,
+    INP_DIV         = 0x2f,
+    INP_MOD         = 0x30,
+    INP_POWER       = 0x31,
+    INP_BIT_OR      = 0x32,
+    INP_BIT_AND     = 0x33,
+    INP_BIT_XOR     = 0x34,
+    INP_LSHIFT      = 0x35,
+    INP_RSHIFT      = 0x36,
 
-    POS             = 0x2e,                 // POS                          <stack_top> = +<stack_top>
-    NEG             = 0x2f,                 // NEG                          <stack_top> = -<stack_top>
+    BOOL_OR         = 0x37,         // BOOL_OR                      <stack_top> = <stack_top + 1> or <stack_top>
+    BOOL_AND        = 0x38,         // ...
+    BOOL_NOT        = 0x39,         // BOOL_NOT                     <stack_top> = not <stack_top>
 
-    DUP             = 0x30,                 // DUP                          Duplicate <stack_top>
-    DUP2            = 0x31,                 // DUP2                         Duplicate <stack_top> and <stack_top - 1>
-    DROP            = 0x32,                 // DROP                         Drop <stack_top>
+    POS             = 0x3a,         // POS                          <stack_top> = +<stack_top>
+    NEG             = 0x3b,         // NEG                          <stack_top> = -<stack_top>
 
-    LOAD_ARG        = 0x33 | OP_V,          // LOAD_ARG         <arg>       Store <stack_top> as argument
-    MAKE_FUNCTION   = 0x34 | OP_V,          // MAKE_FUNCTION    <nargs>     Store bytecodes into new function
+    EQ              = 0x40,         // EQ                           <stack_top> = <stack_top + 1> == <stack_top>
+    LE              = 0x41,         // ...
+    GE              = 0x42,
+    NEQ             = 0x43,
+    LEQ             = 0x44,
+    GEQ             = 0x45,
+    IN              = 0x46,         // IN                           <stack_top> in <stack_top - 1>
 
-    BR              = 0x35 | OP_V,          // BR               <pc>        Branch to <pc>
-    BRTRUE          = 0x36 | OP_V,          // BRTRUE           <pc>        Branch to <pc> if <stack_top> represents True
-    BRFALSE         = 0x37 | OP_V,          // BRFALSE          <pc>        Branch to <pc> if <stack_top> represents False
+    BR              = 0x50,         // BR               <pc>        Branch to <pc>
+    BRTRUE          = 0x51,         // BRTRUE           <pc>        Branch to <pc> if <stack_top> represents True
+    BRFALSE         = 0x52,         // BRFALSE          <pc>        Branch to <pc> if <stack_top> represents False
 
-    PUSH_BLOCK      = 0x38 | OP_V,          // PUSH_BLOCK       <block>     Load exception rescure block
-    POP_BLOCK       = 0x39,                 // POP_BLOCK                    Restore stack and destroy rescure block
+    RAISE           = 0x53,         // RAISE                        Raise an exception at <stack_top>
+    PUSH_BLOCK      = 0x54,         // PUSH_BLOCK       <block>     Load exception rescure block
+    POP_BLOCK       = 0x55,         // POP_BLOCK                    Restore stack and destroy rescure block
 
-    PUSH_SEQ        = 0x40 | OP_V,          // PUSH_SEQ         <offset>    Push sequence
-    CHECK_SEQ       = 0x41,                 // CHECK_SEQ                    Check sequence and restore stack
-    STORE_SEQ       = 0x42,                 // STORE_SEQ                    Store sequence and restore stack
-    EXPAND_SEQ      = 0x43 | OP_V,          // EXPAND_SEQ       <count>     Expand sequence on <stack_top>
+    PUSH_SEQ        = 0x56,         // PUSH_SEQ         <offset>    Push sequence
+    CHECK_SEQ       = 0x57,         // CHECK_SEQ                    Check sequence and restore stack
+    STORE_SEQ       = 0x58,         // STORE_SEQ                    Store sequence and restore stack
+    EXPAND_SEQ      = 0x59,         // EXPAND_SEQ       <count>     Expand sequence on <stack_top>
 
-    RAISE           = 0x44,                 // RAISE                        Raise an exception at <stack_top>
-    IMPORT_ALIAS    = 0x45 | OP_V,          // IMPORT_ALIAS     <name>      Import a module as <name>
+    ITER_NEXT       = 0x5a,         // ITER_NEXT        <pc>        push(<stack_top>.__next__()), if StopIteration, goto <pc>
+    IMPORT_ALIAS    = 0x5b,         // IMPORT_ALIAS     <name>      Import a module as <name>
 
-    MAKE_MAP        = 0x46 | OP_V,          // MAKE_MAP         <count>     Construct a map literal that contains <count> keys and values
-    MAKE_ARRAY      = 0x47 | OP_V,          // MAKE_ARRAY       <count>     Construct an array literal that contains <count> items
-    MAKE_TUPLE      = 0x48 | OP_V,          // MAKE_ARRAY       <count>     Construct a tuple literal that contains <count> items
-    MAKE_CLASS      = 0x49 | OP_V,          // MAKE_CLASS       <name>      Construct a class object named <name>
+    MAKE_MAP        = 0x60,         // MAKE_MAP         <count>     Construct a map literal that contains <count> keys and values
+    MAKE_ARRAY      = 0x61,         // MAKE_ARRAY       <count>     Construct an array literal that contains <count> items
+    MAKE_TUPLE      = 0x62,         // MAKE_ARRAY       <count>     Construct a tuple literal that contains <count> items
+    MAKE_FUNCTION   = 0x63,         // MAKE_FUNCTION    <nargs>     Store bytecodes into new function
+    MAKE_CLASS      = 0x64,         // MAKE_CLASS       <name>      Construct a class object named <name>
+    MAKE_ITER       = 0x65,         // MAKE_ITER                    <stack_top> <-- <stack_top>.__iter__()
+};
 
-    MAKE_ITER       = 0x4a,                 // MAKE_ITER                    <stack_top> <-- <stack_top>.__iter__()
-    ITER_NEXT       = 0x4b | OP_V,          // ITER_NEXT        <pc>        push(<stack_top>.__next__()), if StopIteration, goto <pc>
+/* opcode flags */
+static const uint32_t OP_V      = 0x00000001;    /* has operand */
+static const uint32_t OP_REL    = 0x00000002;    /* relative to PC */
+
+/* flags for each opcode */
+static uint32_t OpCodeFlags[256] = {
+    OP_V,               /* 0x00 :: LOAD_CONST    */
+    OP_V,               /* 0x01 :: LOAD_LOCAL    */
+    OP_V,               /* 0x02 :: STOR_LOCAL    */
+    OP_V,               /* 0x03 :: DEL_LOCAL     */
+
+    OP_V,               /* 0x04 :: LOAD_GLOBAL   */
+    OP_V,               /* 0x05 :: STOR_GLOBAL   */
+    OP_V,               /* 0x06 :: DEL_GLOBAL    */
+
+    OP_V,               /* 0x07 :: DEF_ATTR      */
+    OP_V,               /* 0x08 :: GET_ATTR      */
+    OP_V,               /* 0x09 :: SET_ATTR      */
+    OP_V,               /* 0x0a :: DEL_ATTR      */
+
+    0,                  /* 0x0b :: GET_ITEM      */
+    0,                  /* 0x0c :: SET_ITEM      */
+    0,                  /* 0x0d :: DEL_ITEM      */
+
+    0,                  /* 0x0e :: POP_RETURN    */
+    OP_V,               /* 0x0f :: CALL_FUNCTION */
+
+    0,                  /* 0x10 :: DUP           */
+    0,                  /* 0x11 :: DUP2          */
+    0,                  /* 0x12 :: DROP          */
+
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+
+    0,                  /* 0x20 :: ADD           */
+    0,                  /* 0x21 :: SUB           */
+    0,                  /* 0x22 :: MUL           */
+    0,                  /* 0x23 :: DIV           */
+    0,                  /* 0x24 :: MOD           */
+    0,                  /* 0x25 :: POWER         */
+    0,                  /* 0x26 :: BIT_OR        */
+    0,                  /* 0x27 :: BIT_AND       */
+    0,                  /* 0x28 :: BIT_XOR       */
+    0,                  /* 0x29 :: BIT_NOT       */
+    0,                  /* 0x2a :: LSHIFT        */
+    0,                  /* 0x2b :: RSHIFT        */
+
+    0,                  /* 0x2c :: INP_ADD       */
+    0,                  /* 0x2d :: INP_SUB       */
+    0,                  /* 0x2e :: INP_MUL       */
+    0,                  /* 0x2f :: INP_DIV       */
+    0,                  /* 0x30 :: INP_MOD       */
+    0,                  /* 0x31 :: INP_POWER     */
+    0,                  /* 0x32 :: INP_BIT_OR    */
+    0,                  /* 0x33 :: INP_BIT_AND   */
+    0,                  /* 0x34 :: INP_BIT_XOR   */
+    0,                  /* 0x35 :: INP_LSHIFT    */
+    0,                  /* 0x36 :: INP_RSHIFT    */
+
+    0,                  /* 0x37 :: BOOL_OR       */
+    0,                  /* 0x38 :: BOOL_AND      */
+    0,                  /* 0x39 :: BOOL_NOT      */
+
+    0,                  /* 0x3a :: POS           */
+    0,                  /* 0x3b :: NEG           */
+
+    0,
+    0,
+    0,
+    0,
+
+    0,                  /* 0x40 :: EQ            */
+    0,                  /* 0x41 :: LE            */
+    0,                  /* 0x42 :: GE            */
+    0,                  /* 0x43 :: NEQ           */
+    0,                  /* 0x44 :: LEQ           */
+    0,                  /* 0x45 :: GEQ           */
+    0,                  /* 0x46 :: IN            */
+
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+
+    OP_V | OP_REL,      /* 0x50 :: BR            */
+    OP_V | OP_REL,      /* 0x51 :: BRTRUE        */
+    OP_V | OP_REL,      /* 0x52 :: BRFALSE       */
+
+    0,                  /* 0x53 :: RAISE         */
+    OP_V,               /* 0x54 :: PUSH_BLOCK    */
+    0,                  /* 0x55 :: POP_BLOCK     */
+
+    OP_V,               /* 0x56 :: PUSH_SEQ      */
+    0,                  /* 0x57 :: CHECK_SEQ     */
+    0,                  /* 0x58 :: STORE_SEQ     */
+    OP_V,               /* 0x59 :: EXPAND_SEQ    */
+
+    OP_V,               /* 0x5a :: ITER_NEXT     */
+    OP_V,               /* 0x5b :: IMPORT_ALIAS  */
+
+    0,
+    0,
+    0,
+    0,
+
+    OP_V,               /* 0x60 :: MAKE_MAP      */
+    OP_V,               /* 0x61 :: MAKE_ARRAY    */
+    OP_V,               /* 0x62 :: MAKE_TUPLE    */
+    OP_V,               /* 0x63 :: MAKE_FUNCTION */
+    OP_V,               /* 0x64 :: MAKE_CLASS    */
+    0,                  /* 0x65 :: MAKE_ITER     */
+
+    0,
+    /* ... */
+};
+
+/* names for each opcode */
+static const char *OpCodeNames[256] = {
+    "LOAD_CONST",           /* 0x00 */
+    "LOAD_LOCAL",           /* 0x01 */
+    "STOR_LOCAL",           /* 0x02 */
+    "DEL_LOCAL",            /* 0x03 */
+
+    "LOAD_GLOBAL",          /* 0x04 */
+    "STOR_GLOBAL",          /* 0x05 */
+    "DEL_GLOBAL",           /* 0x06 */
+
+    "DEF_ATTR",             /* 0x07 */
+    "GET_ATTR",             /* 0x08 */
+    "SET_ATTR",             /* 0x09 */
+    "DEL_ATTR",             /* 0x0a */
+
+    "GET_ITEM",             /* 0x0b */
+    "SET_ITEM",             /* 0x0c */
+    "DEL_ITEM",             /* 0x0d */
+
+    "POP_RETURN",           /* 0x0e */
+    "CALL_FUNCTION",        /* 0x0f */
+
+    "DUP",                  /* 0x10 */
+    "DUP2",                 /* 0x11 */
+    "DROP",                 /* 0x12 */
+
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+
+    "ADD",                  /* 0x20 */
+    "SUB",                  /* 0x21 */
+    "MUL",                  /* 0x22 */
+    "DIV",                  /* 0x23 */
+    "MOD",                  /* 0x24 */
+    "POWER",                /* 0x25 */
+    "BIT_OR",               /* 0x26 */
+    "BIT_AND",              /* 0x27 */
+    "BIT_XOR",              /* 0x28 */
+    "BIT_NOT",              /* 0x29 */
+    "LSHIFT",               /* 0x2a */
+    "RSHIFT",               /* 0x2b */
+
+    "INP_ADD",              /* 0x2c */
+    "INP_SUB",              /* 0x2d */
+    "INP_MUL",              /* 0x2e */
+    "INP_DIV",              /* 0x2f */
+    "INP_MOD",              /* 0x30 */
+    "INP_POWER",            /* 0x31 */
+    "INP_BIT_OR",           /* 0x32 */
+    "INP_BIT_AND",          /* 0x33 */
+    "INP_BIT_XOR",          /* 0x34 */
+    "INP_LSHIFT",           /* 0x35 */
+    "INP_RSHIFT",           /* 0x36 */
+
+    "BOOL_OR",              /* 0x37 */
+    "BOOL_AND",             /* 0x38 */
+    "BOOL_NOT",             /* 0x39 */
+
+    "POS",                  /* 0x3a */
+    "NEG",                  /* 0x3b */
+
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+
+    "EQ",                   /* 0x40 */
+    "LE",                   /* 0x41 */
+    "GE",                   /* 0x42 */
+    "NEQ",                  /* 0x43 */
+    "LEQ",                  /* 0x44 */
+    "GEQ",                  /* 0x45 */
+    "IN",                   /* 0x46 */
+
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+
+    "BR",                   /* 0x50 */
+    "BRTRUE",               /* 0x51 */
+    "BRFALSE",              /* 0x52 */
+
+    "RAISE",                /* 0x53 */
+    "PUSH_BLOCK",           /* 0x54 */
+    "POP_BLOCK",            /* 0x55 */
+
+    "PUSH_SEQ",             /* 0x56 */
+    "CHECK_SEQ",            /* 0x57 */
+    "STORE_SEQ",            /* 0x58 */
+    "EXPAND_SEQ",           /* 0x59 */
+
+    "ITER_NEXT",            /* 0x5a */
+    "IMPORT_ALIAS",         /* 0x5b */
+
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+
+    "MAKE_MAP",             /* 0x60 */
+    "MAKE_ARRAY",           /* 0x61 */
+    "MAKE_TUPLE",           /* 0x62 */
+    "MAKE_FUNCTION",        /* 0x63 */
+    "MAKE_CLASS",           /* 0x64 */
+    "MAKE_ITER",            /* 0x65 */
+
+    nullptr,
+    /* ... */
 };
 }
 

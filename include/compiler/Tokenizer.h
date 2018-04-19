@@ -82,7 +82,6 @@ public:
         BoolAnd,
         BoolOr,
         BoolNot,
-        BoolXor,
 
         Plus,
         Minus,
@@ -292,7 +291,6 @@ public:
             case Operator::BoolAnd              : return "<Operator 'and'>";
             case Operator::BoolOr               : return "<Operator 'or'>";
             case Operator::BoolNot              : return "<Operator 'not'>";
-            case Operator::BoolXor              : return "<Operator 'xor'>";
 
             case Operator::Plus                 : return "<Operator '+'>";
             case Operator::Minus                : return "<Operator '-'>";

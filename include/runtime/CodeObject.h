@@ -1,6 +1,10 @@
 #ifndef REDSCRIPT_COMPILER_CODEOBJECT_H
 #define REDSCRIPT_COMPILER_CODEOBJECT_H
 
+#include <vector>
+#include <string>
+#include <cstdint>
+
 #include "runtime/Object.h"
 
 namespace RedScript::Runtime
@@ -15,8 +19,6 @@ extern TypeRef CodeTypeObject;
 
 class CodeObject : public Object
 {
-    friend class CodeType;
-
 public:
     virtual ~CodeObject() = default;
     explicit CodeObject() : Object(CodeTypeObject) {}

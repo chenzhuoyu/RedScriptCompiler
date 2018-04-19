@@ -3,7 +3,10 @@
 #include "engine/GarbageCollector.h"
 
 #include "runtime/Object.h"
+#include "runtime/IntObject.h"
 #include "runtime/CodeObject.h"
+#include "runtime/StringObject.h"
+#include "runtime/DecimalObject.h"
 
 namespace RedScript
 {
@@ -20,7 +23,10 @@ void initialize(size_t young, size_t old, size_t perm)
 
     /* object sub-system */
     RedScript::Runtime::Object::initialize();
+    RedScript::Runtime::IntObject::initialize();
     RedScript::Runtime::CodeObject::initialize();
+    RedScript::Runtime::StringObject::initialize();
+    RedScript::Runtime::DecimalObject::initialize();
 
 }
 }
