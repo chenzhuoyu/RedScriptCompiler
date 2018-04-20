@@ -197,7 +197,7 @@ struct hash<RedScript::Runtime::ObjectRef>
     size_t operator()(RedScript::Runtime::ObjectRef other) const
     {
         /* use object system hash function */
-        return 0;//other->type()->objectHash(other);
+        return other->type()->objectHash(other);
     }
 };
 }

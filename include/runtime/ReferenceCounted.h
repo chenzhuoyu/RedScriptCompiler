@@ -274,14 +274,6 @@ public:
         T *object = new T(std::forward<Args>(args) ...);
         return Reference<T>(object, TagNew());
     }
-
-public:
-    template <typename ... Args>
-    static inline Reference<T> newStatic(Args && ... args)
-    {
-        static T object(std::forward<Args>(args) ...);
-        return Reference<T>(&object, TagChecked());
-    }
 };
 
 class ReferenceCounted : public Utils::Immovable, public Utils::NonCopyable

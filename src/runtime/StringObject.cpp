@@ -1,7 +1,8 @@
-#include "utils/Strings.h"
 #include "runtime/IntObject.h"
 #include "runtime/BoolObject.h"
 #include "runtime/StringObject.h"
+
+#include "utils/Strings.h"
 #include "runtime/TypeError.h"
 
 namespace RedScript::Runtime
@@ -9,10 +10,28 @@ namespace RedScript::Runtime
 /* type object for string */
 TypeRef StringTypeObject;
 
+uint64_t StringType::objectHash(ObjectRef self)
+{
+    static std::hash<std::string> hash;
+    return hash(self.as<StringObject>()->_value);
+}
+
 bool StringType::objectIsTrue(ObjectRef self)
 {
     /* non-empty string represents "true" */
     return !self.as<StringObject>()->_value.empty();
+}
+
+std::string StringType::objectStr(ObjectRef self)
+{
+    /* just give the string itself */
+    return self.as<StringObject>()->_value;
+}
+
+std::string StringType::objectRepr(ObjectRef self)
+{
+    const auto &str = self.as<StringObject>()->_value;
+    return Utils::Strings::repr(str.data(), str.size());
 }
 
 ObjectRef StringType::comparableEq(ObjectRef self, ObjectRef other)
@@ -73,7 +92,8 @@ ObjectRef StringType::comparableCompare(ObjectRef self, ObjectRef other)
 
 void StringObject::initialize(void)
 {
-    /* string type */
-    StringTypeObject = Reference<StringType>::newStatic("string");
+    /* string type object */
+    static StringType stringType;
+    StringTypeObject = Reference<StringType>::refStatic(stringType);
 }
 }

@@ -12,7 +12,7 @@ namespace RedScript::Runtime
 class IntType : public Type
 {
 public:
-    using Type::Type;
+    explicit IntType() : Type("int") {}
 
 public:
     virtual bool objectIsTrue(ObjectRef self) override;

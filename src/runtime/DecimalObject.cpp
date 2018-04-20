@@ -13,7 +13,8 @@ bool DecimalType::objectIsTrue(ObjectRef self)
 
 void DecimalObject::initialize(void)
 {
-    /* decimal type */
-    DecimalTypeObject = Reference<DecimalType>::newStatic("decimal");
+    /* decimal type object */
+    static DecimalType decimalType;
+    DecimalTypeObject = Reference<DecimalType>::refStatic(decimalType);
 }
 }

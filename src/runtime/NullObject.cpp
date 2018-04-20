@@ -10,8 +10,12 @@ ObjectRef NullObject;
 
 void _NullObject::initialize(void)
 {
-    /* null type and constant */
-    NullTypeObject = Reference<NullType>::newStatic("null");
-    NullObject = Reference<_NullObject>::newStatic();
+    /* null type object */
+    static NullType nullType;
+    NullTypeObject = Reference<NullType>::refStatic(nullType);
+
+    /* null constant */
+    static _NullObject nullObject;
+    NullObject = Reference<_NullObject>::refStatic(nullObject);
 }
 }

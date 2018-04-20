@@ -36,12 +36,12 @@ public:
 
 protected:
     typedef Runtime::Reference<Runtime::CodeObject> CodeRef;
-    inline CodeRef code(void) const { return _codeStack.back().second.as<Runtime::CodeObject>(); }
+    inline CodeRef code(void) { return _codeStack.back().second.as<Runtime::CodeObject>(); }
 
 protected:
-    inline const std::vector<char> &buffer(void) const { return code()->buffer(); }
-    inline const std::vector<std::string> &names(void) const { return code()->names(); }
-    inline const std::vector<Runtime::ObjectRef> &consts(void) const { return code()->consts(); }
+    inline std::vector<char> &buffer(void) { return code()->buffer(); }
+    inline std::vector<std::string> &names(void) { return code()->names(); }
+    inline std::vector<Runtime::ObjectRef> &consts(void) { return code()->consts(); }
 
 protected:
     inline uint32_t emit(Engine::OpCode op) { return code()->emit(op); }
@@ -54,7 +54,7 @@ protected:
     inline uint32_t emitOperand(Engine::OpCode op, int32_t operand) { return code()->emitOperand(op, operand); }
 
 protected:
-    inline bool isLocal(const std::string &value) const { return code()->isLocal(value); }
+    inline bool isLocal(const std::string &value) { return code()->isLocal(value); }
     inline void patchJump(size_t offset, size_t address) { code()->patchJump(offset, address); }
 
 protected:
@@ -68,7 +68,7 @@ protected:
         CodeScope(CodeGenerator *self, CodeType type) : _left(false), _self(self)
         {
             /* create a new code object on the stack top */
-            self->_codeStack.emplace_back({type, Runtime::Object::newObject<Runtime::CodeObject>()});
+            self->_codeStack.emplace_back(type, Runtime::Object::newObject<Runtime::CodeObject>());
         }
 
     public:
@@ -105,8 +105,8 @@ protected:
     public:
         FunctionScope(
             CodeGenerator *self,
-            std::unique_ptr<AST::Name> &name,
-            std::vector<std::unique_ptr<AST::Name>> &args
+            const std::unique_ptr<AST::Name> &name,
+            const std::vector<std::unique_ptr<AST::Name>> &args
         ) : _args(self->_firstArgName), _funcs(self->_currentFunctionName)
         {
             _args.emplace(args.empty() ? "" : args.front()->name);

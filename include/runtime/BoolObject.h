@@ -12,7 +12,7 @@ namespace RedScript::Runtime
 class BoolType : public Type
 {
 public:
-    using Type::Type;
+    explicit BoolType() : Type("bool") {}
 
 public:
     virtual bool objectIsTrue(ObjectRef self) override;

@@ -25,11 +25,14 @@ ObjectRef BoolObject::fromBool(bool value)
 
 void BoolObject::initialize(void)
 {
-    /* boolean type */
-    BoolTypeObject = Reference<BoolType>::newStatic("bool");
+    /* boolean type object */
+    static BoolType boolType;
+    BoolTypeObject = Reference<BoolType>::refStatic(boolType);
 
     /* boolean constants */
-    TrueObject = Reference<BoolObject>::newStatic(true);
-    FalseObject = Reference<BoolObject>::newStatic(false);
+    static BoolObject trueObject(true);
+    static BoolObject falseObject(false);
+    TrueObject = Reference<BoolObject>::refStatic(trueObject);
+    FalseObject = Reference<BoolObject>::refStatic(falseObject);
 }
 }

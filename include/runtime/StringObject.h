@@ -12,7 +12,12 @@ namespace RedScript::Runtime
 class StringType : public Type
 {
 public:
-    using Type::Type;
+    explicit StringType() : Type("str") {}
+
+public:
+    virtual uint64_t    objectHash(ObjectRef self) override;
+    virtual std::string objectStr (ObjectRef self) override;
+    virtual std::string objectRepr(ObjectRef self) override;
 
 public:
     virtual bool objectIsTrue(ObjectRef self) override;

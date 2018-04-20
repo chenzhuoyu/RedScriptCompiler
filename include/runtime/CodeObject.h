@@ -13,7 +13,7 @@ namespace RedScript::Runtime
 class CodeType : public Type
 {
 public:
-    using Type::Type;
+    explicit CodeType() : Type("_CodeObject") {}
 
 };
 
@@ -39,9 +39,9 @@ public:
     explicit CodeObject() : Object(CodeTypeObject) {}
 
 public:
-    const std::vector<char> &buffer(void) const { return _buffer; }
-    const std::vector<std::string> &names(void) const { return _nameTable; }
-    const std::vector<Runtime::ObjectRef> &consts(void) const { return _constTable; }
+    std::vector<char> &buffer(void) { return _buffer; }
+    std::vector<std::string> &names(void) { return _nameTable; }
+    std::vector<Runtime::ObjectRef> &consts(void) { return _constTable; }
 
 public:
     uint32_t emit(Engine::OpCode op);
@@ -54,7 +54,7 @@ public:
     uint32_t emitOperand(Engine::OpCode op, int32_t operand);
 
 public:
-    bool isLocal(const std::string &value) const { return _locals.find(value) != _locals.end(); }
+    bool isLocal(const std::string &value) { return _locals.find(value) != _locals.end(); }
     void patchJump(size_t offset, size_t address) { *(int32_t *)(&_buffer[offset]) = static_cast<int32_t>(address - offset + 1); }
 
 public:

@@ -12,7 +12,11 @@ namespace RedScript::Compiler
 {
 Runtime::ObjectRef CodeGenerator::build(void)
 {
-    CodeScope _(this, CodeType::FunctionCode);
+    /* enclosure the whole module into a pseudo-function */
+    CodeScope cs(this, CodeType::FunctionCode);
+    FunctionScope fs(this, nullptr, {});
+
+    /* build the compound statement */
     visitCompoundStatement(_block);
     return std::move(_codeStack.back().second);
 }

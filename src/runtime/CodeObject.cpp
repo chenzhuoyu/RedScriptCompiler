@@ -101,7 +101,8 @@ uint32_t CodeObject::emitOperand(Engine::OpCode op, int32_t operand)
 
 void CodeObject::initialize(void)
 {
-    /* code type */
-    CodeTypeObject = Reference<CodeType>::newStatic("_CodeObject");
+    /* code type object */
+    static CodeType _codeType;
+    CodeTypeObject = Reference<CodeType>::refStatic(_codeType);
 }
 }

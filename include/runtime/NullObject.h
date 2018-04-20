@@ -12,7 +12,7 @@ namespace RedScript::Runtime
 class NullType : public Type
 {
 public:
-    using Type::Type;
+    explicit NullType() : Type("null") {}
 
 public:
     virtual bool objectIsTrue(ObjectRef self) override { return false; }

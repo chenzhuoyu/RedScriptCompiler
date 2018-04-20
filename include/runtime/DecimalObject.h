@@ -12,7 +12,7 @@ namespace RedScript::Runtime
 class DecimalType : public Type
 {
 public:
-    using Type::Type;
+    explicit DecimalType() : Type("decimal") {}
 
 public:
     virtual bool objectIsTrue(ObjectRef self) override;

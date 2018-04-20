@@ -1,5 +1,5 @@
 const char *source = R"source(#!/usr/bin/env redscript
-a = "hello, world" + "qweqwe"
+a.b = "hello, world" + "qweqwe" + "hello, world"
 )source";
 
 #include <iostream>
@@ -24,11 +24,27 @@ static void run(void)
     RedScript::Compiler::Parser parser(std::make_unique<RedScript::Compiler::Tokenizer>(source));
     RedScript::Compiler::CodeGenerator codegen(parser.parse());
     RedScript::Runtime::Reference<RedScript::Runtime::CodeObject> code = codegen.build().as<RedScript::Runtime::CodeObject>();
-    std::cout << "---------------------------------------------" << std::endl;
+    std::cout << "--------------------- MEM ---------------------" << std::endl;
     std::cout << "raw usage: " << RedScript::Engine::Memory::rawUsage() << std::endl;
     std::cout << "array usage: " << RedScript::Engine::Memory::arrayUsage() << std::endl;
     std::cout << "object usage: " << RedScript::Engine::Memory::objectUsage() << std::endl;
-    std::cout << "---------------------------------------------" << std::endl;
+
+    std::cout << "--------------------- CONSTS ---------------------" << std::endl;
+    for (size_t i = 0; i < code->consts().size(); i++)
+    {
+        printf(
+            "%zu : %p (%s) :: %s\n", i,
+            (RedScript::Runtime::Object *)(code->consts()[i]),
+            code->consts()[i]->type()->name().c_str(),
+            code->consts()[i]->type()->objectRepr(code->consts()[i]).c_str()
+        );
+    }
+
+    std::cout << "--------------------- NAMES ---------------------" << std::endl;
+    for (size_t i = 0; i < code->names().size(); i++)
+        printf("%zu : %s\n", i, code->names()[i].c_str());
+
+    std::cout << "--------------------- CODE ---------------------" << std::endl;
     const char *s = code->buffer().data();
     const char *p = code->buffer().data();
     const char *e = code->buffer().data() + code->buffer().size();

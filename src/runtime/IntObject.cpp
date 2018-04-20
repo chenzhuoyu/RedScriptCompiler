@@ -25,7 +25,8 @@ ObjectRef IntObject::fromString(const std::string &value)
 
 void IntObject::initialize(void)
 {
-    /* integer type */
-    IntTypeObject = Reference<IntType>::newStatic("int");
+    /* integer type object */
+    static IntType intType;
+    IntTypeObject = Reference<IntType>::refStatic(intType);
 }
 }
