@@ -11,7 +11,12 @@ namespace RedScript::Runtime
 {
 class DecimalType : public Type
 {
-    /* nothing */
+public:
+    using Type::Type;
+
+public:
+    virtual bool objectIsTrue(ObjectRef self) override;
+
 };
 
 /* type object for decimal */
@@ -19,6 +24,9 @@ extern TypeRef DecimalTypeObject;
 
 class DecimalObject : public Object
 {
+    // TODO use full precision arithmetic
+    friend class DecimalType;
+
 public:
     virtual ~DecimalObject() = default;
     explicit DecimalObject(double value) : Object(DecimalTypeObject) {}

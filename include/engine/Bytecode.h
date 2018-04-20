@@ -80,13 +80,9 @@ enum class OpCode : uint8_t
     PUSH_BLOCK      = 0x54,         // PUSH_BLOCK       <block>     Load exception rescure block
     POP_BLOCK       = 0x55,         // POP_BLOCK                    Restore stack and destroy rescure block
 
-    PUSH_SEQ        = 0x56,         // PUSH_SEQ         <offset>    Push sequence
-    CHECK_SEQ       = 0x57,         // CHECK_SEQ                    Check sequence and restore stack
-    STORE_SEQ       = 0x58,         // STORE_SEQ                    Store sequence and restore stack
-    EXPAND_SEQ      = 0x59,         // EXPAND_SEQ       <count>     Expand sequence on <stack_top>
-
-    ITER_NEXT       = 0x5a,         // ITER_NEXT        <pc>        push(<stack_top>.__next__()), if StopIteration, goto <pc>
-    IMPORT_ALIAS    = 0x5b,         // IMPORT_ALIAS     <name>      Import a module as <name>
+    ITER_NEXT       = 0x56,         // ITER_NEXT        <pc>        push(<stack_top>.__next__()), if StopIteration, goto <pc>
+    EXPAND_SEQ      = 0x57,         // EXPAND_SEQ       <count>     Expand sequence on <stack_top>
+    IMPORT_ALIAS    = 0x58,         // IMPORT_ALIAS     <name>      Import a module as <name>
 
     MAKE_MAP        = 0x60,         // MAKE_MAP         <count>     Construct a map literal that contains <count> keys and values
     MAKE_ARRAY      = 0x61,         // MAKE_ARRAY       <count>     Construct an array literal that contains <count> items
@@ -204,14 +200,13 @@ static uint32_t OpCodeFlags[256] = {
     OP_V,               /* 0x54 :: PUSH_BLOCK    */
     0,                  /* 0x55 :: POP_BLOCK     */
 
-    OP_V,               /* 0x56 :: PUSH_SEQ      */
-    0,                  /* 0x57 :: CHECK_SEQ     */
-    0,                  /* 0x58 :: STORE_SEQ     */
-    OP_V,               /* 0x59 :: EXPAND_SEQ    */
+    OP_V,               /* 0x56 :: ITER_NEXT     */
+    OP_V,               /* 0x57 :: EXPAND_SEQ    */
+    OP_V,               /* 0x58 :: IMPORT_ALIAS  */
 
-    OP_V,               /* 0x5a :: ITER_NEXT     */
-    OP_V,               /* 0x5b :: IMPORT_ALIAS  */
-
+    0,
+    0,
+    0,
     0,
     0,
     0,
@@ -332,14 +327,13 @@ static const char *OpCodeNames[256] = {
     "PUSH_BLOCK",           /* 0x54 */
     "POP_BLOCK",            /* 0x55 */
 
-    "PUSH_SEQ",             /* 0x56 */
-    "CHECK_SEQ",            /* 0x57 */
-    "STORE_SEQ",            /* 0x58 */
-    "EXPAND_SEQ",           /* 0x59 */
+    "ITER_NEXT",            /* 0x56 */
+    "EXPAND_SEQ",           /* 0x57 */
+    "IMPORT_ALIAS",         /* 0x58 */
 
-    "ITER_NEXT",            /* 0x5a */
-    "IMPORT_ALIAS",         /* 0x5b */
-
+    nullptr,
+    nullptr,
+    nullptr,
     nullptr,
     nullptr,
     nullptr,

@@ -1,5 +1,5 @@
 const char *source = R"source(#!/usr/bin/env redscript
-a = 0 + 1 * 2 or 3 + 4 and 5
+a = "hello, world" + "qweqwe"
 )source";
 
 #include <iostream>
@@ -13,6 +13,8 @@ a = 0 + 1 * 2 or 3 + 4 and 5
 
 #include "utils/Strings.h"
 #include "runtime/Object.h"
+#include "runtime/CodeObject.h"
+
 #include "compiler/Parser.h"
 #include "compiler/Tokenizer.h"
 #include "compiler/CodeGenerator.h"
@@ -21,15 +23,15 @@ static void run(void)
 {
     RedScript::Compiler::Parser parser(std::make_unique<RedScript::Compiler::Tokenizer>(source));
     RedScript::Compiler::CodeGenerator codegen(parser.parse());
-    codegen.build();
+    RedScript::Runtime::Reference<RedScript::Runtime::CodeObject> code = codegen.build().as<RedScript::Runtime::CodeObject>();
     std::cout << "---------------------------------------------" << std::endl;
     std::cout << "raw usage: " << RedScript::Engine::Memory::rawUsage() << std::endl;
     std::cout << "array usage: " << RedScript::Engine::Memory::arrayUsage() << std::endl;
     std::cout << "object usage: " << RedScript::Engine::Memory::objectUsage() << std::endl;
     std::cout << "---------------------------------------------" << std::endl;
-    const char *s = codegen.buffer().data();
-    const char *p = codegen.buffer().data();
-    const char *e = codegen.buffer().data() + codegen.buffer().size();
+    const char *s = code->buffer().data();
+    const char *p = code->buffer().data();
+    const char *e = code->buffer().data() + code->buffer().size();
     while (p < e)
     {
         uint8_t op = (uint8_t)*p;

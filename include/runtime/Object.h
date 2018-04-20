@@ -28,12 +28,19 @@ class Object : public ReferenceCounted
     Elements _dict;
 
 private:
-    template <typename>
-    friend class Reference;
+    template <typename> friend class Reference;
+    template <typename> friend class _HasComparatorMethods;
+    template <typename, bool> friend struct _HasComparatorImpl;
+    template <typename, typename, bool> friend struct _ReferenceComparatorImpl;
 
 public:
-    virtual ~Object();
-    explicit Object(TypeRef type);
+    virtual ~Object() = default;
+    explicit Object(TypeRef type) : _type(type) {}
+
+private:
+    /* used by `_HasComparator<T>` and `_ReferenceComparator<T, U>` to perform equality test */
+    bool isEquals(Object *other);
+    bool isNotEquals(Object *other);
 
 public:
     TypeRef type(void) { return _type; }
@@ -56,13 +63,15 @@ public:
 class Type : public Object
 {
     TypeRef _super;
+    std::string _name;
 
 public:
-    explicit Type() : Type(TypeObject) {}
-    explicit Type(TypeRef super) : Object(TypeObject), _super(super) {}
+    explicit Type(const std::string &name) : Type(name, TypeObject) {}
+    explicit Type(const std::string &name, TypeRef super) : Object(TypeObject), _name(name), _super(super) {}
 
 public:
     TypeRef super(void) const { return _super; }
+    const std::string &name(void) const { return _name; }
 
 private:
     ObjectRef applyUnary(const char *name, ObjectRef self);
@@ -75,9 +84,7 @@ public:
     typedef std::function<void(ObjectRef)> VisitFunction;
 
 public:
-    virtual void objectInit    (ObjectRef self);
     virtual void objectClear   (ObjectRef self);
-    virtual void objectDestroy (ObjectRef self);
     virtual void objectTraverse(ObjectRef self, VisitFunction visit);
 
 public:
@@ -85,6 +92,11 @@ public:
     virtual StringList  objectDir (ObjectRef self);
     virtual std::string objectStr (ObjectRef self);
     virtual std::string objectRepr(ObjectRef self);
+
+public:
+    virtual bool objectIsTrue(ObjectRef self) { return true; }
+    virtual bool objectIsSubclassOf(ObjectRef self, TypeRef type);
+    virtual bool objectIsInstanceOf(ObjectRef self, TypeRef type) { return objectIsSubclassOf(self->type(), type); }
 
 public:
     virtual ObjectRef objectDelAttr(ObjectRef self, const std::string &name);
@@ -172,6 +184,21 @@ public:
 public:
     virtual ObjectRef comparableCompare(ObjectRef self, ObjectRef other) { return applyBinary("__compare__", self, other); }
 
+};
+}
+
+/* hash function for STL
+ * required by unordered data structures */
+namespace std
+{
+template <>
+struct hash<RedScript::Runtime::ObjectRef>
+{
+    size_t operator()(RedScript::Runtime::ObjectRef other) const
+    {
+        /* use object system hash function */
+        return 0;//other->type()->objectHash(other);
+    }
 };
 }
 

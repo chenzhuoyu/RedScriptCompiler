@@ -5,94 +5,259 @@
 #include "runtime/StringObject.h"
 #include "runtime/DecimalObject.h"
 
-#include "runtime/RuntimeError.h"
 #include "runtime/InternalError.h"
 #include "compiler/CodeGenerator.h"
 
 namespace RedScript::Compiler
 {
-uint32_t CodeGenerator::emit(Engine::OpCode op)
-{
-    /* current instruction pointer */
-    size_t p = _buffer.size();
-
-    /* each code object is limited to 4G */
-    if (p >= UINT32_MAX)
-        throw Runtime::RuntimeError("Code exceeds 4G limit");
-
-    /* add to instruction buffer */
-    _buffer.emplace_back(static_cast<uint8_t>(op));
-    return static_cast<uint32_t>(p);
-}
-
-uint32_t CodeGenerator::addConst(Runtime::ObjectRef value)
-{
-    /* current constant ID */
-    size_t p = _consts.size();
-
-    /* each code object can have at most 4G constants */
-    if (p >= UINT32_MAX)
-        throw Runtime::RuntimeError("Too many constants");
-
-    /* add to constant table */
-    _consts.emplace_back(value);
-    return static_cast<uint32_t>(p);
-}
-
-uint32_t CodeGenerator::addString(const std::string &value)
-{
-    /* current constant ID */
-    size_t p = _strings.size();
-
-    /* each code object can have at most 4G strings */
-    if (p >= UINT32_MAX)
-        throw Runtime::RuntimeError("Too many strings");
-
-    /* add to string table */
-    _strings.emplace_back(value);
-    return static_cast<uint32_t>(p);
-}
-
-uint32_t CodeGenerator::emitJump(Engine::OpCode op)
-{
-    /* emit the opcode */
-    size_t p = emit(op);
-
-    /* check for operand space */
-    if (p >= UINT32_MAX - sizeof(int32_t) - 1)
-        throw Runtime::RuntimeError("Code exceeds 4G limit");
-
-    /* preserve space in instruction buffer */
-    _buffer.resize(p + sizeof(int32_t) + 1);
-    return static_cast<uint32_t>(p) + 1;
-}
-
-uint32_t CodeGenerator::emitOperand(Engine::OpCode op, int32_t operand)
-{
-    /* emit the opcode */
-    char *v = reinterpret_cast<char *>(&operand);
-    size_t p = emit(op);
-
-    /* check for operand space */
-    if (p >= UINT32_MAX - sizeof(int32_t) - 1)
-        throw Runtime::RuntimeError("Code exceeds 4G limit");
-
-    /* add operand to instruction buffer */
-    _buffer.insert(_buffer.end(), v, v + sizeof(int32_t));
-    return static_cast<uint32_t>(p);
-}
-
 Runtime::ObjectRef CodeGenerator::build(void)
 {
-    /* generate code if not generated */
-    if (_code.isNull())
-    {
-        _code = Runtime::Object::newObject<Runtime::CodeObject>();
-        visitCompoundStatement(_block);
-    }
+    CodeScope _(this, CodeType::FunctionCode);
+    visitCompoundStatement(_block);
+    return std::move(_codeStack.back().second);
+}
 
-    /* return the code reference */
-    return _code;
+/*** Language Structures ***/
+
+void CodeGenerator::visitIf(const std::unique_ptr<AST::If> &node)
+{
+    Visitor::visitIf(node);
+}
+
+void CodeGenerator::visitFor(const std::unique_ptr<AST::For> &node)
+{
+    Visitor::visitFor(node);
+}
+
+void CodeGenerator::visitTry(const std::unique_ptr<AST::Try> &node)
+{
+    Visitor::visitTry(node);
+}
+
+void CodeGenerator::visitClass(const std::unique_ptr<AST::Class> &node)
+{
+    CodeScope cls(this, CodeType::ClassCode);
+    Visitor::visitClass(node);
+}
+
+void CodeGenerator::visitWhile(const std::unique_ptr<AST::While> &node)
+{
+    Visitor::visitWhile(node);
+}
+
+void CodeGenerator::visitNative(const std::unique_ptr<AST::Native> &node)
+{
+    Visitor::visitNative(node);
+}
+
+void CodeGenerator::visitSwitch(const std::unique_ptr<AST::Switch> &node)
+{
+    Visitor::visitSwitch(node);
+}
+
+void CodeGenerator::visitFunction(const std::unique_ptr<AST::Function> &node)
+{
+    /* create a new code frame and function scope */
+    CodeScope func(this, CodeType::FunctionCode);
+    FunctionScope _(this, node->name, node->args);
+
+    Visitor::visitFunction(node);
+}
+
+bool CodeGenerator::isInConstructor(void)
+{
+    return (_codeStack.size() >= 2) &&                                  /* should have at least 2 code frames (class -> function) */
+           ((_codeStack.end() - 2)->first == CodeType::ClassCode) &&    /* the 2nd to last frame must be a class */
+           (_codeStack.back().first == CodeType::FunctionCode) &&       /* the last frame must be a function */
+           (_currentFunctionName.top() == "__init__");                  /* which name must be "__init__" */
+}
+
+void CodeGenerator::buildCompositeTarget(const std::unique_ptr<AST::Composite> &node)
+{
+    /* should be mutable */
+    if (!node->isSyntacticallyMutable())
+        throw Runtime::InternalError("Immutable assign targets");
+
+    /* a single name, set as local variable */
+    if (node->mods.empty())
+    {
+        /* name node and string */
+        auto &name = node->name;
+        std::string nameStr = name->name;
+
+        /* cannot re-assign `self` in constructors */
+        if (!isInConstructor() || (nameStr != _firstArgName.top()))
+            emitOperand(Engine::OpCode::STOR_LOCAL, addLocal(nameStr));
+        else
+            throw Runtime::SyntaxError(name, Utils::Strings::format("Cannot reassign \"%s\" in constructors", nameStr));
+    }
+    else
+    {
+        /* load the name into stack */
+        visitName(node->name);
+
+        /* generate all modifiers, except for the last one */
+        for (size_t i = 0; i < node->mods.size() - 1; i++)
+        {
+            switch (node->mods[i].type)
+            {
+                case AST::Composite::ModType::Index: visitIndex(node->mods[i].index); break;
+                case AST::Composite::ModType::Invoke: visitInvoke(node->mods[i].invoke); break;
+                case AST::Composite::ModType::Attribute: visitAttribute(node->mods[i].attribute); break;
+            }
+        }
+
+        /* and generate the last modifier */
+        switch (node->mods.back().type)
+        {
+            /* whatever[expr] = value */
+            case AST::Composite::ModType::Index:
+            {
+                visitExpression(node->mods.back().index->index);
+                emit(Engine::OpCode::SET_ITEM);
+                break;
+            }
+
+            /* whatever(...) = value, impossible */
+            case AST::Composite::ModType::Invoke:
+                throw Runtime::InternalError("Impossible assignment to invocation");
+
+            /* whatever.name = value */
+            case AST::Composite::ModType::Attribute:
+            {
+                /* add the identifier into string table */
+                auto name = node->mods.back().attribute->attr->name;
+                uint32_t vid = addString(name);
+
+                /* if this is inside a constructor and is the only modifier,
+                 * and is setting attributes on `self`, it's defining an attribute */
+                if (isInConstructor() && (node->mods.size() == 1) && (name == _firstArgName.top()))
+                    emitOperand(Engine::OpCode::DEF_ATTR, vid);
+                else
+                    emitOperand(Engine::OpCode::SET_ATTR, vid);
+
+                break;
+            }
+        }
+    }
+}
+
+void CodeGenerator::visitAssign(const std::unique_ptr<AST::Assign> &node)
+{
+    /* build the expression value */
+    visitExpression(node->expression);
+
+    /* check assigning target type */
+    if (node->unpack)
+        visitUnpack(node->unpack);
+    else
+        buildCompositeTarget(node->composite);
+}
+
+void CodeGenerator::visitIncremental(const std::unique_ptr<AST::Incremental> &node)
+{
+    Visitor::visitIncremental(node);
+}
+
+/*** Misc. Statements ***/
+
+void CodeGenerator::visitRaise(const std::unique_ptr<AST::Raise> &node)
+{
+    Visitor::visitRaise(node);
+}
+
+void CodeGenerator::visitDelete(const std::unique_ptr<AST::Delete> &node)
+{
+    Visitor::visitDelete(node);
+}
+
+void CodeGenerator::visitImport(const std::unique_ptr<AST::Import> &node)
+{
+    Visitor::visitImport(node);
+}
+
+/*** Control Flows ***/
+
+void CodeGenerator::visitBreak(const std::unique_ptr<AST::Break> &node)
+{
+    Visitor::visitBreak(node);
+}
+
+void CodeGenerator::visitReturn(const std::unique_ptr<AST::Return> &node)
+{
+    Visitor::visitReturn(node);
+}
+
+void CodeGenerator::visitContinue(const std::unique_ptr<AST::Continue> &node)
+{
+    Visitor::visitContinue(node);
+}
+
+/*** Object Modifiers ***/
+
+void CodeGenerator::visitIndex(const std::unique_ptr<AST::Index> &node)
+{
+    Visitor::visitIndex(node);
+}
+
+void CodeGenerator::visitInvoke(const std::unique_ptr<AST::Invoke> &node)
+{
+    Visitor::visitInvoke(node);
+}
+
+void CodeGenerator::visitAttribute(const std::unique_ptr<AST::Attribute> &node)
+{
+    Visitor::visitAttribute(node);
+}
+
+/*** Composite Literals ***/
+
+void CodeGenerator::visitMap(const std::unique_ptr<AST::Map> &node)
+{
+    Visitor::visitMap(node);
+}
+
+void CodeGenerator::visitArray(const std::unique_ptr<AST::Array> &node)
+{
+    Visitor::visitArray(node);
+}
+
+void CodeGenerator::visitTuple(const std::unique_ptr<AST::Tuple> &node)
+{
+    Visitor::visitTuple(node);
+}
+
+/*** Expressions ***/
+
+void CodeGenerator::visitName(const std::unique_ptr<AST::Name> &node)
+{
+    if (isLocal(node->name))
+        emitOperand(Engine::OpCode::LOAD_LOCAL, addLocal(node->name));
+    else
+        emitOperand(Engine::OpCode::LOAD_GLOBAL, addString(node->name));
+}
+
+void CodeGenerator::visitUnpack(const std::unique_ptr<AST::Unpack> &node)
+{
+    /* check for item count, allows maximum 4G itms */
+    if (node->items.size() > UINT32_MAX)
+        throw Runtime::SyntaxError(node, "Too many items to unpack");
+
+    /* expand the packed tuple into stack */
+    emitOperand(
+        Engine::OpCode::EXPAND_SEQ,
+        static_cast<uint32_t>(node->items.size())
+    );
+
+    /* build each item */
+    for (const auto &item : node->items)
+    {
+        switch (item.type)
+        {
+            case AST::Unpack::Target::Type::Subset    : visitUnpack(item.subset);             break;
+            case AST::Unpack::Target::Type::Composite : buildCompositeTarget(item.composite); break;
+        }
+    }
 }
 
 void CodeGenerator::visitLiteral(const std::unique_ptr<AST::Literal> &node)
@@ -102,13 +267,18 @@ void CodeGenerator::visitLiteral(const std::unique_ptr<AST::Literal> &node)
     /* construct corresponding type */
     switch (node->vtype)
     {
-        case AST::Literal::Type::String: val = Runtime::Object::newObject<Runtime::StringObject>(node->string); break;
-        case AST::Literal::Type::Decimal: val = Runtime::Object::newObject<Runtime::DecimalObject>(node->decimal); break;
-        case AST::Literal::Type::Integer: val = Runtime::Object::newObject<Runtime::IntObject>(node->integer); break;
+        case AST::Literal::Type::String  : val = Runtime::Object::newObject<Runtime::StringObject >(node->string ); break;
+        case AST::Literal::Type::Decimal : val = Runtime::Object::newObject<Runtime::DecimalObject>(node->decimal); break;
+        case AST::Literal::Type::Integer : val = Runtime::Object::newObject<Runtime::IntObject    >(node->integer); break;
     }
 
     /* emit opcode with operand */
     emitOperand(Engine::OpCode::LOAD_CONST, addConst(val));
+}
+
+void CodeGenerator::visitDecorator(const std::unique_ptr<AST::Decorator> &node)
+{
+    Visitor::visitDecorator(node);
 }
 
 void CodeGenerator::visitExpression(const std::unique_ptr<AST::Expression> &node)
@@ -211,6 +381,6 @@ void CodeGenerator::visitExpression(const std::unique_ptr<AST::Expression> &node
 
     /* patch all jump instructions */
     for (const auto &p : patches)
-        *(int32_t *)(&_buffer[p]) = static_cast<int32_t>(_buffer.size() - p + 1);
+        patchJump(p, buffer().size());
 }
 }

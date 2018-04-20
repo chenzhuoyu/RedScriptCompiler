@@ -1,4 +1,5 @@
 #include "runtime/Object.h"
+#include "runtime/BoolObject.h"
 
 namespace RedScript::Runtime
 {
@@ -7,21 +8,37 @@ TypeRef TypeObject;
 
 /*** Object Implementations ***/
 
-Object::~Object()
+bool Object::isEquals(Object *other)
 {
-    if (_type != TypeObject)
-        _type->objectDestroy(self());
+    /* same object, absolutely equals */
+    if (this == other)
+        return true;
+
+    /* delegate the comparison to type objects */
+    ObjectRef ref = other->self();
+    ObjectRef result = _type->comparableEq(self(), ref);
+
+    /* check it's truth value */
+    return result->type()->objectIsTrue(result);
 }
 
-Object::Object(TypeRef type) : _type(type)
+bool Object::isNotEquals(Object *other)
 {
-    if (_type != TypeObject)
-        _type->objectInit(self());
+    /* same object, absolutely equals, so return false */
+    if (this == other)
+        return false;
+
+    /* delegate the comparison to type objects */
+    ObjectRef ref = other->self();
+    ObjectRef result = _type->comparableNeq(self(), ref);
+
+    /* check it's truth value */
+    return result->type()->objectIsTrue(result);
 }
 
 void Object::initialize(void)
 {
-    static Type rootClass(nullptr);
+    static Type rootClass("type", nullptr);
     TypeObject = rootClass._type = TypeRef::refStatic(rootClass);
 }
 
@@ -42,17 +59,7 @@ ObjectRef Type::applyTernary(const char *name, ObjectRef self, ObjectRef second,
     return ObjectRef();
 }
 
-void Type::objectInit(ObjectRef self)
-{
-
-}
-
 void Type::objectClear(ObjectRef self)
-{
-
-}
-
-void Type::objectDestroy(ObjectRef self)
 {
 
 }
@@ -64,7 +71,8 @@ void Type::objectTraverse(ObjectRef self, Type::VisitFunction visit)
 
 uint64_t Type::objectHash(ObjectRef self)
 {
-    return 0;
+    Object *object = self;
+    return std::hash<void *>()(object);
 }
 
 StringList Type::objectDir(ObjectRef self)
@@ -80,6 +88,23 @@ std::string Type::objectStr(ObjectRef self)
 std::string Type::objectRepr(ObjectRef self)
 {
     return std::string();
+}
+
+bool Type::objectIsSubclassOf(ObjectRef self, TypeRef type)
+{
+    /* not a type at all */
+    if (self->type() != TypeObject)
+        return false;
+
+    /* convert to type reference */
+    TypeRef t = self.as<Type>();
+
+    /* search for parent classes */
+    while (t != type && t != TypeObject)
+        t = t->super();
+
+    /* check for type */
+    return t == type;
 }
 
 ObjectRef Type::objectDelAttr(ObjectRef self, const std::string &name)
@@ -104,11 +129,15 @@ ObjectRef Type::objectInvoke(ObjectRef self, const std::vector<ObjectRef> &args)
 
 ObjectRef Type::comparableEq(ObjectRef self, ObjectRef other)
 {
-    return ObjectRef();
+    Object *a = self;
+    Object *b = other;
+    return BoolObject::fromBool(a == b);
 }
 
 ObjectRef Type::comparableNeq(ObjectRef self, ObjectRef other)
 {
-    return ObjectRef();
+    Object *a = self;
+    Object *b = other;
+    return BoolObject::fromBool(a != b);
 }
 }

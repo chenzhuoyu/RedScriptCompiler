@@ -8,12 +8,73 @@
 #include <climits>
 #include <typeinfo>
 #include <stdexcept>
+#include <type_traits>
 
 #include "utils/Immovable.h"
 #include "utils/NonCopyable.h"
 
 namespace RedScript::Runtime
 {
+template <typename F>
+struct _IsComparator : public std::false_type {};
+
+template <typename T, typename U>
+struct _IsComparator<bool(T::*)(U *)> : public std::true_type {};
+
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "OCSimplifyInspection"
+#pragma ide diagnostic ignored "NotImplementedFunctions"
+
+template <typename T>
+class _HasComparatorMethods
+{
+    struct _One {};
+    struct _Two { char _[2]; };
+
+private:
+    template <typename U> static _One __testIsEquals(decltype(&U::isEquals));
+    template <typename U> static _Two __testIsEquals(...);
+
+private:
+    template <typename U> static _One __testIsNotEquals(decltype(&U::isNotEquals));
+    template <typename U> static _Two __testIsNotEquals(...);
+
+public:
+    static constexpr bool value =
+        (sizeof(__testIsEquals<T>(0)) == sizeof(_One)) &&
+        (sizeof(__testIsNotEquals<T>(0)) == sizeof(_One));
+};
+
+template <typename T, bool hasComparator>
+struct _HasComparatorImpl : public std::false_type {};
+
+template <typename T>
+struct _HasComparatorImpl<T, true>
+{
+    static constexpr bool value =
+        _IsComparator<decltype(&T::isEquals)>::value &&
+        _IsComparator<decltype(&T::isNotEquals)>::value;
+};
+
+template <typename T, typename U, bool hasComparator>
+struct _ReferenceComparatorImpl
+{
+    static bool isEquals(T *self, U *other) { return self == other; }
+    static bool isNotEquals(T *self, U *other) { return self != other; }
+};
+
+template <typename T, typename U>
+struct _ReferenceComparatorImpl<T, U, true>
+{
+    static bool isEquals(T *self, U *other) { return self->isEquals(other); }
+    static bool isNotEquals(T *self, U *other) { return self->isNotEquals(other); }
+};
+
+template <typename T> using _HasComparator = _HasComparatorImpl<T, _HasComparatorMethods<T>::value>;
+template <typename T, typename U> using _ReferenceComparator = _ReferenceComparatorImpl<T, U, _HasComparator<T>::value>;
+
+#pragma clang diagnostic pop
+
 template <typename T>
 class Reference final
 {
@@ -115,7 +176,7 @@ public:
 
         /* don't clean borrowed refs */
         if (!_isBorrowed)
-            this->unref();
+            unref();
 
         /* transfer objects */
         _object = other._object;
@@ -128,12 +189,13 @@ public:
     {
         /* use `dynamic_cast` to perform down-cast or side-cast */
         U *object = dynamic_cast<U *>(_object);
+        typedef typename Reference<U>::TagChecked TagCheckedU;
 
         /* check for cast result */
         if (!object && _object)
             throw std::bad_cast();
         else
-            return Reference<U>(object, TagChecked());
+            return Reference<U>(object, TagCheckedU());
     }
 
 public:
@@ -159,8 +221,28 @@ public:
     bool operator==(std::nullptr_t) const { return _object != nullptr; }
 
 public:
-    template <typename U> bool operator==(const Reference<U> &other) const { return _object == other._object; }
-    template <typename U> bool operator!=(const Reference<U> &other) const { return _object != other._object; }
+    template <typename U>
+    bool operator==(Reference<U> other) const
+    {
+        if (_object == other._object)
+            return true;
+        else if (!_object || !other._object)
+            return false;
+        else
+            return _ReferenceComparator<T, U>::isEquals(_object, other._object);
+    }
+
+public:
+    template <typename U>
+    bool operator!=(Reference<U> other) const
+    {
+        if (_object == other._object)
+            return false;
+        else if (!_object || !other._object)
+            return true;
+        else
+            return _ReferenceComparator<T, U>::isNotEquals(_object, other._object);
+    }
 
 public:
     template <typename U>
@@ -191,6 +273,14 @@ public:
     {
         T *object = new T(std::forward<Args>(args) ...);
         return Reference<T>(object, TagNew());
+    }
+
+public:
+    template <typename ... Args>
+    static inline Reference<T> newStatic(Args && ... args)
+    {
+        static T object(std::forward<Args>(args) ...);
+        return Reference<T>(&object, TagChecked());
     }
 };
 
