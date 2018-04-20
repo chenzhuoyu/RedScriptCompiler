@@ -200,7 +200,7 @@ public:
     std::string asString(void)
     {
         if (_type == Type::String)
-            return std::move(_string);
+            return _string;
         else
             throw Runtime::SyntaxError(this, Utils::Strings::format("\"String\" expected, but got \"%s\"", toString()));
     }
@@ -209,7 +209,7 @@ public:
     std::string asIdentifier(void)
     {
         if (_type == Type::Identifiers)
-            return std::move(_string);
+            return _string;
         else
             throw Runtime::SyntaxError(this, Utils::Strings::format("\"Identifier\" expected, but got \"%s\"", toString()));
     }
