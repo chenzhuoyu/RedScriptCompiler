@@ -18,11 +18,11 @@ enum class OpCode : uint8_t
 
     DEF_ATTR        = 0x07,         // DEF_ATTR         <name>      define <stack_top>.<name> = None
     GET_ATTR        = 0x08,         // GET_ATTR         <name>      <stack_top> = <stack_top>.<name>
-    SET_ATTR        = 0x09,         // SET_ATTR         <name>      <stack_top + 1>.<name> = <stack_top>
+    SET_ATTR        = 0x09,         // SET_ATTR         <name>      <stack_top>.<name> = <stack_top + 1>
     DEL_ATTR        = 0x0a,         // DEL_ATTR         <name>      delete <stack_top>.name
 
     GET_ITEM        = 0x0b,         // GET_ITEM                     <stack_top> = <stack_top + 1>[<stack_top>]
-    SET_ITEM        = 0x0c,         // SET_ITEM                     <stack_top + 2>[<stack_top + 1>] = <stack_top>
+    SET_ITEM        = 0x0c,         // SET_ITEM                     <stack_top + 1>[<stack_top>] = <stack_top + 2>
     DEL_ITEM        = 0x0d,         // DEL_ITEM                     delete <stack_top + 1>[<stack_top>]
 
     POP_RETURN      = 0x0e,         // POP_RETURN                   Pop and return <stack_top>
