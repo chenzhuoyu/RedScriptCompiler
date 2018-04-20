@@ -63,11 +63,13 @@ set(SOURCE_FILES
         include/runtime/DecimalObject.h
         include/runtime/InternalError.h
         include/runtime/IntObject.h
+        include/runtime/NullObject.h
         include/runtime/Object.h
         include/runtime/ReferenceCounted.h
         include/runtime/RuntimeError.h
         include/runtime/StringObject.h
         include/runtime/SyntaxError.h
+        include/runtime/TypeError.h
         include/utils/Immovable.h
         include/utils/NonCopyable.h
         include/utils/Preprocessor.h
@@ -84,12 +86,13 @@ set(SOURCE_FILES
         src/runtime/CodeObject.cpp
         src/runtime/DecimalObject.cpp
         src/runtime/IntObject.cpp
+        src/runtime/NullObject.cpp
         src/runtime/Object.cpp
         src/runtime/ReferenceCounted.cpp
         src/runtime/StringObject.cpp
         src/utils/Strings.cpp
         src/RedScript.cpp
-        src/main.cpp src/runtime/NullObject.cpp include/runtime/NullObject.h include/runtime/TypeError.h)
+        src/main.cpp)
 
 add_executable(rsc ${SOURCE_FILES})
 target_link_libraries(rsc -ldl -lfmt -ljemalloc)
