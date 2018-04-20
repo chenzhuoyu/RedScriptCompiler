@@ -29,7 +29,7 @@ class BoolObject : public Object
 
 public:
     virtual ~BoolObject() = default;
-    explicit BoolObject(bool value) : Object(BoolTypeObject) {}
+    explicit BoolObject(bool value) : Object(BoolTypeObject), _value(value) {}
 
 public:
     static ObjectRef fromBool(bool value);
