@@ -120,7 +120,7 @@ private:
     friend class ReferenceCounted;
 
 private:
-    /* reference-borrowing constructor for newly created objects, internal use only */
+    /* constructor for newly created objects, internal use only */
     struct TagNew {};
     Reference(T *object, TagNew) : _object(object), _isBorrowed(false) {}
 
@@ -178,9 +178,9 @@ public:
         if (!_isBorrowed)
             unref();
 
-        /* transfer objects */
+        /* copy objects, but no longer borrowed */
         _object = other._object;
-        _isBorrowed = other._isBorrowed;
+        _isBorrowed = false;
     }
 
 public:
@@ -208,8 +208,8 @@ public:
 
 public:
     bool isNull(void) const { return !_object; }
-    bool isStatic(void) const { return _object ? _object->_isStatic : true; }
-    size_t refCount(void) const { return _object ? _object->_refCount : SIZE_MAX; }
+    bool isStatic(void) const { return _object ? _object->isStatic() : true; }
+    size_t refCount(void) const { return _object ? _object->refCount() : SIZE_MAX; }
 
 public:
     operator T *(void) { return _object; }
@@ -286,7 +286,7 @@ private:
     std::atomic_int _refCount;
 
 protected:
-    virtual ~ReferenceCounted() {}
+    virtual ~ReferenceCounted() = default;
     explicit ReferenceCounted();
 
 public:
