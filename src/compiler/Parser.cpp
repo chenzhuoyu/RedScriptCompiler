@@ -1462,7 +1462,7 @@ void Parser::parseAssignTarget(std::unique_ptr<AST::Composite> &comp, std::uniqu
                 MAKE_OPERATOR_LIST(__VA_ARGS__)                                                         \
                 {                                                                                       \
                     _lexer->next();                                                                     \
-                    result->follows.emplace_back(token->asOperator(), parse ## TermType());             \
+                    result->follows.emplace_back(token, parse ## TermType());                           \
                     break;                                                                              \
                 }                                                                                       \
                                                                                                         \
@@ -1525,7 +1525,7 @@ std::unique_ptr<AST::Expression> Parser::parseFactor(void)
                 case Token::Operator::BoolNot:
                 {
                     _lexer->next();
-                    return std::make_unique<AST::Expression>(token, parseFactor(), token->asOperator());
+                    return std::make_unique<AST::Expression>(token, parseFactor(), true);
                 }
 
                 /* map or array expressions */

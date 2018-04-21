@@ -32,6 +32,11 @@ public:
     explicit DecimalObject(double value) : Object(DecimalTypeObject) {}
 
 public:
+    static ObjectRef fromDouble(double value);
+    static ObjectRef fromString(const std::string &value);
+
+
+public:
     static void shutdown(void) {}
     static void initialize(void);
 

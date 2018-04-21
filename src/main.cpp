@@ -1,5 +1,5 @@
 const char *source = R"source(#!/usr/bin/env redscript
-a.b = "hello, world" + "qweqwe" + "hello, world"
+a = 1 + 2
 )source";
 
 #include <iostream>
@@ -33,8 +33,9 @@ static void run(void)
     for (size_t i = 0; i < code->consts().size(); i++)
     {
         printf(
-            "%zu : %p (%s) :: %s\n", i,
-            (RedScript::Runtime::Object *)(code->consts()[i]),
+            "%zu(%d) : %p (%s) :: %s\n", i,
+            code->consts()[i]->refCount(),
+            code->consts()[i].get(),
             code->consts()[i]->type()->name().c_str(),
             code->consts()[i]->type()->objectRepr(code->consts()[i]).c_str()
         );
@@ -51,20 +52,22 @@ static void run(void)
     while (p < e)
     {
         uint8_t op = (uint8_t)*p;
+        auto line = code->lineNums()[p - s];
+
         if (!(RedScript::Engine::OpCodeFlags[op] & RedScript::Engine::OP_V))
-            printf("%.4lx :: %15s\n", p - s, RedScript::Engine::OpCodeNames[op]);
+            printf("%.4lx %3d:%-3d %15s\n", p - s, line.first, line.second, RedScript::Engine::OpCodeNames[op]);
         else
         {
             int32_t opv = *(int32_t *)(p + 1);
             if (!(RedScript::Engine::OpCodeFlags[op] & RedScript::Engine::OP_REL))
-                printf("%.4lx :: %15s    %d\n", p - s, RedScript::Engine::OpCodeNames[op], opv);
+                printf("%.4lx %3d:%-3d %15s    %d\n", p - s, line.first, line.second, RedScript::Engine::OpCodeNames[op], opv);
             else
-                printf("%.4lx :: %15s    %d -> %#lx\n", p - s, RedScript::Engine::OpCodeNames[op], opv, p - s + opv);
+                printf("%.4lx %3d:%-3d %15s    %d -> %#lx\n", p - s, line.first, line.second, RedScript::Engine::OpCodeNames[op], opv, p - s + opv);
             p += sizeof(int32_t);
         }
         p++;
     }
-    printf("%.4lx :: (HLT)\n", e - s);
+    printf("%.4lx  (HALT)\n", e - s);
 }
 
 #if 0
@@ -265,6 +268,11 @@ int main()
 
     RedScript::initialize(young, old, perm);
     run();
+
+    std::cout << "--------------------- MEM ---------------------" << std::endl;
+    std::cout << "raw usage: " << RedScript::Engine::Memory::rawUsage() << std::endl;
+    std::cout << "array usage: " << RedScript::Engine::Memory::arrayUsage() << std::endl;
+    std::cout << "object usage: " << RedScript::Engine::Memory::objectUsage() << std::endl;
     RedScript::shutdown();
     return 0;
 }

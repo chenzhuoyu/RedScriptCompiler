@@ -487,7 +487,7 @@ struct Expression : public Node
 
     public:
         Type type;
-        Token::Operator op;
+        Token::Ptr op;
 
     public:
         std::unique_ptr<AST::Composite> composite = nullptr;
@@ -499,7 +499,7 @@ struct Expression : public Node
 
     public:
         /* special operator to create operands with operators (e.g. unary expression or following operands) */
-        Operand(Token::Operator op, std::unique_ptr<AST::Expression> &&value) : op(op), type(Type::Expression), expression(std::move(value)) {}
+        Operand(const Token::Ptr &op, std::unique_ptr<AST::Expression> &&value) : op(op), type(Type::Expression), expression(std::move(value)) {}
 
     };
 
@@ -514,7 +514,7 @@ public:
 
 public:
     /* special constructor to create unary operator expressions */
-    explicit Expression(const Token::Ptr &token, std::unique_ptr<AST::Expression> &&value, Token::Operator op) : Node(Node::Type::Expression, token), first(op, std::move(value)), hasOp(true) {}
+    explicit Expression(const Token::Ptr &token, std::unique_ptr<AST::Expression> &&value, bool) : Node(Node::Type::Expression, token), first(token, std::move(value)), hasOp(true) {}
 
 };
 

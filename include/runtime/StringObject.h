@@ -46,6 +46,9 @@ public:
     explicit StringObject(const std::string &value) : Object(StringTypeObject), _value(value) {}
 
 public:
+    static ObjectRef fromString(const std::string &value);
+
+public:
     static void shutdown(void) {}
     static void initialize(void);
 

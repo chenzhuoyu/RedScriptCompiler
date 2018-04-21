@@ -110,7 +110,7 @@ public:
     template <typename U>
     Reference(const Reference<U> &other) : _object(nullptr), _isBorrowed(false)
     {
-        /* compiler will complain for us if `U *` is not directly convertible to `T *` */
+        /* compiler will complain if `U *` is not directly convertible to `T *` */
         assign(other);
     }
 
@@ -203,10 +203,7 @@ public:
     T *operator->(void) { return _object; }
 
 public:
-    const T &operator*(void) const { return *_object; }
-    const T *operator->(void) const { return _object; }
-
-public:
+    T *get(void) { return _object; }
     bool isNull(void) const { return !_object; }
     bool isStatic(void) const { return _object ? _object->isStatic() : true; }
     size_t refCount(void) const { return _object ? _object->refCount() : SIZE_MAX; }
@@ -214,7 +211,6 @@ public:
 public:
     operator T *(void) { return _object; }
     operator bool(void) const { return _object != nullptr; }
-    operator const T *(void) const { return _object; }
 
 public:
     bool operator!=(std::nullptr_t) const { return _object == nullptr; }

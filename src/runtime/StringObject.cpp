@@ -85,9 +85,15 @@ ObjectRef StringType::comparableGeq(ObjectRef self, ObjectRef other)
 ObjectRef StringType::comparableCompare(ObjectRef self, ObjectRef other)
 {
     if (!other->type()->objectIsInstanceOf(other, StringTypeObject))
-        throw TypeError(Utils::Strings::format("\"%s\" is not comparable with \"string\"", other->type()->name()));
+        throw TypeError(Utils::Strings::format("\"%s\" is not comparable with \"str\"", other->type()->name()));
     else
         return IntObject::fromInt(self.as<StringObject>()->_value.compare(other.as<StringObject>()->_value));
+}
+
+ObjectRef StringObject::fromString(const std::string &value)
+{
+    // TODO: implement a string pool
+    return Object::newObject<StringObject>(value);
 }
 
 void StringObject::initialize(void)

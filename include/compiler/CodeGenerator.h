@@ -44,14 +44,14 @@ protected:
     inline std::vector<Runtime::ObjectRef> &consts(void) { return code()->consts(); }
 
 protected:
-    inline uint32_t emit(Engine::OpCode op) { return code()->emit(op); }
     inline uint32_t addConst(Runtime::ObjectRef value) { return code()->addConst(value); }
     inline uint32_t addLocal(const std::string &value) { return code()->addLocal(value); }
     inline uint32_t addString(const std::string &value) { return code()->addString(value); }
 
 protected:
-    inline uint32_t emitJump(Engine::OpCode op) { return code()->emitJump(op); }
-    inline uint32_t emitOperand(Engine::OpCode op, int32_t operand) { return code()->emitOperand(op, operand); }
+    template <typename T> inline uint32_t emit(T &&t, Engine::OpCode op) { return code()->emit(t->row(), t->col(), op); }
+    template <typename T> inline uint32_t emitJump(T &&t, Engine::OpCode op) { return code()->emitJump(t->row(), t->col(), op); }
+    template <typename T> inline uint32_t emitOperand(T &&t, Engine::OpCode op, int32_t operand) { return code()->emitOperand(t->row(), t->col(), op, operand); }
 
 protected:
     inline bool isLocal(const std::string &value) { return code()->isLocal(value); }

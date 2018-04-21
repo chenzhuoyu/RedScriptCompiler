@@ -6,20 +6,6 @@ namespace RedScript::Runtime
 /* type object for code */
 TypeRef CodeTypeObject;
 
-uint32_t CodeObject::emit(Engine::OpCode op)
-{
-    /* current instruction pointer */
-    size_t p = _buffer.size();
-
-    /* each code object is limited to 4G */
-    if (p >= UINT32_MAX)
-        throw Runtime::RuntimeError("Code exceeds 4G limit");
-
-    /* add to instruction buffer */
-    _buffer.emplace_back(static_cast<uint8_t>(op));
-    return static_cast<uint32_t>(p);
-}
-
 uint32_t CodeObject::addConst(Runtime::ObjectRef value)
 {
     /* current constant ID */
@@ -70,10 +56,25 @@ uint32_t CodeObject::addString(const std::string &value)
     return static_cast<uint32_t>(p);
 }
 
-uint32_t CodeObject::emitJump(Engine::OpCode op)
+uint32_t CodeObject::emit(int row, int col, Engine::OpCode op)
+{
+    /* current instruction pointer */
+    size_t p = _buffer.size();
+
+    /* each code object is limited to 4G */
+    if (p >= UINT32_MAX)
+        throw Runtime::RuntimeError("Code exceeds 4G limit");
+
+    /* add to instruction buffer */
+    _buffer.emplace_back(static_cast<uint8_t>(op));
+    _lineNumTable.emplace_back(row, col);
+    return static_cast<uint32_t>(p);
+}
+
+uint32_t CodeObject::emitJump(int row, int col, Engine::OpCode op)
 {
     /* emit the opcode */
-    size_t p = emit(op);
+    size_t p = emit(row, col, op);
 
     /* check for operand space */
     if (p >= UINT32_MAX - sizeof(int32_t) - 1)
@@ -81,14 +82,15 @@ uint32_t CodeObject::emitJump(Engine::OpCode op)
 
     /* preserve space in instruction buffer */
     _buffer.resize(p + sizeof(int32_t) + 1);
+    _lineNumTable.insert(_lineNumTable.end(), sizeof(int32_t), {row, col});
     return static_cast<uint32_t>(p) + 1;
 }
 
-uint32_t CodeObject::emitOperand(Engine::OpCode op, int32_t operand)
+uint32_t CodeObject::emitOperand(int row, int col, Engine::OpCode op, int32_t operand)
 {
     /* emit the opcode */
     char *v = reinterpret_cast<char *>(&operand);
-    size_t p = emit(op);
+    size_t p = emit(row, col, op);
 
     /* check for operand space */
     if (p >= UINT32_MAX - sizeof(int32_t) - 1)
@@ -96,6 +98,7 @@ uint32_t CodeObject::emitOperand(Engine::OpCode op, int32_t operand)
 
     /* add operand to instruction buffer */
     _buffer.insert(_buffer.end(), v, v + sizeof(int32_t));
+    _lineNumTable.insert(_lineNumTable.end(), sizeof(int32_t), {row, col});
     return static_cast<uint32_t>(p);
 }
 

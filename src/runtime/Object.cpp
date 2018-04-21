@@ -71,8 +71,8 @@ void Type::objectTraverse(ObjectRef self, Type::VisitFunction visit)
 
 uint64_t Type::objectHash(ObjectRef self)
 {
-    Object *object = self;
-    return std::hash<void *>()(object);
+    std::hash<uintptr_t> hash;
+    return hash(reinterpret_cast<uintptr_t>(self.get()));
 }
 
 StringList Type::objectDir(ObjectRef self)
@@ -129,15 +129,13 @@ ObjectRef Type::objectInvoke(ObjectRef self, const std::vector<ObjectRef> &args)
 
 ObjectRef Type::comparableEq(ObjectRef self, ObjectRef other)
 {
-    Object *a = self;
-    Object *b = other;
-    return BoolObject::fromBool(a == b);
+    // TODO: apply binary operator if any
+    return BoolObject::fromBool(self.get() == other.get());
 }
 
 ObjectRef Type::comparableNeq(ObjectRef self, ObjectRef other)
 {
-    Object *a = self;
-    Object *b = other;
-    return BoolObject::fromBool(a != b);
+    // TODO: apply binary operator if any
+    return BoolObject::fromBool(self.get() == other.get());
 }
 }

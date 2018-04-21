@@ -26,7 +26,7 @@ enum class OpCode : uint8_t
     DEL_ITEM        = 0x0d,         // DEL_ITEM                     delete <stack_top + 1>[<stack_top>]
 
     POP_RETURN      = 0x0e,         // POP_RETURN                   Pop and return <stack_top>
-    CALL_FUNCTION   = 0x0f,         // CALL_FUNCTION    <args>      Call function at stack top
+    CALL_FUNCTION   = 0x0f,         // CALL_FUNCTION    <flags>     Call function at stack top
 
     DUP             = 0x10,         // DUP                          Duplicate <stack_top>
     DUP2            = 0x11,         // DUP2                         Duplicate <stack_top> and <stack_top - 1>
@@ -81,7 +81,7 @@ enum class OpCode : uint8_t
     POP_BLOCK       = 0x55,         // POP_BLOCK                    Restore stack and destroy rescure block
 
     ITER_NEXT       = 0x56,         // ITER_NEXT        <pc>        push(<stack_top>.__next__()), if StopIteration, goto <pc>
-    EXPAND_SEQ      = 0x57,         // EXPAND_SEQ       <count>     Expand sequence on <stack_top>
+    EXPAND_SEQ      = 0x57,         // EXPAND_SEQ       <count>     Expand sequence on <stack_top> in reverse order
     IMPORT_ALIAS    = 0x58,         // IMPORT_ALIAS     <name>      Import a module as <name>
 
     MAKE_MAP        = 0x60,         // MAKE_MAP         <count>     Construct a map literal that contains <count> keys and values
@@ -93,8 +93,14 @@ enum class OpCode : uint8_t
 };
 
 /* opcode flags */
-static const uint32_t OP_V      = 0x00000001;    /* has operand */
-static const uint32_t OP_REL    = 0x00000002;    /* relative to PC */
+static const uint32_t OP_V          = 0x00000001;    /* has operand */
+static const uint32_t OP_REL        = 0x00000002;    /* relative to PC */
+
+/* function invocation flags */
+static const uint32_t FI_ARGS       = 0x00000001;    /* have arguments */
+static const uint32_t FI_NAMED      = 0x00000002;    /* have named arguments */
+static const uint32_t FI_VARGS      = 0x00000004;    /* have variable arguments */
+static const uint32_t FI_KWARGS     = 0x00000008;    /* have keyword arguments */
 
 /* flags for each opcode */
 static uint32_t OpCodeFlags[256] = {
