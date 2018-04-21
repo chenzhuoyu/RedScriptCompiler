@@ -248,7 +248,7 @@ public:
         T *newObject = dynamic_cast<T *>(object);
 
         /* borrow a reference from `object`, if viable */
-        if (!newObject)
+        if (object && !newObject)
             throw std::bad_cast();
         else
             return Reference<T>(newObject, TagBorrowed());
