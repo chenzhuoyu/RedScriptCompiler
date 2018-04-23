@@ -1,5 +1,9 @@
 const char *source = R"source(#!/usr/bin/env redscript
-a = 1 + 2
+def test() {
+    print('hello, world')
+}
+
+a.b[d] += c + 2
 )source";
 
 #include <iostream>
@@ -19,16 +23,9 @@ a = 1 + 2
 #include "compiler/Tokenizer.h"
 #include "compiler/CodeGenerator.h"
 
-static void run(void)
+static void dis(RedScript::Runtime::Reference<RedScript::Runtime::CodeObject> code)
 {
-    RedScript::Compiler::Parser parser(std::make_unique<RedScript::Compiler::Tokenizer>(source));
-    RedScript::Compiler::CodeGenerator codegen(parser.parse());
-    RedScript::Runtime::Reference<RedScript::Runtime::CodeObject> code = codegen.build().as<RedScript::Runtime::CodeObject>();
-    std::cout << "--------------------- MEM ---------------------" << std::endl;
-    std::cout << "raw usage: " << RedScript::Engine::Memory::rawUsage() << std::endl;
-    std::cout << "array usage: " << RedScript::Engine::Memory::arrayUsage() << std::endl;
-    std::cout << "object usage: " << RedScript::Engine::Memory::objectUsage() << std::endl;
-
+    std::vector<RedScript::Runtime::Reference<RedScript::Runtime::CodeObject>> codes;
     std::cout << "--------------------- CONSTS ---------------------" << std::endl;
     for (size_t i = 0; i < code->consts().size(); i++)
     {
@@ -39,6 +36,9 @@ static void run(void)
             code->consts()[i]->type()->name().c_str(),
             code->consts()[i]->type()->objectRepr(code->consts()[i]).c_str()
         );
+
+        if (code->consts()[i]->type() == RedScript::Runtime::CodeTypeObject)
+            codes.push_back(code->consts()[i].as<RedScript::Runtime::CodeObject>());
     }
 
     std::cout << "--------------------- NAMES ---------------------" << std::endl;
@@ -68,6 +68,21 @@ static void run(void)
         p++;
     }
     printf("%.4lx  (HALT)\n", e - s);
+
+    for (auto &x : codes)
+        dis(x);
+}
+
+static void run(void)
+{
+    RedScript::Compiler::Parser parser(std::make_unique<RedScript::Compiler::Tokenizer>(source));
+    RedScript::Compiler::CodeGenerator codegen(parser.parse());
+    RedScript::Runtime::Reference<RedScript::Runtime::CodeObject> code = codegen.build().as<RedScript::Runtime::CodeObject>();
+    std::cout << "--------------------- MEM ---------------------" << std::endl;
+    std::cout << "raw usage: " << RedScript::Engine::Memory::rawUsage() << std::endl;
+    std::cout << "array usage: " << RedScript::Engine::Memory::arrayUsage() << std::endl;
+    std::cout << "object usage: " << RedScript::Engine::Memory::objectUsage() << std::endl;
+    dis(code);
 }
 
 #if 0

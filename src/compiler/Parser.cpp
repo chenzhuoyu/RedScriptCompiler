@@ -1732,11 +1732,7 @@ std::unique_ptr<AST::Statement> Parser::parseStatement(void)
         std::unique_ptr<AST::Incremental> incr(new AST::Incremental(next));
 
         /* must be operators */
-        next = _lexer->nextOrLine();
-        incr->op = next->asOperator();
-
-        /* check the operator */
-        switch (incr->op)
+        switch ((incr->op = _lexer->nextOrLine())->asOperator())
         {
             /* a solo expression */
             case Token::Operator::NewLine:

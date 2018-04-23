@@ -236,7 +236,7 @@ public:
 struct Incremental : public Node
 {
     AST_NODE(Incremental)
-    Token::Operator op;
+    Token::Ptr op;
     std::unique_ptr<Composite> dest;
     std::unique_ptr<Expression> expr;
 };

@@ -12,9 +12,8 @@ enum class OpCode : uint8_t
     STOR_LOCAL      = 0x02,         // STOR_LOCAL       <index>     Store local variable <index> from stack
     DEL_LOCAL       = 0x03,         // DEL_LOCAL        <index>     Delete local variable <index> (by setting it to NULL)
 
-    LOAD_GLOBAL     = 0x04,         // LOAD_OBJECT      <name>      Load global <name> into stack
-    STOR_GLOBAL     = 0x05,         // STOR_OBJECT      <name>      Store global <name> from stack
-    DEL_GLOBAL      = 0x06,         // DEL_OBJECT       <name>      Delete global <name>
+    LOAD_GLOBAL     = 0x05,         // LOAD_GLOBAL      <name>      Load global <name> into stack
+    DEL_GLOBAL      = 0x06,         // DEL_GLOBAL       <name>      Delete global <name>
 
     DEF_ATTR        = 0x07,         // DEF_ATTR         <name>      define <stack_top>.<name> = None
     GET_ATTR        = 0x08,         // GET_ATTR         <name>      <stack_top> = <stack_top>.<name>
@@ -87,7 +86,7 @@ enum class OpCode : uint8_t
     MAKE_MAP        = 0x60,         // MAKE_MAP         <count>     Construct a map literal that contains <count> keys and values
     MAKE_ARRAY      = 0x61,         // MAKE_ARRAY       <count>     Construct an array literal that contains <count> items
     MAKE_TUPLE      = 0x62,         // MAKE_ARRAY       <count>     Construct a tuple literal that contains <count> items
-    MAKE_FUNCTION   = 0x63,         // MAKE_FUNCTION    <nargs>     Store bytecodes into new function
+    MAKE_FUNCTION   = 0x63,         // MAKE_FUNCTION    <code>      Store bytecodes into new function, with default values at <stack_top>
     MAKE_CLASS      = 0x64,         // MAKE_CLASS       <name>      Construct a class object named <name>
     MAKE_ITER       = 0x65,         // MAKE_ITER                    <stack_top> <-- <stack_top>.__iter__()
 };
@@ -101,6 +100,7 @@ static const uint32_t FI_ARGS       = 0x00000001;    /* have arguments */
 static const uint32_t FI_NAMED      = 0x00000002;    /* have named arguments */
 static const uint32_t FI_VARGS      = 0x00000004;    /* have variable arguments */
 static const uint32_t FI_KWARGS     = 0x00000008;    /* have keyword arguments */
+static const uint32_t FI_DECORATOR  = 0x00000010;    /* decorator invocation */
 
 /* flags for each opcode */
 static uint32_t OpCodeFlags[256] = {
@@ -109,8 +109,9 @@ static uint32_t OpCodeFlags[256] = {
     OP_V,               /* 0x02 :: STOR_LOCAL    */
     OP_V,               /* 0x03 :: DEL_LOCAL     */
 
-    OP_V,               /* 0x04 :: LOAD_GLOBAL   */
-    OP_V,               /* 0x05 :: STOR_GLOBAL   */
+    0,
+
+    OP_V,               /* 0x05 :: LOAD_GLOBAL   */
     OP_V,               /* 0x06 :: DEL_GLOBAL    */
 
     OP_V,               /* 0x07 :: DEF_ATTR      */
@@ -236,8 +237,9 @@ static const char *OpCodeNames[256] = {
     "STOR_LOCAL",           /* 0x02 */
     "DEL_LOCAL",            /* 0x03 */
 
-    "LOAD_GLOBAL",          /* 0x04 */
-    "STOR_GLOBAL",          /* 0x05 */
+    nullptr,
+
+    "LOAD_GLOBAL",          /* 0x05 */
     "DEL_GLOBAL",           /* 0x06 */
 
     "DEF_ATTR",             /* 0x07 */

@@ -52,7 +52,7 @@ public:
 
 public:
     template <typename T, typename ... Args>
-    static inline ObjectRef newObject(Args && ... args)
+    static inline Reference<T> newObject(Args && ... args)
     {
         /* just a shortcut function */
         return Reference<T>::newObject(std::forward<Args>(args) ...);

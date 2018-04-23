@@ -7,11 +7,31 @@
 #include "runtime/StringObject.h"
 #include "runtime/DecimalObject.h"
 
-#include "runtime/InternalError.h"
 #include "compiler/CodeGenerator.h"
 
 namespace RedScript::Compiler
 {
+static inline Engine::OpCode incOpCode(Token::Operator op)
+{
+    switch (op)
+    {
+        case Token::Operator::InplaceAdd        : return Engine::OpCode::INP_ADD;
+        case Token::Operator::InplaceSub        : return Engine::OpCode::INP_SUB;
+        case Token::Operator::InplaceMul        : return Engine::OpCode::INP_MUL;
+        case Token::Operator::InplaceDiv        : return Engine::OpCode::INP_DIV;
+        case Token::Operator::InplaceMod        : return Engine::OpCode::INP_MOD;
+        case Token::Operator::InplacePower      : return Engine::OpCode::INP_POWER;
+        case Token::Operator::InplaceBitOr      : return Engine::OpCode::INP_BIT_OR;
+        case Token::Operator::InplaceBitAnd     : return Engine::OpCode::INP_BIT_AND;
+        case Token::Operator::InplaceBitXor     : return Engine::OpCode::INP_BIT_XOR;
+        case Token::Operator::InplaceShiftLeft  : return Engine::OpCode::INP_LSHIFT;
+        case Token::Operator::InplaceShiftRight : return Engine::OpCode::INP_RSHIFT;
+
+        default:
+            throw Runtime::InternalError("Impossible incremental operator");
+    }
+}
+
 Runtime::ObjectRef CodeGenerator::build(void)
 {
     /* enclosure the whole module into a pseudo-function */
@@ -20,61 +40,194 @@ Runtime::ObjectRef CodeGenerator::build(void)
 
     /* build the compound statement */
     visitCompoundStatement(_block);
-    return std::move(_codeStack.back().second);
+    return std::move(_codeStack.back().code);
 }
 
 /*** Language Structures ***/
 
+void CodeGenerator::buildClassObject(const std::unique_ptr<AST::Class> &node)
+{
+    // TODO: generate class
+    CodeScope cls(this, CodeType::ClassCode);
+    Visitor::visitClass(node);
+}
+
+void CodeGenerator::buildFunctionObject(const std::unique_ptr<AST::Function> &node)
+{
+    /* check for default value count */
+    if (node->defaults.size() > UINT32_MAX)
+        throw Runtime::RuntimeError("Too many default values");
+
+    /* evaluate all default values when build functions */
+    for (const auto &expr : node->defaults)
+        visitExpression(expr);
+
+    /* build as tuple */
+    emitOperand(
+        node,
+        Engine::OpCode::MAKE_TUPLE,
+        static_cast<uint32_t>(node->defaults.size())
+    );
+
+    /* create a new code frame and function scope */
+    CodeScope func(this, CodeType::FunctionCode);
+    FunctionScope _(this, node->name, node->args);
+
+    /* add all names into local variable table */
+    for (const auto &name : node->args)
+        addLocal(name->name);
+
+    /* also add vargs if any */
+    if (node->vargs)
+        addLocal(node->vargs->name);
+
+    /* also add kwargs if any */
+    if (node->kwargs)
+        addLocal(node->kwargs->name);
+
+    /* build function body, with a default return statement */
+    visitStatement(node->body);
+    emitOperand(node->body, Engine::OpCode::LOAD_CONST, addConst(Runtime::NullObject));
+    emit(node->body, Engine::OpCode::POP_RETURN);
+    emitOperand(node, Engine::OpCode::MAKE_FUNCTION, addConst(func.leave()));
+}
+
 void CodeGenerator::visitIf(const std::unique_ptr<AST::If> &node)
 {
-    Visitor::visitIf(node);
+    /* if (<expr>) <stmt> */
+    visitExpression(node->expr);
+    uint32_t then = emitJump(node, Engine::OpCode::BRFALSE);
+    visitStatement(node->positive);
+
+    /* no else clause */
+    if (!(node->negative))
+    {
+        patchBranch(then, pc());
+        return;
+    }
+
+    /* else <stmt> */
+    uint32_t exit = emitJump(node, Engine::OpCode::BR);
+    patchBranch(then, pc());
+    visitStatement(node->negative);
+    patchBranch(exit, pc());
 }
 
 void CodeGenerator::visitFor(const std::unique_ptr<AST::For> &node)
 {
-    Visitor::visitFor(node);
+    /* build the expression and make an iterator out of it */
+    visitExpression(node->expr);
+    emit(node->expr, Engine::OpCode::MAKE_ITER);
+
+    /* advance the iterator */
+    uint32_t entry = pc();
+    emit(node->expr, Engine::OpCode::DUP);
+    uint32_t exit = emitJump(node->expr, Engine::OpCode::ITER_NEXT);
+
+    /* save to loop variables */
+    if (node->pack)
+        visitUnpack(node->pack);
+    else
+        buildCompositeTarget(node->comp);
+
+    /* enter loop scope */
+    BreakableScope bs(this);
+    ContinuableScope cs(this);
+
+    /* loop body */
+    visitStatement(node->body);
+    emitOperand(node, Engine::OpCode::BR, entry);
+
+    /* leave the two scopes */
+    auto breakBranches = bs.leave();
+    auto continueBranches = cs.leave();
+
+    /* patch all "continue" branches */
+    for (uint32_t offset : continueBranches)
+        patchBranch(offset, entry);
+
+    /* control reaches here if iterator drained */
+    patchBranch(exit, pc());
+
+    /* optional "else" clause */
+    if (node->branch)
+        visitStatement(node->branch);
+
+    /* patch all "break" branches, after "else" clause */
+    for (uint32_t offset : breakBranches)
+        patchBranch(offset, pc());
 }
 
 void CodeGenerator::visitTry(const std::unique_ptr<AST::Try> &node)
 {
+    // TODO: generate try
     Visitor::visitTry(node);
 }
 
 void CodeGenerator::visitClass(const std::unique_ptr<AST::Class> &node)
 {
-    CodeScope cls(this, CodeType::ClassCode);
-    Visitor::visitClass(node);
+    buildClassObject(node);
+    emitOperand(node->name, Engine::OpCode::STOR_LOCAL, addLocal(node->name->name));
 }
 
 void CodeGenerator::visitWhile(const std::unique_ptr<AST::While> &node)
 {
-    Visitor::visitWhile(node);
+    /* while condition expression */
+    uint32_t entry = pc();
+    visitExpression(node->expr);
+    uint32_t exit = emitJump(node->expr, Engine::OpCode::BRFALSE);
+
+    /* enter loop scope */
+    BreakableScope bs(this);
+    ContinuableScope cs(this);
+
+    /* loop body */
+    visitStatement(node->body);
+    emitOperand(node, Engine::OpCode::BR, entry);
+
+    /* leave the two scopes */
+    auto breakBranches = bs.leave();
+    auto continueBranches = cs.leave();
+
+    /* patch all "continue" branches */
+    for (uint32_t offset : continueBranches)
+        patchBranch(offset, entry);
+
+    /* control reaches here if iterator drained */
+    patchBranch(exit, pc());
+
+    /* optional "else" clause */
+    if (node->branch)
+        visitStatement(node->branch);
+
+    /* patch all "break" branches, after "else" clause */
+    for (uint32_t offset : breakBranches)
+        patchBranch(offset, pc());
 }
 
 void CodeGenerator::visitNative(const std::unique_ptr<AST::Native> &node)
 {
+    // TODO: generate native
     Visitor::visitNative(node);
 }
 
 void CodeGenerator::visitSwitch(const std::unique_ptr<AST::Switch> &node)
 {
+    // TODO: generate switch
     Visitor::visitSwitch(node);
 }
 
 void CodeGenerator::visitFunction(const std::unique_ptr<AST::Function> &node)
 {
-    /* create a new code frame and function scope */
-    CodeScope func(this, CodeType::FunctionCode);
-    FunctionScope _(this, node->name, node->args);
-
-    Visitor::visitFunction(node);
+    buildFunctionObject(node);
+    emitOperand(node->name, Engine::OpCode::STOR_LOCAL, addLocal(node->name->name));
 }
 
 bool CodeGenerator::isInConstructor(void)
 {
     return (_codeStack.size() >= 2) &&                                  /* should have at least 2 code frames (class -> function) */
-           ((_codeStack.end() - 2)->first == CodeType::ClassCode) &&    /* the 2nd to last frame must be a class */
-           (_codeStack.back().first == CodeType::FunctionCode) &&       /* the last frame must be a function */
+           ((_codeStack.end() - 2)->type == CodeType::ClassCode) &&     /* the 2nd to last frame must be a class */
+           (_codeStack.back().type == CodeType::FunctionCode) &&        /* the last frame must be a function */
            (_currentFunctionName.top() == "__init__");                  /* which name must be "__init__" */
 }
 
@@ -162,23 +315,113 @@ void CodeGenerator::visitAssign(const std::unique_ptr<AST::Assign> &node)
 
 void CodeGenerator::visitIncremental(const std::unique_ptr<AST::Incremental> &node)
 {
-    Visitor::visitIncremental(node);
+    /* must be mutable */
+    if (!(node->dest->isSyntacticallyMutable()))
+        throw Runtime::InternalError("Immutable assigning target");
+
+    /* generate incremental expression */
+    auto visitIncrementalExpr = [&]
+    {
+        visitExpression(node->expr);
+        emit(node->op, incOpCode(node->op->asOperator()));
+    };
+
+    /* composite base term */
+    switch (node->dest->vtype)
+    {
+        case AST::Composite::ValueType::Map        : visitMap(node->dest->map); break;
+        case AST::Composite::ValueType::Name       : visitName(node->dest->name); break;
+        case AST::Composite::ValueType::Array      : visitArray(node->dest->array); break;
+        case AST::Composite::ValueType::Tuple      : visitTuple(node->dest->tuple); break;
+        case AST::Composite::ValueType::Literal    : visitLiteral(node->dest->literal); break;
+        case AST::Composite::ValueType::Function   : visitFunction(node->dest->function); break;
+        case AST::Composite::ValueType::Expression : visitExpression(node->dest->expression); break;
+    }
+
+    /* no modifiers, it's a pure name */
+    if (node->dest->mods.empty())
+    {
+        /* add target attribute to string list */
+        auto &name = node->dest->name;
+        uint32_t vid = addString(name->name);
+
+        /* in this case, must be local name */
+        if (!isLocal(name->name))
+            throw Runtime::SyntaxError(node, Utils::Strings::format("Local name \"%s\" referenced before assignment", name->name));
+
+        /* generate name incremental assignment */
+        visitIncrementalExpr();
+        emitOperand(node->dest->name, Engine::OpCode::STOR_LOCAL, vid);
+    }
+    else
+    {
+        /* last modifier */
+        AST::Composite::Modifier &mod = node->dest->mods.back();
+
+        /* composite modifiers, except the last one */
+        for (size_t i = 0; i < node->dest->mods.size() - 1; i++)
+        {
+            switch (node->dest->mods[i].type)
+            {
+                case AST::Composite::ModType::Index     : visitIndex(node->dest->mods[i].index); break;
+                case AST::Composite::ModType::Invoke    : visitInvoke(node->dest->mods[i].invoke); break;
+                case AST::Composite::ModType::Attribute : visitAttribute(node->dest->mods[i].attribute); break;
+            }
+        }
+
+        /* incremental assigment needs special treatment here */
+        switch (mod.type)
+        {
+            /* a[x] += ... */
+            case AST::Composite::ModType::Index:
+            {
+                visitExpression(mod.index->index);
+                emit(mod.index->index, Engine::OpCode::DUP2);
+                emit(mod.index->index, Engine::OpCode::GET_ITEM);
+                visitIncrementalExpr();
+                emit(mod.index->index, Engine::OpCode::SET_ITEM);
+                break;
+            }
+
+            /* a(...) = ..., impossible */
+            case AST::Composite::ModType::Invoke:
+                throw Runtime::InternalError("Immutable assigning target");
+
+            /* a.b = ... */
+            case AST::Composite::ModType::Attribute:
+            {
+                /* add target attribute to string list */
+                auto &attr = mod.attribute->attr;
+                uint32_t vid = addString(attr->name);
+
+                /* generate attribute incremental assignment */
+                emit(mod.attribute->attr, Engine::OpCode::DUP);
+                emitOperand(mod.attribute->attr, Engine::OpCode::GET_ATTR, vid);
+                visitIncrementalExpr();
+                emitOperand(mod.attribute->attr, Engine::OpCode::SET_ATTR, vid);
+                break;
+            }
+        }
+    }
 }
 
 /*** Misc. Statements ***/
 
 void CodeGenerator::visitRaise(const std::unique_ptr<AST::Raise> &node)
 {
-    Visitor::visitRaise(node);
+    visitExpression(node->expr);
+    emit(node, Engine::OpCode::RAISE);
 }
 
 void CodeGenerator::visitDelete(const std::unique_ptr<AST::Delete> &node)
 {
+    // TODO: generate delete
     Visitor::visitDelete(node);
 }
 
 void CodeGenerator::visitImport(const std::unique_ptr<AST::Import> &node)
 {
+    // TODO: generate import
     Visitor::visitImport(node);
 }
 
@@ -186,17 +429,24 @@ void CodeGenerator::visitImport(const std::unique_ptr<AST::Import> &node)
 
 void CodeGenerator::visitBreak(const std::unique_ptr<AST::Break> &node)
 {
-    Visitor::visitBreak(node);
+    if (breakStack().empty())
+        throw Runtime::InternalError("Not breakable here");
+    else
+        breakStack().top().emplace_back(emitJump(node, Engine::OpCode::BR));
 }
 
 void CodeGenerator::visitReturn(const std::unique_ptr<AST::Return> &node)
 {
-    Visitor::visitReturn(node);
+    visitExpression(node->value);
+    emit(node, Engine::OpCode::POP_RETURN);
 }
 
 void CodeGenerator::visitContinue(const std::unique_ptr<AST::Continue> &node)
 {
-    Visitor::visitContinue(node);
+    if (continueStack().empty())
+        throw Runtime::InternalError("Not continuable here");
+    else
+        continueStack().top().emplace_back(emitJump(node, Engine::OpCode::BR));
 }
 
 /*** Object Modifiers ***/
@@ -372,12 +622,37 @@ void CodeGenerator::visitLiteral(const std::unique_ptr<AST::Literal> &node)
 
 void CodeGenerator::visitDecorator(const std::unique_ptr<AST::Decorator> &node)
 {
-    Visitor::visitDecorator(node);
+    /* decorative expression */
+    AST::Name *name;
+    visitExpression(node->expression);
+
+    /* value to be decorated */
+    switch (node->decoration)
+    {
+        case AST::Decorator::Decoration::Class:
+        {
+            name = node->klass->name.get();
+            buildClassObject(node->klass);
+            break;
+        }
+
+        case AST::Decorator::Decoration::Function:
+        {
+            name = node->function->name.get();
+            buildFunctionObject(node->function);
+            break;
+        }
+    }
+
+    /* invoke decorator */
+    emitOperand(node, Engine::OpCode::CALL_FUNCTION, Engine::FI_DECORATOR);
+    emitOperand(name, Engine::OpCode::STOR_LOCAL, addLocal(name->name));
 }
 
 void CodeGenerator::visitExpression(const std::unique_ptr<AST::Expression> &node)
 {
-    std::vector<size_t> patches;
+    /* short circuit patches */
+    std::vector<uint32_t> patches;
 
     /* first expression */
     switch (node->first.type)
@@ -475,7 +750,7 @@ void CodeGenerator::visitExpression(const std::unique_ptr<AST::Expression> &node
     }
 
     /* patch all jump instructions */
-    for (const auto &p : patches)
-        patchJump(p, buffer().size());
+    for (const auto &offset : patches)
+        patchBranch(offset, pc());
 }
 }

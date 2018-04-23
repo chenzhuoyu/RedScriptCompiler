@@ -11,6 +11,8 @@
 #include "compiler/AST.h"
 #include "runtime/Object.h"
 #include "runtime/CodeObject.h"
+#include "runtime/RuntimeError.h"
+#include "runtime/InternalError.h"
 
 namespace RedScript::Compiler
 {
@@ -23,20 +25,39 @@ class CodeGenerator : public AST::Visitor
     };
 
 private:
+    struct GenerationFrame
+    {
+        typedef Runtime::Reference<Runtime::CodeObject> CodeReference;
+
+    public:
+        CodeType type;
+        CodeReference code;
+        std::stack<std::vector<uint32_t>> breakStack;
+        std::stack<std::vector<uint32_t>> continueStack;
+
+    public:
+        GenerationFrame(CodeType type) :
+            type(type),
+            code(Runtime::Object::newObject<Runtime::CodeObject>()) {}
+
+    };
+
+private:
     std::stack<std::string> _firstArgName;
     std::stack<std::string> _currentFunctionName;
 
 private:
+    std::vector<GenerationFrame> _codeStack;
     std::unique_ptr<AST::CompoundStatement> _block;
-    std::vector<std::pair<CodeType, Runtime::ObjectRef>> _codeStack;
 
 public:
     virtual ~CodeGenerator() = default;
     explicit CodeGenerator(std::unique_ptr<AST::CompoundStatement> &&block) : _block(std::move(block)) {}
 
 protected:
-    typedef Runtime::Reference<Runtime::CodeObject> CodeRef;
-    inline CodeRef code(void) { return _codeStack.back().second.as<Runtime::CodeObject>(); }
+    inline auto &code(void) { return _codeStack.back().code; }
+    inline auto &breakStack(void) { return _codeStack.back().breakStack; }
+    inline auto &continueStack(void) { return _codeStack.back().continueStack; }
 
 protected:
     inline std::vector<char> &buffer(void) { return code()->buffer(); }
@@ -55,7 +76,16 @@ protected:
 
 protected:
     inline bool isLocal(const std::string &value) { return code()->isLocal(value); }
-    inline void patchJump(size_t offset, size_t address) { code()->patchJump(offset, address); }
+    inline void patchBranch(uint32_t offset, uint32_t address) { code()->patchBranch(offset, address); }
+
+protected:
+    inline uint32_t pc(void)
+    {
+        if (buffer().size() > UINT32_MAX)
+            throw Runtime::RuntimeError("Code exceeds 4G limit");
+        else
+            return static_cast<uint32_t>(buffer().size());
+    }
 
 protected:
     class CodeScope final
@@ -65,22 +95,18 @@ protected:
 
     public:
        ~CodeScope() { if (!_left) _self->_codeStack.pop_back(); }
-        CodeScope(CodeGenerator *self, CodeType type) : _left(false), _self(self)
-        {
-            /* create a new code object on the stack top */
-            self->_codeStack.emplace_back(type, Runtime::Object::newObject<Runtime::CodeObject>());
-        }
+        CodeScope(CodeGenerator *self, CodeType type) : _left(false), _self(self) { self->_codeStack.emplace_back(type); }
 
     public:
         Runtime::ObjectRef leave(void)
         {
             /* already left */
             if (_left)
-                return nullptr;
+                throw Runtime::InternalError("Outside of code scope");
 
             /* get the most recent code object */
             auto &code = _self->_codeStack;
-            Runtime::ObjectRef ref = std::move(code.back().second);
+            Runtime::ObjectRef ref = std::move(code.back().code);
 
             /* pop from code stack */
             _left = true;
@@ -114,10 +140,68 @@ protected:
         }
     };
 
+protected:
+    class BreakableScope final
+    {
+        bool _left;
+        CodeGenerator *_self;
+
+    public:
+       ~BreakableScope() { if (!_left) _self->breakStack().pop(); }
+        BreakableScope(CodeGenerator *self) : _self(self), _left(false) { _self->breakStack().emplace(); }
+
+    public:
+        std::vector<uint32_t> leave(void)
+        {
+            /* already left */
+            if (_left)
+                throw Runtime::InternalError("Outside of breakable scope");
+
+            /* get the most recent code object */
+            auto &stack = _self->breakStack();
+            std::vector<uint32_t> top = std::move(stack.top());
+
+            /* pop from code stack */
+            _left = true;
+            return std::move(top);
+        }
+    };
+
+protected:
+    class ContinuableScope final
+    {
+        bool _left;
+        CodeGenerator *_self;
+
+    public:
+       ~ContinuableScope() { if (!_left) _self->continueStack().pop(); }
+        ContinuableScope(CodeGenerator *self) : _self(self), _left(false) { _self->continueStack().emplace(); }
+
+    public:
+        std::vector<uint32_t> leave(void)
+        {
+            /* already left */
+            if (_left)
+                throw Runtime::InternalError("Outside of continuable scope");
+
+            /* get the most recent code object */
+            auto &stack = _self->continueStack();
+            std::vector<uint32_t> top = std::move(stack.top());
+
+            /* pop from code stack */
+            _left = true;
+            return std::move(top);
+        }
+    };
+
 public:
     Runtime::ObjectRef build(void);
 
 /*** Language Structures ***/
+
+protected:
+    void buildClassObject(const std::unique_ptr<AST::Class> &node);
+    void buildFunctionObject(const std::unique_ptr<AST::Function> &node);
 
 protected:
     virtual void visitIf(const std::unique_ptr<AST::If> &node);

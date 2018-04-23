@@ -57,7 +57,7 @@ public:
 
 public:
     bool isLocal(const std::string &value) { return _locals.find(value) != _locals.end(); }
-    void patchJump(size_t offset, size_t address) { *(int32_t *)(&_buffer[offset]) = static_cast<int32_t>(address - offset + 1); }
+    void patchBranch(uint32_t offset, uint32_t address) { *(uint32_t *)(&_buffer[offset]) = address - offset + 1; }
 
 public:
     static void shutdown(void) {}
