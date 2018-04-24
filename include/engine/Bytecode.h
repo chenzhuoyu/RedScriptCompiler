@@ -204,7 +204,7 @@ static uint32_t OpCodeFlags[256] = {
     OP_V,               /* 0x54 :: PUSH_BLOCK    */
     0,                  /* 0x55 :: POP_BLOCK     */
 
-    OP_V,               /* 0x56 :: ITER_NEXT     */
+    OP_V | OP_REL,      /* 0x56 :: ITER_NEXT     */
     OP_V,               /* 0x57 :: EXPAND_SEQ    */
     OP_V,               /* 0x58 :: IMPORT_ALIAS  */
 

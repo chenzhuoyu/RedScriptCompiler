@@ -204,14 +204,14 @@ protected:
     void buildFunctionObject(const std::unique_ptr<AST::Function> &node);
 
 protected:
-    virtual void visitIf(const std::unique_ptr<AST::If> &node);
-    virtual void visitFor(const std::unique_ptr<AST::For> &node);
-    virtual void visitTry(const std::unique_ptr<AST::Try> &node);
-    virtual void visitClass(const std::unique_ptr<AST::Class> &node);
-    virtual void visitWhile(const std::unique_ptr<AST::While> &node);
-    virtual void visitNative(const std::unique_ptr<AST::Native> &node);
-    virtual void visitSwitch(const std::unique_ptr<AST::Switch> &node);
-    virtual void visitFunction(const std::unique_ptr<AST::Function> &node);
+    virtual void visitIf(const std::unique_ptr<AST::If> &node) override;
+    virtual void visitFor(const std::unique_ptr<AST::For> &node) override;
+    virtual void visitTry(const std::unique_ptr<AST::Try> &node) override;
+    virtual void visitClass(const std::unique_ptr<AST::Class> &node) override;
+    virtual void visitWhile(const std::unique_ptr<AST::While> &node) override;
+    virtual void visitNative(const std::unique_ptr<AST::Native> &node) override;
+    virtual void visitSwitch(const std::unique_ptr<AST::Switch> &node) override;
+    virtual void visitFunction(const std::unique_ptr<AST::Function> &node) override;
 
 private:
     /* generating code such as `SET_ATTR` */
@@ -219,45 +219,50 @@ private:
     void buildCompositeTarget(const std::unique_ptr<AST::Composite> &node);
 
 protected:
-    virtual void visitAssign(const std::unique_ptr<AST::Assign> &node);
-    virtual void visitIncremental(const std::unique_ptr<AST::Incremental> &node);
+    virtual void visitAssign(const std::unique_ptr<AST::Assign> &node) override;
+    virtual void visitIncremental(const std::unique_ptr<AST::Incremental> &node) override;
 
 /*** Misc. Statements ***/
 
 protected:
-    virtual void visitRaise(const std::unique_ptr<AST::Raise> &node);
-    virtual void visitDelete(const std::unique_ptr<AST::Delete> &node);
-    virtual void visitImport(const std::unique_ptr<AST::Import> &node);
+    virtual void visitRaise(const std::unique_ptr<AST::Raise> &node) override;
+    virtual void visitDelete(const std::unique_ptr<AST::Delete> &node) override;
+    virtual void visitImport(const std::unique_ptr<AST::Import> &node) override;
 
 /*** Control Flows ***/
 
 protected:
-    virtual void visitBreak(const std::unique_ptr<AST::Break> &node);
-    virtual void visitReturn(const std::unique_ptr<AST::Return> &node);
-    virtual void visitContinue(const std::unique_ptr<AST::Continue> &node);
+    virtual void visitBreak(const std::unique_ptr<AST::Break> &node) override;
+    virtual void visitReturn(const std::unique_ptr<AST::Return> &node) override;
+    virtual void visitContinue(const std::unique_ptr<AST::Continue> &node) override;
 
 /*** Object Modifiers ***/
 
 protected:
-    virtual void visitIndex(const std::unique_ptr<AST::Index> &node);
-    virtual void visitInvoke(const std::unique_ptr<AST::Invoke> &node);
-    virtual void visitAttribute(const std::unique_ptr<AST::Attribute> &node);
+    virtual void visitIndex(const std::unique_ptr<AST::Index> &node) override;
+    virtual void visitInvoke(const std::unique_ptr<AST::Invoke> &node) override;
+    virtual void visitAttribute(const std::unique_ptr<AST::Attribute> &node) override;
 
 /*** Composite Literals ***/
 
 protected:
-    virtual void visitMap(const std::unique_ptr<AST::Map> &node);
-    virtual void visitArray(const std::unique_ptr<AST::Array> &node);
-    virtual void visitTuple(const std::unique_ptr<AST::Tuple> &node);
+    virtual void visitMap(const std::unique_ptr<AST::Map> &node) override;
+    virtual void visitArray(const std::unique_ptr<AST::Array> &node) override;
+    virtual void visitTuple(const std::unique_ptr<AST::Tuple> &node) override;
 
 /*** Expressions ***/
 
 protected:
-    virtual void visitName(const std::unique_ptr<AST::Name> &node);
-    virtual void visitUnpack(const std::unique_ptr<AST::Unpack> &node);
-    virtual void visitLiteral(const std::unique_ptr<AST::Literal> &node);
-    virtual void visitDecorator(const std::unique_ptr<AST::Decorator> &node);
-    virtual void visitExpression(const std::unique_ptr<AST::Expression> &node);
+    virtual void visitName(const std::unique_ptr<AST::Name> &node) override;
+    virtual void visitUnpack(const std::unique_ptr<AST::Unpack> &node) override;
+    virtual void visitLiteral(const std::unique_ptr<AST::Literal> &node) override;
+    virtual void visitDecorator(const std::unique_ptr<AST::Decorator> &node) override;
+    virtual void visitExpression(const std::unique_ptr<AST::Expression> &node) override;
+
+/*** Generic Statements ***/
+
+public:
+    virtual void visitStatement(const std::unique_ptr<AST::Statement> &node) override;
 
 };
 }

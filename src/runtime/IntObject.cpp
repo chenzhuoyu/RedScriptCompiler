@@ -12,8 +12,7 @@ TypeRef IntTypeObject;
 uint64_t IntType::objectHash(ObjectRef self)
 {
     // TODO: calculate hash
-    //return std::hash<int64_t>()(self.as<IntObject>()->_value);
-    return Type::objectHash(self);
+    return std::hash<int64_t>()(self.as<IntObject>()->_value);
 }
 
 std::string IntType::objectStr(ObjectRef self)

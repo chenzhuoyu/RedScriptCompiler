@@ -1,11 +1,25 @@
 const char *source = R"source(#!/usr/bin/env redscript
-import a.b.c.d from 'test.rs'
-def test(x, y) {
-    x = x + 1
-    print('hello, world', x + y)
+# switch (x) {
+#     case 1: {
+#         print('asd')
+#         break
+#     }
+#     case 2: {
+#         x += 1
+#     }
+#     case 3:
+#     case 4: {
+#         print('test')
+#         break
+#     }
+#     default: {
+#         print('exit')
+#         break
+#     }
+# }
+for (i in x) {
+    print(i)
 }
-
-test(1, 2)
 )source";
 
 #include <iostream>

@@ -422,6 +422,10 @@ std::unique_ptr<AST::Switch> Parser::parseSwitch(void)
         }
     }
 
+    /* must have at least 1 case */
+    if (result->cases.empty())
+        throw Runtime::SyntaxError(token, "Switch without any cases is not allowed");
+
     /* skip the block right operator */
     _lexer->next();
     return result;

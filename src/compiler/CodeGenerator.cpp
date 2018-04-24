@@ -32,6 +32,16 @@ static inline Engine::OpCode incOpCode(Token::Operator op)
     }
 }
 
+template <typename T>
+static inline void vectorExtend(std::vector<T> &dest, std::vector<T> &&src)
+{
+    dest.insert(
+        dest.end(),
+        std::make_move_iterator(src.begin()),
+        std::make_move_iterator(src.end())
+    );
+}
+
 Runtime::ObjectRef CodeGenerator::build(void)
 {
     /* enclosure the whole module into a pseudo-function */
@@ -120,8 +130,7 @@ void CodeGenerator::visitFor(const std::unique_ptr<AST::For> &node)
     emit(node->expr, Engine::OpCode::MAKE_ITER);
 
     /* advance the iterator */
-    uint32_t entry = pc();
-    emit(node->expr, Engine::OpCode::DUP);
+    uint32_t next = pc();
     uint32_t exit = emitJump(node->expr, Engine::OpCode::ITER_NEXT);
 
     /* save to loop variables */
@@ -136,7 +145,7 @@ void CodeGenerator::visitFor(const std::unique_ptr<AST::For> &node)
 
     /* loop body */
     visitStatement(node->body);
-    emitOperand(node, Engine::OpCode::BR, entry);
+    patchBranch(emitJump(node, Engine::OpCode::BR), next);
 
     /* leave the two scopes */
     auto breakBranches = bs.leave();
@@ -144,7 +153,7 @@ void CodeGenerator::visitFor(const std::unique_ptr<AST::For> &node)
 
     /* patch all "continue" branches */
     for (uint32_t offset : continueBranches)
-        patchBranch(offset, entry);
+        patchBranch(offset, next);
 
     /* control reaches here if iterator drained */
     patchBranch(exit, pc());
@@ -156,6 +165,9 @@ void CodeGenerator::visitFor(const std::unique_ptr<AST::For> &node)
     /* patch all "break" branches, after "else" clause */
     for (uint32_t offset : breakBranches)
         patchBranch(offset, pc());
+
+    /* drop the stack top iterator */
+    emit(node, Engine::OpCode::DROP);
 }
 
 void CodeGenerator::visitTry(const std::unique_ptr<AST::Try> &node)
@@ -173,7 +185,7 @@ void CodeGenerator::visitClass(const std::unique_ptr<AST::Class> &node)
 void CodeGenerator::visitWhile(const std::unique_ptr<AST::While> &node)
 {
     /* while condition expression */
-    uint32_t entry = pc();
+    uint32_t next = pc();
     visitExpression(node->expr);
     uint32_t exit = emitJump(node->expr, Engine::OpCode::BRFALSE);
 
@@ -183,7 +195,7 @@ void CodeGenerator::visitWhile(const std::unique_ptr<AST::While> &node)
 
     /* loop body */
     visitStatement(node->body);
-    emitOperand(node, Engine::OpCode::BR, entry);
+    patchBranch(emitJump(node, Engine::OpCode::BR), next);
 
     /* leave the two scopes */
     auto breakBranches = bs.leave();
@@ -191,7 +203,7 @@ void CodeGenerator::visitWhile(const std::unique_ptr<AST::While> &node)
 
     /* patch all "continue" branches */
     for (uint32_t offset : continueBranches)
-        patchBranch(offset, entry);
+        patchBranch(offset, next);
 
     /* control reaches here if iterator drained */
     patchBranch(exit, pc());
@@ -213,8 +225,55 @@ void CodeGenerator::visitNative(const std::unique_ptr<AST::Native> &node)
 
 void CodeGenerator::visitSwitch(const std::unique_ptr<AST::Switch> &node)
 {
-    // TODO: generate switch
-    Visitor::visitSwitch(node);
+    /* build switch expression */
+    std::vector<uint32_t> jumps;
+    visitExpression(node->expr);
+
+    /* generate each case values */
+    for (const auto &item : node->cases)
+    {
+        emit(node->expr, Engine::OpCode::DUP);
+        visitExpression(item.value);
+        emit(node->expr, Engine::OpCode::EQ);
+        jumps.emplace_back(emitJump(node->expr, Engine::OpCode::BRTRUE));
+    }
+
+    /* default value jump */
+    uint32_t def = emitJump(node, Engine::OpCode::BR);
+    std::vector<uint32_t> breaks;
+
+    /* generate each case body */
+    for (size_t i = 0; i < jumps.size(); i++)
+    {
+        /* patch case value branch here */
+        patchBranch(jumps[i], pc());
+
+        /* generate case body in new scope if any */
+        if (node->cases[i].body)
+        {
+            BreakableScope bs(this);
+            visitStatement(node->cases[i].body);
+            vectorExtend(breaks, bs.leave());
+        }
+    }
+
+    /* patch default value jump */
+    patchBranch(def, pc());
+
+    /* generate default section if any */
+    if (node->def)
+    {
+        BreakableScope bs(this);
+        visitStatement(node->def);
+        vectorExtend(breaks, bs.leave());
+    }
+
+    /* finally patch all breaks here */
+    for (const auto &offset : breaks)
+        patchBranch(offset, pc());
+
+    /* discard the expression on stack top */
+    emit(node->expr, Engine::OpCode::DROP);
 }
 
 void CodeGenerator::visitFunction(const std::unique_ptr<AST::Function> &node)
@@ -326,18 +385,6 @@ void CodeGenerator::visitIncremental(const std::unique_ptr<AST::Incremental> &no
         emit(node->op, incOpCode(node->op->asOperator()));
     };
 
-    /* composite base term */
-    switch (node->dest->vtype)
-    {
-        case AST::Composite::ValueType::Map        : visitMap(node->dest->map); break;
-        case AST::Composite::ValueType::Name       : visitName(node->dest->name); break;
-        case AST::Composite::ValueType::Array      : visitArray(node->dest->array); break;
-        case AST::Composite::ValueType::Tuple      : visitTuple(node->dest->tuple); break;
-        case AST::Composite::ValueType::Literal    : visitLiteral(node->dest->literal); break;
-        case AST::Composite::ValueType::Function   : visitFunction(node->dest->function); break;
-        case AST::Composite::ValueType::Expression : visitExpression(node->dest->expression); break;
-    }
-
     /* no modifiers, it's a pure name */
     if (node->dest->mods.empty())
     {
@@ -346,6 +393,7 @@ void CodeGenerator::visitIncremental(const std::unique_ptr<AST::Incremental> &no
         uint32_t vid = addLocal(name->name);
 
         /* generate name incremental assignment */
+        emitOperand(node->dest->name, Engine::OpCode::LOAD_LOCAL, vid);
         visitIncrementalExpr();
         emitOperand(node->dest->name, Engine::OpCode::STOR_LOCAL, vid);
     }
@@ -353,6 +401,18 @@ void CodeGenerator::visitIncremental(const std::unique_ptr<AST::Incremental> &no
     {
         /* last modifier */
         AST::Composite::Modifier &mod = node->dest->mods.back();
+
+        /* composite base term */
+        switch (node->dest->vtype)
+        {
+            case AST::Composite::ValueType::Map        : visitMap(node->dest->map); break;
+            case AST::Composite::ValueType::Name       : visitName(node->dest->name); break;
+            case AST::Composite::ValueType::Array      : visitArray(node->dest->array); break;
+            case AST::Composite::ValueType::Tuple      : visitTuple(node->dest->tuple); break;
+            case AST::Composite::ValueType::Literal    : visitLiteral(node->dest->literal); break;
+            case AST::Composite::ValueType::Function   : visitFunction(node->dest->function); break;
+            case AST::Composite::ValueType::Expression : visitExpression(node->dest->expression); break;
+        }
 
         /* composite modifiers, except the last one */
         for (size_t i = 0; i < node->dest->mods.size() - 1; i++)
@@ -827,5 +887,19 @@ void CodeGenerator::visitExpression(const std::unique_ptr<AST::Expression> &node
     /* patch all jump instructions */
     for (const auto &offset : patches)
         patchBranch(offset, pc());
+}
+
+void CodeGenerator::visitStatement(const std::unique_ptr<AST::Statement> &node)
+{
+    /* non-expression statements, generate as normal */
+    if (node->stype != AST::Statement::StatementType::Expression)
+    {
+        AST::Visitor::visitStatement(node);
+        return;
+    }
+
+    /* expression statements, discard result afterwards */
+    visitExpression(node->expression);
+    emit(node->expression, Engine::OpCode::DROP);
 }
 }
