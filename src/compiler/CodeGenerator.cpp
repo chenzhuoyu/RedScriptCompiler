@@ -45,21 +45,32 @@ static inline void vectorExtend(std::vector<T> &dest, std::vector<T> &&src)
 Runtime::ObjectRef CodeGenerator::build(void)
 {
     /* enclosure the whole module into a pseudo-function */
-    CodeScope cs(this, CodeType::FunctionCode);
+    CodeFrame cs(this, CodeType::FunctionCode);
     FunctionScope fs(this, nullptr, {});
 
     /* build the compound statement */
     visitCompoundStatement(_block);
-    return std::move(_codeStack.back().code);
+    return std::move(_frames.back().code);
 }
 
 /*** Language Structures ***/
 
 void CodeGenerator::buildClassObject(const std::unique_ptr<AST::Class> &node)
 {
-    // TODO: generate class
-    CodeScope cls(this, CodeType::ClassCode);
-    Visitor::visitClass(node);
+    /* generate super class if any */
+    if (node->super)
+        visitExpression(node->super);
+    else
+        emitOperand(node, Engine::OpCode::LOAD_CONST, addConst(Runtime::TypeObject));
+
+    /* create a new code frame for class */
+    CodeFrame cls(this, CodeType::ClassCode);
+
+    /* build class body, with a default return statement */
+    visitStatement(node->body);
+    emitOperand(node->body, Engine::OpCode::LOAD_CONST, addConst(Runtime::NullObject));
+    emit(node->body, Engine::OpCode::POP_RETURN);
+    emitOperand(node, Engine::OpCode::MAKE_CLASS, addConst(cls.leave()));
 }
 
 void CodeGenerator::buildFunctionObject(const std::unique_ptr<AST::Function> &node)
@@ -80,7 +91,7 @@ void CodeGenerator::buildFunctionObject(const std::unique_ptr<AST::Function> &no
     );
 
     /* create a new code frame and function scope */
-    CodeScope func(this, CodeType::FunctionCode);
+    CodeFrame func(this, CodeType::FunctionCode);
     FunctionScope _(this, node->name, node->args);
 
     /* add all names into local variable table */
@@ -284,9 +295,9 @@ void CodeGenerator::visitFunction(const std::unique_ptr<AST::Function> &node)
 
 bool CodeGenerator::isInConstructor(void)
 {
-    return (_codeStack.size() >= 2) &&                                  /* should have at least 2 code frames (class -> function) */
-           ((_codeStack.end() - 2)->type == CodeType::ClassCode) &&     /* the 2nd to last frame must be a class */
-           (_codeStack.back().type == CodeType::FunctionCode) &&        /* the last frame must be a function */
+    return (_frames.size() >= 2) &&                                     /* should have at least 2 code frames (class -> function) */
+           ((_frames.end() - 2)->type == CodeType::ClassCode) &&        /* the 2nd to last frame must be a class */
+           (_frames.back().type == CodeType::FunctionCode) &&           /* the last frame must be a function */
            (_currentFunctionName.top() == "__init__");                  /* which name must be "__init__" */
 }
 
@@ -311,8 +322,17 @@ void CodeGenerator::buildCompositeTarget(const std::unique_ptr<AST::Composite> &
     }
     else
     {
-        /* load the name into stack */
-        visitName(node->name);
+        /* composite base term */
+        switch (node->vtype)
+        {
+            case AST::Composite::ValueType::Map        : visitMap(node->map); break;
+            case AST::Composite::ValueType::Name       : visitName(node->name); break;
+            case AST::Composite::ValueType::Array      : visitArray(node->array); break;
+            case AST::Composite::ValueType::Tuple      : visitTuple(node->tuple); break;
+            case AST::Composite::ValueType::Literal    : visitLiteral(node->literal); break;
+            case AST::Composite::ValueType::Function   : visitFunction(node->function); break;
+            case AST::Composite::ValueType::Expression : visitExpression(node->expression); break;
+        }
 
         /* generate all modifiers, except for the last one */
         for (size_t i = 0; i < node->mods.size() - 1; i++)
@@ -347,9 +367,11 @@ void CodeGenerator::buildCompositeTarget(const std::unique_ptr<AST::Composite> &
                 auto &attr = node->mods.back().attribute->attr;
                 uint32_t vid = addName(attr->name);
 
-                /* if this is inside a constructor and is the only modifier,
-                 * and is setting attributes on `self`, it's defining an attribute */
-                if (isInConstructor() && (node->mods.size() == 1) && (attr->name == _firstArgName.top()))
+                /* it's defining attributes only if : */
+                if (isInConstructor() &&                                    /* in constructor */
+                    (node->mods.size() == 1) &&                             /* must have only one modifier */
+                    (node->vtype == AST::Composite::ValueType::Name) &&     /* setting attributes on a solo name */
+                    (node->name->name == _firstArgName.top()))              /* which must be the first argument of the current function */
                     emitOperand(attr, Engine::OpCode::DEF_ATTR, vid);
                 else
                     emitOperand(attr, Engine::OpCode::SET_ATTR, vid);

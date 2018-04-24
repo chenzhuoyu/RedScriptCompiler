@@ -47,38 +47,38 @@ private:
     std::stack<std::string> _currentFunctionName;
 
 private:
-    std::vector<GenerationFrame> _codeStack;
+    std::vector<GenerationFrame> _frames;
     std::unique_ptr<AST::CompoundStatement> _block;
 
 public:
     virtual ~CodeGenerator() = default;
     explicit CodeGenerator(std::unique_ptr<AST::CompoundStatement> &&block) : _block(std::move(block)) {}
 
-protected:
-    inline auto &code(void) { return _codeStack.back().code; }
-    inline auto &breakStack(void) { return _codeStack.back().breakStack; }
-    inline auto &continueStack(void) { return _codeStack.back().continueStack; }
+private:
+    inline auto &code(void) { return _frames.back().code; }
+    inline auto &breakStack(void) { return _frames.back().breakStack; }
+    inline auto &continueStack(void) { return _frames.back().continueStack; }
 
-protected:
+private:
     inline std::vector<char> &buffer(void) { return code()->buffer(); }
     inline std::vector<std::string> &names(void) { return code()->names(); }
     inline std::vector<Runtime::ObjectRef> &consts(void) { return code()->consts(); }
 
-protected:
+private:
     inline uint32_t addName(const std::string &name) { return code()->addName(name); }
     inline uint32_t addLocal(const std::string &name) { return code()->addLocal(name); }
     inline uint32_t addConst(Runtime::ObjectRef value) { return code()->addConst(value); }
 
-protected:
+private:
     template <typename T> inline uint32_t emit(T &&t, Engine::OpCode op) { return code()->emit(t->row(), t->col(), op); }
     template <typename T> inline uint32_t emitJump(T &&t, Engine::OpCode op) { return code()->emitJump(t->row(), t->col(), op); }
     template <typename T> inline uint32_t emitOperand(T &&t, Engine::OpCode op, int32_t v) { return code()->emitOperand(t->row(), t->col(), op, v); }
 
-protected:
+private:
     inline bool isLocal(const std::string &value) { return code()->isLocal(value); }
     inline void patchBranch(uint32_t offset, uint32_t address) { code()->patchBranch(offset, address); }
 
-protected:
+private:
     inline uint32_t pc(void)
     {
         if (buffer().size() > UINT32_MAX)
@@ -87,15 +87,15 @@ protected:
             return static_cast<uint32_t>(buffer().size());
     }
 
-protected:
-    class CodeScope final
+private:
+    class CodeFrame final
     {
         bool _left;
         CodeGenerator *_self;
 
     public:
-       ~CodeScope() { if (!_left) _self->_codeStack.pop_back(); }
-        CodeScope(CodeGenerator *self, CodeType type) : _left(false), _self(self) { self->_codeStack.emplace_back(type); }
+       ~CodeFrame() { if (!_left) _self->_frames.pop_back(); }
+        CodeFrame(CodeGenerator *self, CodeType type) : _left(false), _self(self) { self->_frames.emplace_back(type); }
 
     public:
         Runtime::ObjectRef leave(void)
@@ -105,7 +105,7 @@ protected:
                 throw Runtime::InternalError("Outside of code scope");
 
             /* get the most recent code object */
-            auto &code = _self->_codeStack;
+            auto &code = _self->_frames;
             Runtime::ObjectRef ref = std::move(code.back().code);
 
             /* pop from code stack */
@@ -115,7 +115,7 @@ protected:
         }
     };
 
-protected:
+private:
     class FunctionScope final
     {
         std::stack<std::string> &_args;
@@ -140,7 +140,7 @@ protected:
         }
     };
 
-protected:
+private:
     class BreakableScope final
     {
         bool _left;
@@ -167,7 +167,7 @@ protected:
         }
     };
 
-protected:
+private:
     class ContinuableScope final
     {
         bool _left;
@@ -199,11 +199,11 @@ public:
 
 /*** Language Structures ***/
 
-protected:
+private:
     void buildClassObject(const std::unique_ptr<AST::Class> &node);
     void buildFunctionObject(const std::unique_ptr<AST::Function> &node);
 
-protected:
+private:
     virtual void visitIf(const std::unique_ptr<AST::If> &node) override;
     virtual void visitFor(const std::unique_ptr<AST::For> &node) override;
     virtual void visitTry(const std::unique_ptr<AST::Try> &node) override;
@@ -218,41 +218,41 @@ private:
     bool isInConstructor(void);
     void buildCompositeTarget(const std::unique_ptr<AST::Composite> &node);
 
-protected:
+private:
     virtual void visitAssign(const std::unique_ptr<AST::Assign> &node) override;
     virtual void visitIncremental(const std::unique_ptr<AST::Incremental> &node) override;
 
 /*** Misc. Statements ***/
 
-protected:
+private:
     virtual void visitRaise(const std::unique_ptr<AST::Raise> &node) override;
     virtual void visitDelete(const std::unique_ptr<AST::Delete> &node) override;
     virtual void visitImport(const std::unique_ptr<AST::Import> &node) override;
 
 /*** Control Flows ***/
 
-protected:
+private:
     virtual void visitBreak(const std::unique_ptr<AST::Break> &node) override;
     virtual void visitReturn(const std::unique_ptr<AST::Return> &node) override;
     virtual void visitContinue(const std::unique_ptr<AST::Continue> &node) override;
 
 /*** Object Modifiers ***/
 
-protected:
+private:
     virtual void visitIndex(const std::unique_ptr<AST::Index> &node) override;
     virtual void visitInvoke(const std::unique_ptr<AST::Invoke> &node) override;
     virtual void visitAttribute(const std::unique_ptr<AST::Attribute> &node) override;
 
 /*** Composite Literals ***/
 
-protected:
+private:
     virtual void visitMap(const std::unique_ptr<AST::Map> &node) override;
     virtual void visitArray(const std::unique_ptr<AST::Array> &node) override;
     virtual void visitTuple(const std::unique_ptr<AST::Tuple> &node) override;
 
 /*** Expressions ***/
 
-protected:
+private:
     virtual void visitName(const std::unique_ptr<AST::Name> &node) override;
     virtual void visitUnpack(const std::unique_ptr<AST::Unpack> &node) override;
     virtual void visitLiteral(const std::unique_ptr<AST::Literal> &node) override;
@@ -261,7 +261,7 @@ protected:
 
 /*** Generic Statements ***/
 
-public:
+private:
     virtual void visitStatement(const std::unique_ptr<AST::Statement> &node) override;
 
 };

@@ -1,24 +1,9 @@
 const char *source = R"source(#!/usr/bin/env redscript
-# switch (x) {
-#     case 1: {
-#         print('asd')
-#         break
-#     }
-#     case 2: {
-#         x += 1
-#     }
-#     case 3:
-#     case 4: {
-#         print('test')
-#         break
-#     }
-#     default: {
-#         print('exit')
-#         break
-#     }
-# }
-for (i in x) {
-    print(i)
+class Foo
+{
+    def __init__(self) {
+        self.x = 1
+    }
 }
 )source";
 
