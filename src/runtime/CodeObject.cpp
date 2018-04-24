@@ -6,6 +6,36 @@ namespace RedScript::Runtime
 /* type object for code */
 TypeRef CodeTypeObject;
 
+uint32_t CodeObject::addName(const std::string &name)
+{
+    /* current constant ID */
+    auto it = _names.find(name);
+    size_t p = _nameTable.size();
+
+    /* already exists, return the existing ID */
+    if (it != _names.end())
+        return it->second;
+
+    /* each code object can have at most 4G strings */
+    if (p >= UINT32_MAX)
+        throw Runtime::RuntimeError("Too many strings");
+
+    /* add to string table */
+    _nameTable.emplace_back(name);
+    _names.emplace(name, static_cast<uint32_t>(p));
+    return static_cast<uint32_t>(p);
+}
+
+uint32_t CodeObject::addLocal(const std::string &name)
+{
+    /* if not exists, add to locals */
+    if (_locals.find(name) == _locals.end())
+        _locals.emplace(name, addName(name));
+
+    /* return the variable ID */
+    return _locals[name];
+}
+
 uint32_t CodeObject::addConst(Runtime::ObjectRef value)
 {
     /* current constant ID */
@@ -23,36 +53,6 @@ uint32_t CodeObject::addConst(Runtime::ObjectRef value)
     /* add to constant table */
     _constTable.emplace_back(value);
     _consts.emplace(value, static_cast<uint32_t>(p));
-    return static_cast<uint32_t>(p);
-}
-
-uint32_t CodeObject::addLocal(const std::string &value)
-{
-    /* if not exists, add to locals */
-    if (_locals.find(value) == _locals.end())
-        _locals.emplace(value, addString(value));
-
-    /* return the variable ID */
-    return _locals[value];
-}
-
-uint32_t CodeObject::addString(const std::string &value)
-{
-    /* current constant ID */
-    auto it = _names.find(value);
-    size_t p = _nameTable.size();
-
-    /* already exists, return the existing ID */
-    if (it != _names.end())
-        return it->second;
-
-    /* each code object can have at most 4G strings */
-    if (p >= UINT32_MAX)
-        throw Runtime::RuntimeError("Too many strings");
-
-    /* add to string table */
-    _nameTable.emplace_back(value);
-    _names.emplace(value, static_cast<uint32_t>(p));
     return static_cast<uint32_t>(p);
 }
 
@@ -86,20 +86,20 @@ uint32_t CodeObject::emitJump(int row, int col, Engine::OpCode op)
     return static_cast<uint32_t>(p) + 1;
 }
 
-uint32_t CodeObject::emitOperand(int row, int col, Engine::OpCode op, int32_t operand)
+uint32_t CodeObject::emitOperand(int row, int col, Engine::OpCode op, int32_t v)
 {
     /* emit the opcode */
-    char *v = reinterpret_cast<char *>(&operand);
-    size_t p = emit(row, col, op);
+    char *p = reinterpret_cast<char *>(&v);
+    size_t n = emit(row, col, op);
 
     /* check for operand space */
-    if (p >= UINT32_MAX - sizeof(int32_t) - 1)
+    if (n >= UINT32_MAX - sizeof(int32_t) - 1)
         throw Runtime::RuntimeError("Code exceeds 4G limit");
 
     /* add operand to instruction buffer */
-    _buffer.insert(_buffer.end(), v, v + sizeof(int32_t));
+    _buffer.insert(_buffer.end(), p, p + sizeof(int32_t));
     _lineNumTable.insert(_lineNumTable.end(), sizeof(int32_t), {row, col});
-    return static_cast<uint32_t>(p);
+    return static_cast<uint32_t>(n);
 }
 
 void CodeObject::initialize(void)

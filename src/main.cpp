@@ -1,9 +1,11 @@
 const char *source = R"source(#!/usr/bin/env redscript
-def test() {
-    print('hello, world')
+import a.b.c.d from 'test.rs'
+def test(x, y) {
+    x = x + 1
+    print('hello, world', x + y)
 }
 
-a.b[d] += c + 2
+test(1, 2)
 )source";
 
 #include <iostream>

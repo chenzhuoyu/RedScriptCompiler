@@ -8,12 +8,10 @@ namespace RedScript::Engine
 enum class OpCode : uint8_t
 {
     LOAD_CONST      = 0x00,         // LOAD_CONST       <const>     push <const>
-    LOAD_LOCAL      = 0x01,         // LOAD_LOCAL       <index>     Load local variable <index> into stack
-    STOR_LOCAL      = 0x02,         // STOR_LOCAL       <index>     Store local variable <index> from stack
-    DEL_LOCAL       = 0x03,         // DEL_LOCAL        <index>     Delete local variable <index> (by setting it to NULL)
-
-    LOAD_GLOBAL     = 0x05,         // LOAD_GLOBAL      <name>      Load global <name> into stack
-    DEL_GLOBAL      = 0x06,         // DEL_GLOBAL       <name>      Delete global <name>
+    LOAD_NAME       = 0x01,         // LOAD_NAME        <name>      Load variable by <name> into stack
+    LOAD_LOCAL      = 0x02,         // LOAD_LOCAL       <index>     Load local variable <index> into stack
+    STOR_LOCAL      = 0x03,         // STOR_LOCAL       <index>     Store local variable <index> from stack
+    DEL_LOCAL       = 0x04,         // DEL_LOCAL        <index>     Delete local variable <index> (by setting it to NULL)
 
     DEF_ATTR        = 0x07,         // DEF_ATTR         <name>      define <stack_top>.<name> = None
     GET_ATTR        = 0x08,         // GET_ATTR         <name>      <stack_top> = <stack_top>.<name>
@@ -81,7 +79,7 @@ enum class OpCode : uint8_t
 
     ITER_NEXT       = 0x56,         // ITER_NEXT        <pc>        push(<stack_top>.__next__()), if StopIteration, goto <pc>
     EXPAND_SEQ      = 0x57,         // EXPAND_SEQ       <count>     Expand sequence on <stack_top> in reverse order
-    IMPORT_ALIAS    = 0x58,         // IMPORT_ALIAS     <name>      Import a module as <name>
+    IMPORT_ALIAS    = 0x58,         // IMPORT_ALIAS     <name>      Import a module <name>, from file <stack_top>
 
     MAKE_MAP        = 0x60,         // MAKE_MAP         <count>     Construct a map literal that contains <count> keys and values
     MAKE_ARRAY      = 0x61,         // MAKE_ARRAY       <count>     Construct an array literal that contains <count> items
@@ -105,14 +103,13 @@ static const uint32_t FI_DECORATOR  = 0x00000010;    /* decorator invocation */
 /* flags for each opcode */
 static uint32_t OpCodeFlags[256] = {
     OP_V,               /* 0x00 :: LOAD_CONST    */
-    OP_V,               /* 0x01 :: LOAD_LOCAL    */
-    OP_V,               /* 0x02 :: STOR_LOCAL    */
-    OP_V,               /* 0x03 :: DEL_LOCAL     */
+    OP_V,               /* 0x01 :: LOAD_NAME     */
+    OP_V,               /* 0x02 :: LOAD_LOCAL    */
+    OP_V,               /* 0x03 :: STOR_LOCAL    */
+    OP_V,               /* 0x04 :: DEL_LOCAL     */
 
     0,
-
-    OP_V,               /* 0x05 :: LOAD_GLOBAL   */
-    OP_V,               /* 0x06 :: DEL_GLOBAL    */
+    0,
 
     OP_V,               /* 0x07 :: DEF_ATTR      */
     OP_V,               /* 0x08 :: GET_ATTR      */
@@ -233,14 +230,13 @@ static uint32_t OpCodeFlags[256] = {
 /* names for each opcode */
 static const char *OpCodeNames[256] = {
     "LOAD_CONST",           /* 0x00 */
-    "LOAD_LOCAL",           /* 0x01 */
-    "STOR_LOCAL",           /* 0x02 */
-    "DEL_LOCAL",            /* 0x03 */
+    "LOAD_NAME",            /* 0x01 */
+    "LOAD_LOCAL",           /* 0x02 */
+    "STOR_LOCAL",           /* 0x03 */
+    "DEL_LOCAL",            /* 0x04 */
 
     nullptr,
-
-    "LOAD_GLOBAL",          /* 0x05 */
-    "DEL_GLOBAL",           /* 0x06 */
+    nullptr,
 
     "DEF_ATTR",             /* 0x07 */
     "GET_ATTR",             /* 0x08 */

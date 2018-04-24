@@ -592,16 +592,8 @@ std::unique_ptr<AST::Import> Parser::parseImport(void)
     /* may follows a "from" keyword */
     if (token->isKeyword<Token::Keyword::From>())
     {
-        /* skip the "from" keyword */
         _lexer->next();
-        token = _lexer->next();
-
-        /* import from "<filename>" */
-        if (token->is<Token::Type::String>())
-            throw Runtime::SyntaxError(token, "File name string expected");
-
-        /* extract the file name string */
-        result->from = token->asString();
+        result->from = parseExpression();
         token = _lexer->peek();
     }
 

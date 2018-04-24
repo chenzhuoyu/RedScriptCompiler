@@ -258,8 +258,8 @@ struct Delete : public Node
 struct Import : public Node
 {
     AST_NODE(Import)
-    std::string from;
     std::unique_ptr<Name> alias;
+    std::unique_ptr<Expression> from;
     std::vector<std::unique_ptr<Name>> names;
 };
 

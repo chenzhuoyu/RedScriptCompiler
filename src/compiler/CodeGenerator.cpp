@@ -286,7 +286,7 @@ void CodeGenerator::buildCompositeTarget(const std::unique_ptr<AST::Composite> &
             {
                 /* add the identifier into string table */
                 auto &attr = node->mods.back().attribute->attr;
-                uint32_t vid = addString(attr->name);
+                uint32_t vid = addName(attr->name);
 
                 /* if this is inside a constructor and is the only modifier,
                  * and is setting attributes on `self`, it's defining an attribute */
@@ -341,13 +341,9 @@ void CodeGenerator::visitIncremental(const std::unique_ptr<AST::Incremental> &no
     /* no modifiers, it's a pure name */
     if (node->dest->mods.empty())
     {
-        /* add target attribute to string list */
+        /* add target attribute to local list */
         auto &name = node->dest->name;
-        uint32_t vid = addString(name->name);
-
-        /* in this case, must be local name */
-        if (!isLocal(name->name))
-            throw Runtime::SyntaxError(node, Utils::Strings::format("Local name \"%s\" referenced before assignment", name->name));
+        uint32_t vid = addLocal(name->name);
 
         /* generate name incremental assignment */
         visitIncrementalExpr();
@@ -392,7 +388,7 @@ void CodeGenerator::visitIncremental(const std::unique_ptr<AST::Incremental> &no
             {
                 /* add target attribute to string list */
                 auto &attr = mod.attribute->attr;
-                uint32_t vid = addString(attr->name);
+                uint32_t vid = addName(attr->name);
 
                 /* generate attribute incremental assignment */
                 emit(mod.attribute->attr, Engine::OpCode::DUP);
@@ -415,14 +411,93 @@ void CodeGenerator::visitRaise(const std::unique_ptr<AST::Raise> &node)
 
 void CodeGenerator::visitDelete(const std::unique_ptr<AST::Delete> &node)
 {
-    // TODO: generate delete
-    Visitor::visitDelete(node);
+    /* must be mutable */
+    if (!(node->comp->isSyntacticallyMutable()))
+        throw Runtime::InternalError("Immutable deleting target");
+
+    /* no modifiers, it's a pure name */
+    if (node->comp->mods.empty())
+    {
+        /* add target attribute to local list */
+        auto &name = node->comp->name;
+        uint32_t vid = addLocal(name->name);
+
+        /* generate delete instruction */
+        emitOperand(node->comp->name, Engine::OpCode::DEL_LOCAL, vid);
+    }
+    else
+    {
+        /* last modifier */
+        AST::Composite::Modifier &mod = node->comp->mods.back();
+
+        /* composite modifiers, except the last one */
+        for (size_t i = 0; i < node->comp->mods.size() - 1; i++)
+        {
+            switch (node->comp->mods[i].type)
+            {
+                case AST::Composite::ModType::Index     : visitIndex(node->comp->mods[i].index); break;
+                case AST::Composite::ModType::Invoke    : visitInvoke(node->comp->mods[i].invoke); break;
+                case AST::Composite::ModType::Attribute : visitAttribute(node->comp->mods[i].attribute); break;
+            }
+        }
+
+        /* deleting needs special treatment here */
+        switch (mod.type)
+        {
+            /* delete a[x] */
+            case AST::Composite::ModType::Index:
+            {
+                visitExpression(mod.index->index);
+                emit(mod.index->index, Engine::OpCode::DEL_ITEM);
+                break;
+            }
+
+            /* delete a(...), impossible */
+            case AST::Composite::ModType::Invoke:
+                throw Runtime::InternalError("Immutable deleting target");
+
+            /* delete a.b */
+            case AST::Composite::ModType::Attribute:
+            {
+                /* add target attribute to string list */
+                auto &attr = mod.attribute->attr;
+                uint32_t vid = addName(attr->name);
+
+                /* generate DEL_ATTR instruction */
+                emitOperand(mod.attribute->attr, Engine::OpCode::DEL_ATTR, vid);
+                break;
+            }
+        }
+    }
 }
 
 void CodeGenerator::visitImport(const std::unique_ptr<AST::Import> &node)
 {
-    // TODO: generate import
-    Visitor::visitImport(node);
+    /* import package name parts */
+    std::vector<std::string> names;
+
+    /* concat each name */
+    for (const auto &item : node->names)
+        names.emplace_back(item->name);
+
+    /* generate from expression if any */
+    if (node->from)
+        visitExpression(node->from);
+    else
+        emitOperand(node, Engine::OpCode::LOAD_CONST, addConst(Runtime::NullObject));
+
+    /* import as local name */
+    emitOperand(
+        node->names.front(),
+        Engine::OpCode::IMPORT_ALIAS,
+        addName(Utils::Strings::join(names, "."))
+    );
+
+    /* store to alias if any */
+    if (node->alias)
+        emitOperand(node->alias, Engine::OpCode::STOR_LOCAL, addLocal(node->alias->name));
+    else
+        emitOperand(node->names.back(), Engine::OpCode::STOR_LOCAL, addLocal(node->names.back()->name));
 }
 
 /*** Control Flows ***/
@@ -523,7 +598,7 @@ void CodeGenerator::visitInvoke(const std::unique_ptr<AST::Invoke> &node)
 void CodeGenerator::visitAttribute(const std::unique_ptr<AST::Attribute> &node)
 {
     /* stack_top = stack_top.attr */
-    emitOperand(node, Engine::OpCode::GET_ATTR, addString(node->attr->name));
+    emitOperand(node, Engine::OpCode::GET_ATTR, addName(node->attr->name));
 }
 
 /*** Composite Literals ***/
@@ -577,10 +652,10 @@ void CodeGenerator::visitTuple(const std::unique_ptr<AST::Tuple> &node)
 
 void CodeGenerator::visitName(const std::unique_ptr<AST::Name> &node)
 {
-    if (isLocal(node->name))
-        emitOperand(node, Engine::OpCode::LOAD_LOCAL, addLocal(node->name));
+    if (!isLocal(node->name))
+        emitOperand(node, Engine::OpCode::LOAD_NAME, addName(node->name));
     else
-        emitOperand(node, Engine::OpCode::LOAD_GLOBAL, addString(node->name));
+        emitOperand(node, Engine::OpCode::LOAD_LOCAL, addLocal(node->name));
 }
 
 void CodeGenerator::visitUnpack(const std::unique_ptr<AST::Unpack> &node)

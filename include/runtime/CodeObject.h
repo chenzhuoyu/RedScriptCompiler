@@ -46,14 +46,14 @@ public:
     std::vector<std::pair<int, int>> &lineNums(void) { return _lineNumTable; }
 
 public:
+    uint32_t addName(const std::string &name);
+    uint32_t addLocal(const std::string &name);
     uint32_t addConst(Runtime::ObjectRef value);
-    uint32_t addLocal(const std::string &value);
-    uint32_t addString(const std::string &value);
 
 public:
     uint32_t emit(int row, int col, Engine::OpCode op);
     uint32_t emitJump(int row, int col, Engine::OpCode op);
-    uint32_t emitOperand(int row, int col, Engine::OpCode op, int32_t operand);
+    uint32_t emitOperand(int row, int col, Engine::OpCode op, int32_t v);
 
 public:
     bool isLocal(const std::string &value) { return _locals.find(value) != _locals.end(); }
