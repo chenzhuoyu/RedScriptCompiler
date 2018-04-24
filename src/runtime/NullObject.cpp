@@ -2,7 +2,7 @@
 
 namespace RedScript::Runtime
 {
-/* type object for boolean */
+/* type object for null */
 TypeRef NullTypeObject;
 
 /* null constant */

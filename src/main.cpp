@@ -1,9 +1,12 @@
 const char *source = R"source(#!/usr/bin/env redscript
-class Foo
-{
-    def __init__(self) {
-        self.x = 1
-    }
+try {
+    a = 1
+} except (NameError as e) {
+    print(e)
+} except (TypeError) {
+    x = 2
+} finally {
+    print('hello, world')
 }
 )source";
 

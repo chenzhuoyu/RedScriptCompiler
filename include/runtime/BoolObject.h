@@ -15,6 +15,10 @@ public:
     explicit BoolType() : Type("bool") {}
 
 public:
+    virtual uint64_t    objectHash(ObjectRef self) override;
+    virtual std::string objectRepr(ObjectRef self) override;
+
+public:
     virtual bool objectIsTrue(ObjectRef self) override;
 
 };

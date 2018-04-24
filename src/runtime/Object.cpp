@@ -80,11 +80,6 @@ StringList Type::objectDir(ObjectRef self)
     return StringList();
 }
 
-std::string Type::objectStr(ObjectRef self)
-{
-    return std::string();
-}
-
 std::string Type::objectRepr(ObjectRef self)
 {
     return std::string();

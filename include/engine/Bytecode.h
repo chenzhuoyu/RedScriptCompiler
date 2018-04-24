@@ -7,11 +7,12 @@ namespace RedScript::Engine
 {
 enum class OpCode : uint8_t
 {
-    LOAD_CONST      = 0x00,         // LOAD_CONST       <const>     push <const>
-    LOAD_NAME       = 0x01,         // LOAD_NAME        <name>      Load variable by <name> into stack
-    LOAD_LOCAL      = 0x02,         // LOAD_LOCAL       <index>     Load local variable <index> into stack
-    STOR_LOCAL      = 0x03,         // STOR_LOCAL       <index>     Store local variable <index> from stack
-    DEL_LOCAL       = 0x04,         // DEL_LOCAL        <index>     Delete local variable <index> (by setting it to NULL)
+    LOAD_NULL       = 0x00,         // LOAD_NULL                    push null
+    LOAD_CONST      = 0x01,         // LOAD_CONST       <const>     push <const>
+    LOAD_NAME       = 0x02,         // LOAD_NAME        <name>      Load variable by <name> into stack
+    LOAD_LOCAL      = 0x03,         // LOAD_LOCAL       <index>     Load local variable <index> into stack
+    STOR_LOCAL      = 0x04,         // STOR_LOCAL       <index>     Store local variable <index> from stack
+    DEL_LOCAL       = 0x05,         // DEL_LOCAL        <index>     Delete local variable <index> (by setting it to NULL)
 
     DEF_ATTR        = 0x07,         // DEF_ATTR         <name>      define <stack_top>.<name> = None
     GET_ATTR        = 0x08,         // GET_ATTR         <name>      <stack_top> = <stack_top>.<name>
@@ -68,6 +69,7 @@ enum class OpCode : uint8_t
     LEQ             = 0x44,
     GEQ             = 0x45,
     IN              = 0x46,         // IN                           <stack_top> in <stack_top - 1>
+    EXC_MATCH       = 0x47,         // EXC_MATCH                    exception on <stack_top - 1> matches <stack_top>, clear if match
 
     BR              = 0x50,         // BR               <pc>        Branch to <pc>
     BRTRUE          = 0x51,         // BRTRUE           <pc>        Branch to <pc> if <stack_top> represents True
@@ -102,13 +104,13 @@ static const uint32_t FI_DECORATOR  = 0x00000010;    /* decorator invocation */
 
 /* flags for each opcode */
 static uint32_t OpCodeFlags[256] = {
-    OP_V,               /* 0x00 :: LOAD_CONST    */
-    OP_V,               /* 0x01 :: LOAD_NAME     */
-    OP_V,               /* 0x02 :: LOAD_LOCAL    */
-    OP_V,               /* 0x03 :: STOR_LOCAL    */
-    OP_V,               /* 0x04 :: DEL_LOCAL     */
+    0,                  /* 0x00 :: LOAD_NULL     */
+    OP_V,               /* 0x01 :: LOAD_CONST    */
+    OP_V,               /* 0x02 :: LOAD_NAME     */
+    OP_V,               /* 0x03 :: LOAD_LOCAL    */
+    OP_V,               /* 0x04 :: STOR_LOCAL    */
+    OP_V,               /* 0x05 :: DEL_LOCAL     */
 
-    0,
     0,
 
     OP_V,               /* 0x07 :: DEF_ATTR      */
@@ -185,8 +187,8 @@ static uint32_t OpCodeFlags[256] = {
     0,                  /* 0x44 :: LEQ           */
     0,                  /* 0x45 :: GEQ           */
     0,                  /* 0x46 :: IN            */
+    0,                  /* 0x46 :: EXC_MATCH     */
 
-    0,
     0,
     0,
     0,
@@ -229,13 +231,13 @@ static uint32_t OpCodeFlags[256] = {
 
 /* names for each opcode */
 static const char *OpCodeNames[256] = {
-    "LOAD_CONST",           /* 0x00 */
-    "LOAD_NAME",            /* 0x01 */
-    "LOAD_LOCAL",           /* 0x02 */
-    "STOR_LOCAL",           /* 0x03 */
-    "DEL_LOCAL",            /* 0x04 */
+    "LOAD_NULL",            /* 0x00 */
+    "LOAD_CONST",           /* 0x01 */
+    "LOAD_NAME",            /* 0x02 */
+    "LOAD_LOCAL",           /* 0x03 */
+    "STOR_LOCAL",           /* 0x04 */
+    "DEL_LOCAL",            /* 0x05 */
 
-    nullptr,
     nullptr,
 
     "DEF_ATTR",             /* 0x07 */
@@ -312,8 +314,8 @@ static const char *OpCodeNames[256] = {
     "LEQ",                  /* 0x44 */
     "GEQ",                  /* 0x45 */
     "IN",                   /* 0x46 */
+    "EXC_MATCH",            /* 0x47 */
 
-    nullptr,
     nullptr,
     nullptr,
     nullptr,

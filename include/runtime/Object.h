@@ -90,7 +90,7 @@ public:
 public:
     virtual uint64_t    objectHash(ObjectRef self);
     virtual StringList  objectDir (ObjectRef self);
-    virtual std::string objectStr (ObjectRef self);
+    virtual std::string objectStr (ObjectRef self) { return objectRepr(self); }
     virtual std::string objectRepr(ObjectRef self);
 
 public:

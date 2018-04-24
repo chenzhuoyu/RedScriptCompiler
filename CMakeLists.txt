@@ -61,6 +61,7 @@ set(SOURCE_FILES
         include/runtime/BoolObject.h
         include/runtime/CodeObject.h
         include/runtime/DecimalObject.h
+        include/runtime/ExceptionBlockObject.h
         include/runtime/InternalError.h
         include/runtime/IntObject.h
         include/runtime/NullObject.h
@@ -85,6 +86,7 @@ set(SOURCE_FILES
         src/runtime/BoolObject.cpp
         src/runtime/CodeObject.cpp
         src/runtime/DecimalObject.cpp
+        src/runtime/ExceptionBlockObject.cpp
         src/runtime/IntObject.cpp
         src/runtime/NullObject.cpp
         src/runtime/Object.cpp

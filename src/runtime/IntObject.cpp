@@ -15,12 +15,6 @@ uint64_t IntType::objectHash(ObjectRef self)
     return std::hash<int64_t>()(self.as<IntObject>()->_value);
 }
 
-std::string IntType::objectStr(ObjectRef self)
-{
-    // TODO: calculate str value
-    return std::to_string(self.as<IntObject>()->_value);
-}
-
 std::string IntType::objectRepr(ObjectRef self)
 {
     // TODO: calculate repr value

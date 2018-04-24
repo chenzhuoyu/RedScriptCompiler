@@ -9,12 +9,14 @@
 #include "runtime/NullObject.h"
 #include "runtime/StringObject.h"
 #include "runtime/DecimalObject.h"
+#include "runtime/ExceptionBlockObject.h"
 
 namespace RedScript
 {
 void shutdown(void)
 {
     /* generic objects */
+    RedScript::Runtime::ExceptionBlockObject::shutdown();
     RedScript::Runtime::DecimalObject::shutdown();
     RedScript::Runtime::CodeObject::shutdown();
 
@@ -48,5 +50,6 @@ void initialize(size_t young, size_t old, size_t perm)
     /* generic objects */
     RedScript::Runtime::CodeObject::initialize();
     RedScript::Runtime::DecimalObject::initialize();
+    RedScript::Runtime::ExceptionBlockObject::initialize();
 }
 }

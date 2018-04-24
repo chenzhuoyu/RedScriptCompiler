@@ -73,7 +73,7 @@ std::unique_ptr<AST::Try> Parser::parseTry(void)
     std::unique_ptr<AST::Try> result(new AST::Try(token));
 
     /* try <stmt> */
-    _lexer->keywordExpected<Token::Keyword::For>();
+    _lexer->keywordExpected<Token::Keyword::Try>();
     result->body = parseStatement();
 
     /* parse every "except" section */

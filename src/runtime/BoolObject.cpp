@@ -9,6 +9,20 @@ TypeRef BoolTypeObject;
 ObjectRef TrueObject;
 ObjectRef FalseObject;
 
+uint64_t BoolType::objectHash(ObjectRef self)
+{
+    std::hash<bool> hash;
+    return hash(self.as<BoolObject>()->_value);
+}
+
+std::string BoolType::objectRepr(ObjectRef self)
+{
+    if (self.as<BoolObject>()->_value)
+        return "true";
+    else
+        return "false";
+}
+
 bool BoolType::objectIsTrue(ObjectRef self)
 {
     /* get the bool value */

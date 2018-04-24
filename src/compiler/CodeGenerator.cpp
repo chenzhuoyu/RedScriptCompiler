@@ -3,9 +3,9 @@
 #include "runtime/IntObject.h"
 #include "runtime/BoolObject.h"
 #include "runtime/CodeObject.h"
-#include "runtime/NullObject.h"
 #include "runtime/StringObject.h"
 #include "runtime/DecimalObject.h"
+#include "runtime/ExceptionBlockObject.h"
 
 #include "compiler/CodeGenerator.h"
 
@@ -50,6 +50,10 @@ Runtime::ObjectRef CodeGenerator::build(void)
 
     /* build the compound statement */
     visitCompoundStatement(_block);
+    emit(_block, Engine::OpCode::LOAD_NULL);
+    emit(_block, Engine::OpCode::POP_RETURN);
+
+    /* pop the code object */
     return std::move(_frames.back().code);
 }
 
@@ -68,7 +72,7 @@ void CodeGenerator::buildClassObject(const std::unique_ptr<AST::Class> &node)
 
     /* build class body, with a default return statement */
     visitStatement(node->body);
-    emitOperand(node->body, Engine::OpCode::LOAD_CONST, addConst(Runtime::NullObject));
+    emit(node->body, Engine::OpCode::LOAD_NULL);
     emit(node->body, Engine::OpCode::POP_RETURN);
     emitOperand(node, Engine::OpCode::MAKE_CLASS, addConst(cls.leave()));
 }
@@ -108,7 +112,7 @@ void CodeGenerator::buildFunctionObject(const std::unique_ptr<AST::Function> &no
 
     /* build function body, with a default return statement */
     visitStatement(node->body);
-    emitOperand(node->body, Engine::OpCode::LOAD_CONST, addConst(Runtime::NullObject));
+    emit(node->body, Engine::OpCode::LOAD_NULL);
     emit(node->body, Engine::OpCode::POP_RETURN);
     emitOperand(node, Engine::OpCode::MAKE_FUNCTION, addConst(func.leave()));
 }
@@ -183,8 +187,64 @@ void CodeGenerator::visitFor(const std::unique_ptr<AST::For> &node)
 
 void CodeGenerator::visitTry(const std::unique_ptr<AST::Try> &node)
 {
-    // TODO: generate try
-    Visitor::visitTry(node);
+    bool isFirst = true;
+    uint32_t lastOffset = UINT32_MAX;
+    std::vector<uint32_t> jumpFinally = {};
+    Runtime::Reference<Runtime::ExceptionBlockObject> block = Runtime::Object::newObject<Runtime::ExceptionBlockObject>();
+
+    /* generate the body within an exception handling block */
+    emitOperand(node, Engine::OpCode::PUSH_BLOCK, addConst(block));
+    visitStatement(node->body);
+
+    /* skip the exception block, to the finally block */
+    jumpFinally.push_back(emitJump(node->body, Engine::OpCode::BR));
+    block->setExcept(pc());
+
+    /* generate "except" if any */
+    for (const auto &except : node->excepts)
+    {
+        /* patch the last "except" block if any */
+        if (!isFirst)
+        {
+            jumpFinally.emplace_back(emitJump(except.exception, Engine::OpCode::BR));
+            patchBranch(lastOffset, pc());
+        }
+
+        /* match the current exception */
+        visitExpression(except.exception);
+        emit(except.exception, Engine::OpCode::EXC_MATCH);
+
+        /* skip to next "except" block if not matches */
+        isFirst = false;
+        lastOffset = emitJump(except.exception, Engine::OpCode::BRFALSE);
+
+        /* save to alias if present */
+        if (!(except.alias))
+            emit(except.exception, Engine::OpCode::DROP);
+        else
+            emitOperand(except.alias, Engine::OpCode::STOR_LOCAL, addLocal(except.alias->name));
+
+        /* exception handler body */
+        visitStatement(except.handler);
+    }
+
+    /* patch the last exception branch if any */
+    if (!isFirst)
+        patchBranch(lastOffset, pc());
+
+    /* finally all goes here */
+    for (const auto &offset : jumpFinally)
+        patchBranch(offset, pc());
+
+    /* generate finally if any */
+    if (node->finally)
+    {
+        block->setFinally(pc());
+        visitStatement(node->finally);
+    }
+
+    /* exit the exception handling context */
+    emit(node, Engine::OpCode::POP_BLOCK);
 }
 
 void CodeGenerator::visitClass(const std::unique_ptr<AST::Class> &node)
@@ -566,7 +626,7 @@ void CodeGenerator::visitImport(const std::unique_ptr<AST::Import> &node)
     if (node->from)
         visitExpression(node->from);
     else
-        emitOperand(node, Engine::OpCode::LOAD_CONST, addConst(Runtime::NullObject));
+        emit(node, Engine::OpCode::LOAD_NULL);
 
     /* import as local name */
     emitOperand(
