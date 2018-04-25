@@ -8,27 +8,29 @@ namespace RedScript::Engine
 enum class OpCode : uint8_t
 {
     LOAD_NULL       = 0x00,         // LOAD_NULL                    push null
-    LOAD_CONST      = 0x01,         // LOAD_CONST       <const>     push <const>
-    LOAD_NAME       = 0x02,         // LOAD_NAME        <name>      Load variable by <name> into stack
-    LOAD_LOCAL      = 0x03,         // LOAD_LOCAL       <index>     Load local variable <index> into stack
-    STOR_LOCAL      = 0x04,         // STOR_LOCAL       <index>     Store local variable <index> from stack
-    DEL_LOCAL       = 0x05,         // DEL_LOCAL        <index>     Delete local variable <index> (by setting it to NULL)
+    LOAD_TRUE       = 0x01,         // LOAD_TRUE                    push true
+    LOAD_FALSE      = 0x02,         // LOAD_FALSE                   push false
+    LOAD_CONST      = 0x03,         // LOAD_CONST       <const>     push <const>
+    LOAD_NAME       = 0x04,         // LOAD_NAME        <name>      Load variable by <name> into stack
+    LOAD_LOCAL      = 0x05,         // LOAD_LOCAL       <index>     Load local variable <index> into stack
+    STOR_LOCAL      = 0x06,         // STOR_LOCAL       <index>     Store local variable <index> from stack
+    DEL_LOCAL       = 0x07,         // DEL_LOCAL        <index>     Delete local variable <index> (by setting it to NULL)
 
-    DEF_ATTR        = 0x07,         // DEF_ATTR         <name>      define <stack_top>.<name> = None
-    GET_ATTR        = 0x08,         // GET_ATTR         <name>      <stack_top> = <stack_top>.<name>
-    SET_ATTR        = 0x09,         // SET_ATTR         <name>      <stack_top>.<name> = <stack_top + 1>
-    DEL_ATTR        = 0x0a,         // DEL_ATTR         <name>      delete <stack_top>.name
+    DEF_ATTR        = 0x08,         // DEF_ATTR         <name>      define <stack_top>.<name> = None
+    GET_ATTR        = 0x09,         // GET_ATTR         <name>      <stack_top> = <stack_top>.<name>
+    SET_ATTR        = 0x0a,         // SET_ATTR         <name>      <stack_top>.<name> = <stack_top + 1>
+    DEL_ATTR        = 0x0b,         // DEL_ATTR         <name>      delete <stack_top>.name
 
-    GET_ITEM        = 0x0b,         // GET_ITEM                     <stack_top> = <stack_top + 1>[<stack_top>]
-    SET_ITEM        = 0x0c,         // SET_ITEM                     <stack_top + 1>[<stack_top>] = <stack_top + 2>
-    DEL_ITEM        = 0x0d,         // DEL_ITEM                     delete <stack_top + 1>[<stack_top>]
+    GET_ITEM        = 0x0c,         // GET_ITEM                     <stack_top> = <stack_top + 1>[<stack_top>]
+    SET_ITEM        = 0x0d,         // SET_ITEM                     <stack_top + 1>[<stack_top>] = <stack_top + 2>
+    DEL_ITEM        = 0x0e,         // DEL_ITEM                     delete <stack_top + 1>[<stack_top>]
 
-    POP_RETURN      = 0x0e,         // POP_RETURN                   Pop and return <stack_top>
-    CALL_FUNCTION   = 0x0f,         // CALL_FUNCTION    <flags>     Call function at stack top
+    POP_RETURN      = 0x0f,         // POP_RETURN                   Pop and return <stack_top>
+    CALL_FUNCTION   = 0x10,         // CALL_FUNCTION    <flags>     Call function at stack top
 
-    DUP             = 0x10,         // DUP                          Duplicate <stack_top>
-    DUP2            = 0x11,         // DUP2                         Duplicate <stack_top> and <stack_top - 1>
-    DROP            = 0x12,         // DROP                         Drop <stack_top>
+    DUP             = 0x11,         // DUP                          Duplicate <stack_top>
+    DUP2            = 0x12,         // DUP2                         Duplicate <stack_top> and <stack_top - 1>
+    DROP            = 0x13,         // DROP                         Drop <stack_top>
 
     ADD             = 0x20,         // ADD                          <stack_top> = <stack_top + 1> + <stack_top>
     SUB             = 0x21,         // ...
@@ -105,31 +107,30 @@ static const uint32_t FI_DECORATOR  = 0x00000010;    /* decorator invocation */
 /* flags for each opcode */
 static uint32_t OpCodeFlags[256] = {
     0,                  /* 0x00 :: LOAD_NULL     */
-    OP_V,               /* 0x01 :: LOAD_CONST    */
-    OP_V,               /* 0x02 :: LOAD_NAME     */
-    OP_V,               /* 0x03 :: LOAD_LOCAL    */
-    OP_V,               /* 0x04 :: STOR_LOCAL    */
-    OP_V,               /* 0x05 :: DEL_LOCAL     */
+    0,                  /* 0x01 :: LOAD_TRUE     */
+    0,                  /* 0x02 :: LOAD_FALSE    */
+    OP_V,               /* 0x03 :: LOAD_CONST    */
+    OP_V,               /* 0x04 :: LOAD_NAME     */
+    OP_V,               /* 0x05 :: LOAD_LOCAL    */
+    OP_V,               /* 0x06 :: STOR_LOCAL    */
+    OP_V,               /* 0x07 :: DEL_LOCAL     */
 
-    0,
+    OP_V,               /* 0x08 :: DEF_ATTR      */
+    OP_V,               /* 0x09 :: GET_ATTR      */
+    OP_V,               /* 0x0a :: SET_ATTR      */
+    OP_V,               /* 0x0b :: DEL_ATTR      */
 
-    OP_V,               /* 0x07 :: DEF_ATTR      */
-    OP_V,               /* 0x08 :: GET_ATTR      */
-    OP_V,               /* 0x09 :: SET_ATTR      */
-    OP_V,               /* 0x0a :: DEL_ATTR      */
+    0,                  /* 0x0c :: GET_ITEM      */
+    0,                  /* 0x0d :: SET_ITEM      */
+    0,                  /* 0x0e :: DEL_ITEM      */
 
-    0,                  /* 0x0b :: GET_ITEM      */
-    0,                  /* 0x0c :: SET_ITEM      */
-    0,                  /* 0x0d :: DEL_ITEM      */
+    0,                  /* 0x0f :: POP_RETURN    */
+    OP_V,               /* 0x10 :: CALL_FUNCTION */
 
-    0,                  /* 0x0e :: POP_RETURN    */
-    OP_V,               /* 0x0f :: CALL_FUNCTION */
+    0,                  /* 0x11 :: DUP           */
+    0,                  /* 0x12 :: DUP2          */
+    0,                  /* 0x13 :: DROP          */
 
-    0,                  /* 0x10 :: DUP           */
-    0,                  /* 0x11 :: DUP2          */
-    0,                  /* 0x12 :: DROP          */
-
-    0,
     0,
     0,
     0,
@@ -232,31 +233,30 @@ static uint32_t OpCodeFlags[256] = {
 /* names for each opcode */
 static const char *OpCodeNames[256] = {
     "LOAD_NULL",            /* 0x00 */
-    "LOAD_CONST",           /* 0x01 */
-    "LOAD_NAME",            /* 0x02 */
-    "LOAD_LOCAL",           /* 0x03 */
-    "STOR_LOCAL",           /* 0x04 */
-    "DEL_LOCAL",            /* 0x05 */
+    "LOAD_TRUE",            /* 0x01 */
+    "LOAD_FALSE",           /* 0x02 */
+    "LOAD_CONST",           /* 0x03 */
+    "LOAD_NAME",            /* 0x04 */
+    "LOAD_LOCAL",           /* 0x05 */
+    "STOR_LOCAL",           /* 0x06 */
+    "DEL_LOCAL",            /* 0x07 */
 
-    nullptr,
+    "DEF_ATTR",             /* 0x08 */
+    "GET_ATTR",             /* 0x09 */
+    "SET_ATTR",             /* 0x0a */
+    "DEL_ATTR",             /* 0x0b */
 
-    "DEF_ATTR",             /* 0x07 */
-    "GET_ATTR",             /* 0x08 */
-    "SET_ATTR",             /* 0x09 */
-    "DEL_ATTR",             /* 0x0a */
+    "GET_ITEM",             /* 0x0c */
+    "SET_ITEM",             /* 0x0d */
+    "DEL_ITEM",             /* 0x0e */
 
-    "GET_ITEM",             /* 0x0b */
-    "SET_ITEM",             /* 0x0c */
-    "DEL_ITEM",             /* 0x0d */
+    "POP_RETURN",           /* 0x0f */
+    "CALL_FUNCTION",        /* 0x10 */
 
-    "POP_RETURN",           /* 0x0e */
-    "CALL_FUNCTION",        /* 0x0f */
+    "DUP",                  /* 0x11 */
+    "DUP2",                 /* 0x12 */
+    "DROP",                 /* 0x13 */
 
-    "DUP",                  /* 0x10 */
-    "DUP2",                 /* 0x11 */
-    "DROP",                 /* 0x12 */
-
-    nullptr,
     nullptr,
     nullptr,
     nullptr,

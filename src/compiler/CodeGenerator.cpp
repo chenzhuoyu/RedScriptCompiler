@@ -794,7 +794,13 @@ void CodeGenerator::visitTuple(const std::unique_ptr<AST::Tuple> &node)
 
 void CodeGenerator::visitName(const std::unique_ptr<AST::Name> &node)
 {
-    if (!isLocal(node->name))
+    if (node->name == "null")
+        emit(node, Engine::OpCode::LOAD_NULL);
+    else if (node->name == "true")
+        emit(node, Engine::OpCode::LOAD_TRUE);
+    else if (node->name == "false")
+        emit(node, Engine::OpCode::LOAD_FALSE);
+    else if (!isLocal(node->name))
         emitOperand(node, Engine::OpCode::LOAD_NAME, addName(node->name));
     else
         emitOperand(node, Engine::OpCode::LOAD_LOCAL, addLocal(node->name));
