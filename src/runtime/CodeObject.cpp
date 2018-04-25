@@ -18,7 +18,7 @@ uint32_t CodeObject::addName(const std::string &name)
 
     /* each code object can have at most 4G strings */
     if (p >= UINT32_MAX)
-        throw Runtime::RuntimeError("Too many strings");
+        throw Runtime::RuntimeError("Too many names");
 
     /* add to string table */
     _nameTable.emplace_back(name);
@@ -28,12 +28,22 @@ uint32_t CodeObject::addName(const std::string &name)
 
 uint32_t CodeObject::addLocal(const std::string &name)
 {
-    /* if not exists, add to locals */
-    if (_locals.find(name) == _locals.end())
-        _locals.emplace(name, addName(name));
+    /* current constant ID */
+    auto it = _locals.find(name);
+    size_t p = _localTable.size();
 
-    /* return the variable ID */
-    return _locals[name];
+    /* already exists, return the existing ID */
+    if (it != _locals.end())
+        return it->second;
+
+    /* each code object can have at most 4G strings */
+    if (p >= UINT32_MAX)
+        throw Runtime::RuntimeError("Too many locals");
+
+    /* add to string table */
+    _localTable.emplace_back(name);
+    _locals.emplace(name, static_cast<uint32_t>(p));
+    return static_cast<uint32_t>(p);
 }
 
 uint32_t CodeObject::addConst(Runtime::ObjectRef value)

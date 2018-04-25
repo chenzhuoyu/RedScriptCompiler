@@ -61,6 +61,7 @@ static TestComposite test_func(int arg0, float arg1)
 
 #include "RedScript.h"
 #include "engine/Memory.h"
+#include "engine/Interpreter.h"
 
 #include "utils/Strings.h"
 #include "runtime/Object.h"
@@ -91,6 +92,10 @@ static void dis(RedScript::Runtime::Reference<RedScript::Runtime::CodeObject> co
     std::cout << "--------------------- NAMES ---------------------" << std::endl;
     for (size_t i = 0; i < code->names().size(); i++)
         printf("%zu : %s\n", i, code->names()[i].c_str());
+
+    std::cout << "--------------------- LOCALS ---------------------" << std::endl;
+    for (size_t i = 0; i < code->locals().size(); i++)
+        printf("%zu : %s\n", i, code->locals()[i].c_str());
 
     std::cout << "--------------------- CODE ---------------------" << std::endl;
     const char *s = code->buffer().data();
@@ -130,6 +135,13 @@ static void run(void)
     std::cout << "array usage: " << RedScript::Engine::Memory::arrayUsage() << std::endl;
     std::cout << "object usage: " << RedScript::Engine::Memory::objectUsage() << std::endl;
     dis(code);
+
+    RedScript::Engine::Interpreter intp;
+    std::cout << "--------------------- EVAL ---------------------" << std::endl;
+    RedScript::Runtime::ObjectRef ret = intp.eval(code);
+
+    std::cout << "--------------------- RETURN ---------------------" << std::endl;
+    std::cout << ret->type()->objectRepr(ret) << std::endl;
 }
 
 #if 0

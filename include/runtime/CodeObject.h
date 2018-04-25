@@ -27,6 +27,7 @@ class CodeObject : public Object
 private:
     std::vector<char> _buffer;
     std::vector<std::string> _nameTable;
+    std::vector<std::string> _localTable;
     std::vector<Runtime::ObjectRef> _constTable;
     std::vector<std::pair<int, int>> _lineNumTable;
 
@@ -42,6 +43,7 @@ public:
 public:
     std::vector<char> &buffer(void) { return _buffer; }
     std::vector<std::string> &names(void) { return _nameTable; }
+    std::vector<std::string> &locals(void) { return _localTable; }
     std::vector<Runtime::ObjectRef> &consts(void) { return _constTable; }
     std::vector<std::pair<int, int>> &lineNums(void) { return _lineNumTable; }
 
