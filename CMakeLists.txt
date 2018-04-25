@@ -53,9 +53,11 @@ set(SOURCE_FILES
         include/compiler/Tokenizer.h
         include/engine/Bytecode.h
         include/engine/GarbageCollector.h
+        include/engine/Interpreter.h
         include/engine/Memory.h
         include/engine/Thread.h
         include/lockfree/DoublyLinkedList.h
+        include/lockfree/FreeList.h
         include/lockfree/HazardMemory.h
         include/lockfree/IndexGenerator.h
         include/runtime/BoolObject.h
@@ -82,6 +84,7 @@ set(SOURCE_FILES
         src/compiler/Parser.cpp
         src/compiler/Tokenizer.cpp
         src/engine/GarbageCollector.cpp
+        src/engine/Interpreter.cpp
         src/engine/Memory.cpp
         src/engine/Thread.cpp
         src/runtime/BoolObject.cpp
@@ -96,7 +99,7 @@ set(SOURCE_FILES
         src/runtime/StringObject.cpp
         src/utils/Strings.cpp
         src/RedScript.cpp
-        src/main.cpp src/engine/Interpreter.cpp include/engine/Interpreter.h)
+        src/main.cpp)
 
 add_executable(rsc ${SOURCE_FILES})
 target_link_libraries(rsc -ldl -lfmt -ljemalloc)

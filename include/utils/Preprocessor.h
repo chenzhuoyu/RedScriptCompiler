@@ -4,6 +4,11 @@
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "OCUnusedMacroInspection"
 
+/*** Compiler Suggestions ***/
+
+#define RSPP_LIKELY(cond)       __builtin_expect(static_cast<bool>(cond), 1)
+#define RSPP_UNLIKELY(cond)     __builtin_expect(static_cast<bool>(cond), 0)
+
 /*** Stringize and Concatenation ***/
 
 #define __RSPP_CONCAT_P(a, b)           a ## b
