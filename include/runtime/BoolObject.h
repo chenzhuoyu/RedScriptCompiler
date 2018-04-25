@@ -1,5 +1,5 @@
-#ifndef REDSCRIPT_COMPILER_BOOLOBJECT_H
-#define REDSCRIPT_COMPILER_BOOLOBJECT_H
+#ifndef REDSCRIPT_RUNTIME_BOOLOBJECT_H
+#define REDSCRIPT_RUNTIME_BOOLOBJECT_H
 
 #include <vector>
 #include <string>
@@ -49,4 +49,4 @@ extern ObjectRef TrueObject;
 extern ObjectRef FalseObject;
 }
 
-#endif /* REDSCRIPT_COMPILER_BOOLOBJECT_H */
+#endif /* REDSCRIPT_RUNTIME_BOOLOBJECT_H */

@@ -1,5 +1,5 @@
-#ifndef REDSCRIPT_COMPILER_INTOBJECT_H
-#define REDSCRIPT_COMPILER_INTOBJECT_H
+#ifndef REDSCRIPT_RUNTIME_INTOBJECT_H
+#define REDSCRIPT_RUNTIME_INTOBJECT_H
 
 #include <vector>
 #include <string>
@@ -56,4 +56,4 @@ public:
 };
 }
 
-#endif /* REDSCRIPT_COMPILER_INTOBJECT_H */
+#endif /* REDSCRIPT_RUNTIME_INTOBJECT_H */

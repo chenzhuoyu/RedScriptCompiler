@@ -1,5 +1,5 @@
-#ifndef REDSCRIPT_COMPILER_TYPEERROR_H
-#define REDSCRIPT_COMPILER_TYPEERROR_H
+#ifndef REDSCRIPT_RUNTIME_TYPEERROR_H
+#define REDSCRIPT_RUNTIME_TYPEERROR_H
 
 #include <string>
 #include <exception>
@@ -30,4 +30,4 @@ public:
 };
 }
 
-#endif /* REDSCRIPT_COMPILER_TYPEERROR_H */
+#endif /* REDSCRIPT_RUNTIME_TYPEERROR_H */

@@ -1,5 +1,5 @@
-#ifndef REDSCRIPT_COMPILER_NULLOBJECT_H
-#define REDSCRIPT_COMPILER_NULLOBJECT_H
+#ifndef REDSCRIPT_RUNTIME_NULLOBJECT_H
+#define REDSCRIPT_RUNTIME_NULLOBJECT_H
 
 #include <vector>
 #include <string>
@@ -38,4 +38,4 @@ public:
 extern ObjectRef NullObject;
 }
 
-#endif /* REDSCRIPT_COMPILER_NULLOBJECT_H */
+#endif /* REDSCRIPT_RUNTIME_NULLOBJECT_H */
