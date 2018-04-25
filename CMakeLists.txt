@@ -64,6 +64,7 @@ set(SOURCE_FILES
         include/runtime/ExceptionBlockObject.h
         include/runtime/InternalError.h
         include/runtime/IntObject.h
+        include/runtime/NativeClassObject.h
         include/runtime/NullObject.h
         include/runtime/Object.h
         include/runtime/ReferenceCounted.h
@@ -88,6 +89,7 @@ set(SOURCE_FILES
         src/runtime/DecimalObject.cpp
         src/runtime/ExceptionBlockObject.cpp
         src/runtime/IntObject.cpp
+        src/runtime/NativeClassObject.cpp
         src/runtime/NullObject.cpp
         src/runtime/Object.cpp
         src/runtime/ReferenceCounted.cpp

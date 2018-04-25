@@ -290,8 +290,21 @@ void CodeGenerator::visitWhile(const std::unique_ptr<AST::While> &node)
 
 void CodeGenerator::visitNative(const std::unique_ptr<AST::Native> &node)
 {
-    // TODO: generate native
-    Visitor::visitNative(node);
+    /* check options count */
+    if (node->opts.size() > UINT32_MAX)
+        throw Runtime::SyntaxError(node, "Too many options");
+
+    /* build each option */
+    for (const auto &opt : node->opts)
+    {
+        emitOperand(opt.name, Engine::OpCode::LOAD_CONST, addConst(Runtime::Object::newObject<Runtime::StringObject>(opt.name->name)));
+        visitExpression(opt.value);
+    }
+
+    /* wrap as map */
+    emitOperand(node, Engine::OpCode::MAKE_MAP, static_cast<uint32_t>(node->opts.size()));
+    emitOperand(node, Engine::OpCode::MAKE_NATIVE, addConst(Runtime::Object::newObject<Runtime::StringObject>(node->code)));
+    emitOperand(node->name, Engine::OpCode::STOR_LOCAL, addLocal(node->name->name));
 }
 
 void CodeGenerator::visitSwitch(const std::unique_ptr<AST::Switch> &node)
