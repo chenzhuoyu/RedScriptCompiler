@@ -1,5 +1,5 @@
-#ifndef REDSCRIPT_COMPILER_BYTECODE_H
-#define REDSCRIPT_COMPILER_BYTECODE_H
+#ifndef REDSCRIPT_ENGINE_BYTECODE_H
+#define REDSCRIPT_ENGINE_BYTECODE_H
 
 #include <cstdint>
 
@@ -360,4 +360,4 @@ static const char *OpCodeNames[256] = {
 };
 }
 
-#endif /* REDSCRIPT_COMPILER_BYTECODE_H */
+#endif /* REDSCRIPT_ENGINE_BYTECODE_H */
