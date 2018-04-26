@@ -276,57 +276,60 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 case OpCode::IN:
                 {
                     /* pop top 2 elements */
+                    Runtime::ObjectRef r;
                     Runtime::ObjectRef a = std::move(*(stack.end() - 2));
                     Runtime::ObjectRef b = std::move(*(stack.end() - 1));
-                    stack.resize(stack.size() - 2);
+                    stack.pop_back();
 
                     /* dispatch operators */
                     switch (opcode)
                     {
-                        case OpCode::ADD         : stack.emplace_back(a->type()->numericAdd(a, b)); break;
-                        case OpCode::SUB         : stack.emplace_back(a->type()->numericSub(a, b)); break;
-                        case OpCode::MUL         : stack.emplace_back(a->type()->numericMul(a, b)); break;
-                        case OpCode::DIV         : stack.emplace_back(a->type()->numericDiv(a, b)); break;
-                        case OpCode::MOD         : stack.emplace_back(a->type()->numericMod(a, b)); break;
-                        case OpCode::POWER       : stack.emplace_back(a->type()->numericPower(a, b)); break;
+                        case OpCode::ADD         : r = a->type()->numericAdd(a, b); break;
+                        case OpCode::SUB         : r = a->type()->numericSub(a, b); break;
+                        case OpCode::MUL         : r = a->type()->numericMul(a, b); break;
+                        case OpCode::DIV         : r = a->type()->numericDiv(a, b); break;
+                        case OpCode::MOD         : r = a->type()->numericMod(a, b); break;
+                        case OpCode::POWER       : r = a->type()->numericPower(a, b); break;
 
-                        case OpCode::BIT_OR      : stack.emplace_back(a->type()->numericOr(a, b)); break;
-                        case OpCode::BIT_AND     : stack.emplace_back(a->type()->numericAnd(a, b)); break;
-                        case OpCode::BIT_XOR     : stack.emplace_back(a->type()->numericXor(a, b)); break;
+                        case OpCode::BIT_OR      : r = a->type()->numericOr(a, b); break;
+                        case OpCode::BIT_AND     : r = a->type()->numericAnd(a, b); break;
+                        case OpCode::BIT_XOR     : r = a->type()->numericXor(a, b); break;
 
-                        case OpCode::LSHIFT      : stack.emplace_back(a->type()->numericLShift(a, b)); break;
-                        case OpCode::RSHIFT      : stack.emplace_back(a->type()->numericRShift(a, b)); break;
+                        case OpCode::LSHIFT      : r = a->type()->numericLShift(a, b); break;
+                        case OpCode::RSHIFT      : r = a->type()->numericRShift(a, b); break;
 
-                        case OpCode::INP_ADD     : stack.emplace_back(a->type()->numericIncAdd(a, b)); break;
-                        case OpCode::INP_SUB     : stack.emplace_back(a->type()->numericIncSub(a, b)); break;
-                        case OpCode::INP_MUL     : stack.emplace_back(a->type()->numericIncMul(a, b)); break;
-                        case OpCode::INP_DIV     : stack.emplace_back(a->type()->numericIncDiv(a, b)); break;
-                        case OpCode::INP_MOD     : stack.emplace_back(a->type()->numericIncMod(a, b)); break;
-                        case OpCode::INP_POWER   : stack.emplace_back(a->type()->numericIncPower(a, b)); break;
+                        case OpCode::INP_ADD     : r = a->type()->numericIncAdd(a, b); break;
+                        case OpCode::INP_SUB     : r = a->type()->numericIncSub(a, b); break;
+                        case OpCode::INP_MUL     : r = a->type()->numericIncMul(a, b); break;
+                        case OpCode::INP_DIV     : r = a->type()->numericIncDiv(a, b); break;
+                        case OpCode::INP_MOD     : r = a->type()->numericIncMod(a, b); break;
+                        case OpCode::INP_POWER   : r = a->type()->numericIncPower(a, b); break;
 
-                        case OpCode::INP_BIT_OR  : stack.emplace_back(a->type()->numericIncOr(a, b)); break;
-                        case OpCode::INP_BIT_AND : stack.emplace_back(a->type()->numericIncAnd(a, b)); break;
-                        case OpCode::INP_BIT_XOR : stack.emplace_back(a->type()->numericIncXor(a, b)); break;
+                        case OpCode::INP_BIT_OR  : r = a->type()->numericIncOr(a, b); break;
+                        case OpCode::INP_BIT_AND : r = a->type()->numericIncAnd(a, b); break;
+                        case OpCode::INP_BIT_XOR : r = a->type()->numericIncXor(a, b); break;
 
-                        case OpCode::INP_LSHIFT  : stack.emplace_back(a->type()->numericIncLShift(a, b)); break;
-                        case OpCode::INP_RSHIFT  : stack.emplace_back(a->type()->numericIncRShift(a, b)); break;
+                        case OpCode::INP_LSHIFT  : r = a->type()->numericIncLShift(a, b); break;
+                        case OpCode::INP_RSHIFT  : r = a->type()->numericIncRShift(a, b); break;
 
-                        case OpCode::BOOL_OR     : stack.emplace_back(a->type()->boolOr(a, b)); break;
-                        case OpCode::BOOL_AND    : stack.emplace_back(a->type()->boolAnd(a, b)); break;
+                        case OpCode::BOOL_OR     : r = a->type()->boolOr(a, b); break;
+                        case OpCode::BOOL_AND    : r = a->type()->boolAnd(a, b); break;
 
-                        case OpCode::EQ          : stack.emplace_back(a->type()->comparableEq(a, b)); break;
-                        case OpCode::LT          : stack.emplace_back(a->type()->comparableLt(a, b)); break;
-                        case OpCode::GT          : stack.emplace_back(a->type()->comparableGt(a, b)); break;
-                        case OpCode::NEQ         : stack.emplace_back(a->type()->comparableNeq(a, b)); break;
-                        case OpCode::LEQ         : stack.emplace_back(a->type()->comparableLeq(a, b)); break;
-                        case OpCode::GEQ         : stack.emplace_back(a->type()->comparableGeq(a, b)); break;
-                        case OpCode::IN          : stack.emplace_back(a->type()->comparableContains(a, b)); break;
+                        case OpCode::EQ          : r = a->type()->comparableEq(a, b); break;
+                        case OpCode::LT          : r = a->type()->comparableLt(a, b); break;
+                        case OpCode::GT          : r = a->type()->comparableGt(a, b); break;
+                        case OpCode::NEQ         : r = a->type()->comparableNeq(a, b); break;
+                        case OpCode::LEQ         : r = a->type()->comparableLeq(a, b); break;
+                        case OpCode::GEQ         : r = a->type()->comparableGeq(a, b); break;
+                        case OpCode::IN          : r = a->type()->comparableContains(a, b); break;
 
                         /* never happens */
                         default:
                             throw Runtime::InternalError("Invalid binary operator instruction");
                     }
 
+                    /* replace the stack top */
+                    stack.back() = std::move(r);
                     break;
                 }
 
