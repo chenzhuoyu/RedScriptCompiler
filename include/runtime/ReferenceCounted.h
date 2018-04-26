@@ -41,8 +41,8 @@ private:
 
 public:
     static constexpr bool value =
-        (sizeof(__testIsEquals<T>(0)) == sizeof(_One)) &&
-        (sizeof(__testIsNotEquals<T>(0)) == sizeof(_One));
+        (sizeof(__testIsEquals<T>(nullptr)) == sizeof(_One)) &&
+        (sizeof(__testIsNotEquals<T>(nullptr)) == sizeof(_One));
 };
 
 template <typename T, bool hasComparator>

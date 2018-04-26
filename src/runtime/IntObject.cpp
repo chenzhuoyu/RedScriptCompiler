@@ -36,7 +36,7 @@ ObjectRef IntType::comparableEq(ObjectRef self, ObjectRef other)
     );
 }
 
-ObjectRef IntType::comparableLe(ObjectRef self, ObjectRef other)
+ObjectRef IntType::comparableLt(ObjectRef self, ObjectRef other)
 {
     // TODO: implement <
     return BoolObject::fromBool(
@@ -45,7 +45,7 @@ ObjectRef IntType::comparableLe(ObjectRef self, ObjectRef other)
     );
 }
 
-ObjectRef IntType::comparableGe(ObjectRef self, ObjectRef other)
+ObjectRef IntType::comparableGt(ObjectRef self, ObjectRef other)
 {
     // TODO: implement >
     return BoolObject::fromBool(

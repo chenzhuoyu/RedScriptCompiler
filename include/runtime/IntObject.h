@@ -23,8 +23,8 @@ public:
 
 public:
     virtual ObjectRef comparableEq(ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef comparableLe(ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef comparableGe(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef comparableLt(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef comparableGt(ObjectRef self, ObjectRef other) override;
     virtual ObjectRef comparableNeq(ObjectRef self, ObjectRef other) override;
     virtual ObjectRef comparableLeq(ObjectRef self, ObjectRef other) override;
     virtual ObjectRef comparableGeq(ObjectRef self, ObjectRef other) override;

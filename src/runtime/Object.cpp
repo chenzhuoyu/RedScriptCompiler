@@ -1,5 +1,6 @@
 #include "runtime/Object.h"
 #include "runtime/BoolObject.h"
+#include "runtime/InternalError.h"
 
 namespace RedScript::Runtime
 {
@@ -46,17 +47,17 @@ void Object::initialize(void)
 
 ObjectRef Type::applyUnary(const char *name, ObjectRef self)
 {
-    return ObjectRef();
+    throw Runtime::InternalError("not implemented yet");
 }
 
 ObjectRef Type::applyBinary(const char *name, ObjectRef self, ObjectRef other, const char *alternative)
 {
-    return ObjectRef();
+    throw Runtime::InternalError("not implemented yet");
 }
 
 ObjectRef Type::applyTernary(const char *name, ObjectRef self, ObjectRef second, ObjectRef third)
 {
-    return ObjectRef();
+    throw Runtime::InternalError("not implemented yet");
 }
 
 void Type::objectClear(ObjectRef self)

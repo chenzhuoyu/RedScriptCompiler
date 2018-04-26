@@ -933,8 +933,8 @@ void CodeGenerator::visitExpression(const std::unique_ptr<AST::Expression> &node
         switch (item.op->asOperator())
         {
             /* comparison operators */
-            case Token::Operator::Less              : emit(item.op, Engine::OpCode::LE);          break;
-            case Token::Operator::Greater           : emit(item.op, Engine::OpCode::GE);          break;
+            case Token::Operator::Less              : emit(item.op, Engine::OpCode::LT);          break;
+            case Token::Operator::Greater           : emit(item.op, Engine::OpCode::GT);          break;
             case Token::Operator::Leq               : emit(item.op, Engine::OpCode::LEQ);         break;
             case Token::Operator::Geq               : emit(item.op, Engine::OpCode::LEQ);         break;
             case Token::Operator::Equ               : emit(item.op, Engine::OpCode::EQ);          break;

@@ -214,7 +214,35 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                     break;
                 }
 
-                /* arithmetic operators */
+                /* unary operators */
+                case OpCode::POS:
+                case OpCode::NEG:
+                case OpCode::BIT_NOT:
+                case OpCode::BOOL_NOT:
+                {
+                    /* retrive stack top */
+                    Runtime::ObjectRef r;
+                    Runtime::ObjectRef a = std::move(stack.back());
+
+                    /* dispatch opcode */
+                    switch (opcode)
+                    {
+                        case OpCode::POS      : r = a->type()->numericPos(a); break;
+                        case OpCode::NEG      : r = a->type()->numericNeg(a); break;
+                        case OpCode::BIT_NOT  : r = a->type()->numericNot(a); break;
+                        case OpCode::BOOL_NOT : r = a->type()->boolNot(a); break;
+
+                        /* never happens */
+                        default:
+                            throw Runtime::InternalError("Invalid unary operator instruction");
+                    }
+
+                    /* replace the stack top */
+                    stack.back() = std::move(r);
+                    break;
+                }
+
+                /* binary operators */
                 case OpCode::ADD:
                 case OpCode::SUB:
                 case OpCode::MUL:
@@ -224,15 +252,8 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 case OpCode::BIT_OR:
                 case OpCode::BIT_AND:
                 case OpCode::BIT_XOR:
-                case OpCode::BIT_NOT:
                 case OpCode::LSHIFT:
                 case OpCode::RSHIFT:
-                {
-                    // TODO: implement these
-                    throw Runtime::InternalError("not implemented yet");
-                }
-
-                /* inplace arithmetic operators */
                 case OpCode::INP_ADD:
                 case OpCode::INP_SUB:
                 case OpCode::INP_MUL:
@@ -244,36 +265,72 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 case OpCode::INP_BIT_XOR:
                 case OpCode::INP_LSHIFT:
                 case OpCode::INP_RSHIFT:
-                {
-                    // TODO: implement these
-                    throw Runtime::InternalError("not implemented yet");
-                }
-
-                /* boolean operators */
                 case OpCode::BOOL_OR:
                 case OpCode::BOOL_AND:
-                case OpCode::BOOL_NOT:
-                {
-                    // TODO: implement these
-                    throw Runtime::InternalError("not implemented yet");
-                }
-
-                /* unary operators */
-                case OpCode::POS:
-                case OpCode::NEG:
-                {
-                    // TODO: implement these
-                    throw Runtime::InternalError("not implemented yet");
-                }
-
-                /* comparison operators */
                 case OpCode::EQ:
-                case OpCode::LE:
-                case OpCode::GE:
+                case OpCode::LT:
+                case OpCode::GT:
                 case OpCode::NEQ:
                 case OpCode::LEQ:
                 case OpCode::GEQ:
                 case OpCode::IN:
+                {
+                    /* pop top 2 elements */
+                    Runtime::ObjectRef a = std::move(*(stack.end() - 2));
+                    Runtime::ObjectRef b = std::move(*(stack.end() - 1));
+                    stack.resize(stack.size() - 2);
+
+                    /* dispatch operators */
+                    switch (opcode)
+                    {
+                        case OpCode::ADD         : stack.emplace_back(a->type()->numericAdd(a, b)); break;
+                        case OpCode::SUB         : stack.emplace_back(a->type()->numericSub(a, b)); break;
+                        case OpCode::MUL         : stack.emplace_back(a->type()->numericMul(a, b)); break;
+                        case OpCode::DIV         : stack.emplace_back(a->type()->numericDiv(a, b)); break;
+                        case OpCode::MOD         : stack.emplace_back(a->type()->numericMod(a, b)); break;
+                        case OpCode::POWER       : stack.emplace_back(a->type()->numericPower(a, b)); break;
+
+                        case OpCode::BIT_OR      : stack.emplace_back(a->type()->numericOr(a, b)); break;
+                        case OpCode::BIT_AND     : stack.emplace_back(a->type()->numericAnd(a, b)); break;
+                        case OpCode::BIT_XOR     : stack.emplace_back(a->type()->numericXor(a, b)); break;
+
+                        case OpCode::LSHIFT      : stack.emplace_back(a->type()->numericLShift(a, b)); break;
+                        case OpCode::RSHIFT      : stack.emplace_back(a->type()->numericRShift(a, b)); break;
+
+                        case OpCode::INP_ADD     : stack.emplace_back(a->type()->numericIncAdd(a, b)); break;
+                        case OpCode::INP_SUB     : stack.emplace_back(a->type()->numericIncSub(a, b)); break;
+                        case OpCode::INP_MUL     : stack.emplace_back(a->type()->numericIncMul(a, b)); break;
+                        case OpCode::INP_DIV     : stack.emplace_back(a->type()->numericIncDiv(a, b)); break;
+                        case OpCode::INP_MOD     : stack.emplace_back(a->type()->numericIncMod(a, b)); break;
+                        case OpCode::INP_POWER   : stack.emplace_back(a->type()->numericIncPower(a, b)); break;
+
+                        case OpCode::INP_BIT_OR  : stack.emplace_back(a->type()->numericIncOr(a, b)); break;
+                        case OpCode::INP_BIT_AND : stack.emplace_back(a->type()->numericIncAnd(a, b)); break;
+                        case OpCode::INP_BIT_XOR : stack.emplace_back(a->type()->numericIncXor(a, b)); break;
+
+                        case OpCode::INP_LSHIFT  : stack.emplace_back(a->type()->numericIncLShift(a, b)); break;
+                        case OpCode::INP_RSHIFT  : stack.emplace_back(a->type()->numericIncRShift(a, b)); break;
+
+                        case OpCode::BOOL_OR     : stack.emplace_back(a->type()->boolOr(a, b)); break;
+                        case OpCode::BOOL_AND    : stack.emplace_back(a->type()->boolAnd(a, b)); break;
+
+                        case OpCode::EQ          : stack.emplace_back(a->type()->comparableEq(a, b)); break;
+                        case OpCode::LT          : stack.emplace_back(a->type()->comparableLt(a, b)); break;
+                        case OpCode::GT          : stack.emplace_back(a->type()->comparableGt(a, b)); break;
+                        case OpCode::NEQ         : stack.emplace_back(a->type()->comparableNeq(a, b)); break;
+                        case OpCode::LEQ         : stack.emplace_back(a->type()->comparableLeq(a, b)); break;
+                        case OpCode::GEQ         : stack.emplace_back(a->type()->comparableGeq(a, b)); break;
+                        case OpCode::IN          : stack.emplace_back(a->type()->comparableContains(a, b)); break;
+
+                        /* never happens */
+                        default:
+                            throw Runtime::InternalError("Invalid binary operator instruction");
+                    }
+
+                    break;
+                }
+
+                /* exception matching */
                 case OpCode::EXC_MATCH:
                 {
                     // TODO: implement these
@@ -325,9 +382,17 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
 
                 /* destroy exception handling block */
                 case OpCode::POP_BLOCK:
+                {
+                    // TODO: implement these
+                    throw Runtime::InternalError("not implemented yet");
+                }
 
                 /* advance iterator */
                 case OpCode::ITER_NEXT:
+                {
+                    stack.emplace_back(stack.back()->type()->iterableNext(stack.back()));
+                    break;
+                }
 
                 /* expand sequence in reverse order */
                 case OpCode::EXPAND_SEQ:
@@ -367,12 +432,17 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
 
                 /* build a class object */
                 case OpCode::MAKE_CLASS:
+                {
+                    // TODO: implement these
+                    throw Runtime::InternalError("not implemented yet");
+                }
 
                 /* convert stack top into iterator */
                 case OpCode::MAKE_ITER:
                 {
-                    // TODO: implement these
-                    throw Runtime::InternalError("not implemented yet");
+                    Runtime::ObjectRef a = std::move(stack.back());
+                    stack.back() = std::move(a->type()->iterableIter(a));
+                    break;
                 }
 
                 /* build a native class object */

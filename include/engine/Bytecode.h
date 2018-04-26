@@ -65,8 +65,8 @@ enum class OpCode : uint8_t
     NEG             = 0x3b,         // NEG                          <stack_top> = -<stack_top>
 
     EQ              = 0x40,         // EQ                           <stack_top> = <stack_top + 1> == <stack_top>
-    LE              = 0x41,         // ...
-    GE              = 0x42,
+    LT              = 0x41,         // ...
+    GT              = 0x42,
     NEQ             = 0x43,
     LEQ             = 0x44,
     GEQ             = 0x45,
@@ -183,8 +183,8 @@ static uint32_t OpCodeFlags[256] = {
     0,
 
     0,                  /* 0x40 :: EQ            */
-    0,                  /* 0x41 :: LE            */
-    0,                  /* 0x42 :: GE            */
+    0,                  /* 0x41 :: LT            */
+    0,                  /* 0x42 :: GT            */
     0,                  /* 0x43 :: NEQ           */
     0,                  /* 0x44 :: LEQ           */
     0,                  /* 0x45 :: GEQ           */
@@ -310,8 +310,8 @@ static const char *OpCodeNames[256] = {
     nullptr,
 
     "EQ",                   /* 0x40 */
-    "LE",                   /* 0x41 */
-    "GE",                   /* 0x42 */
+    "LT",                   /* 0x41 */
+    "GT",                   /* 0x42 */
     "NEQ",                  /* 0x43 */
     "LEQ",                  /* 0x44 */
     "GEQ",                  /* 0x45 */

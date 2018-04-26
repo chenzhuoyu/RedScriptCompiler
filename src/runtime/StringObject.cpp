@@ -42,7 +42,7 @@ ObjectRef StringType::comparableEq(ObjectRef self, ObjectRef other)
     );
 }
 
-ObjectRef StringType::comparableLe(ObjectRef self, ObjectRef other)
+ObjectRef StringType::comparableLt(ObjectRef self, ObjectRef other)
 {
     return BoolObject::fromBool(
         other->type()->objectIsInstanceOf(other, StringTypeObject) &&
@@ -50,7 +50,7 @@ ObjectRef StringType::comparableLe(ObjectRef self, ObjectRef other)
     );
 }
 
-ObjectRef StringType::comparableGe(ObjectRef self, ObjectRef other)
+ObjectRef StringType::comparableGt(ObjectRef self, ObjectRef other)
 {
     return BoolObject::fromBool(
         other->type()->objectIsInstanceOf(other, StringTypeObject) &&

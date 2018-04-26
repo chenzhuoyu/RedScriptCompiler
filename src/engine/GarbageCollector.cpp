@@ -66,24 +66,10 @@ static std::vector<std::unique_ptr<Generation>> _generations;
 
 /*** GCObject implementations ***/
 
-template <typename T>
-static inline bool atomicSetNotEquals(std::atomic<T> &value, T newValue)
-{
-    /* atomic exchange */
-    return value.exchange(newValue) != newValue;
-}
-
-template <typename T>
-static inline bool atomicCompareAndSwap(std::atomic<T> &value, T oldValue, T newValue)
-{
-    /* atomic strong CAS */
-    return value.compare_exchange_strong(oldValue, newValue);
-}
-
 void GCObject::track(void)
 {
     /* CAS the reference count to check if already added */
-    if (atomicCompareAndSwap(_refCount, GC_UNTRACK, GC_REACHABLE))
+    if (__sync_bool_compare_and_swap(&_ref, GC_UNTRACK, GC_REACHABLE))
     {
         _gen = GC_YOUNG;
         _generations[GC_YOUNG]->addObject(this);
@@ -93,7 +79,7 @@ void GCObject::track(void)
 void GCObject::untrack(void)
 {
     /* update the reference counter to untracked state */
-    if (atomicSetNotEquals(_refCount, GC_UNTRACK))
+    if (__sync_val_compare_and_swap(&_ref, _ref, GC_UNTRACK) != GC_UNTRACK)
     {
         /* verify GC generation */
         if ((_gen > GC_PERM) || (_gen < GC_YOUNG))

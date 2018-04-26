@@ -1346,7 +1346,7 @@ static void fill_local_got_entries(TCCState *s1)
 #if SHT_RELX == SHT_RELA
 	    rel->r_addend = sym->st_value;
 #else
-	    /* All our REL architectures also happen to be 32bit LE.  */
+	    /* All our REL architectures also happen to be 32bit LT.  */
 	    write32le(s1->got->data + offset, sym->st_value);
 #endif
 	}

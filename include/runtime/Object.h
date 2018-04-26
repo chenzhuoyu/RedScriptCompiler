@@ -126,7 +126,7 @@ public:
     virtual ObjectRef numericMul(ObjectRef self, ObjectRef other) { return applyBinary("__mul__", self, other); }
     virtual ObjectRef numericDiv(ObjectRef self, ObjectRef other) { return applyBinary("__div__", self, other); }
     virtual ObjectRef numericMod(ObjectRef self, ObjectRef other) { return applyBinary("__mod__", self, other); }
-    virtual ObjectRef numericPow(ObjectRef self, ObjectRef other) { return applyBinary("__pow__", self, other); }
+    virtual ObjectRef numericPower(ObjectRef self, ObjectRef other) { return applyBinary("__pow__", self, other); }
 
 public:
     virtual ObjectRef numericOr (ObjectRef self, ObjectRef other) { return applyBinary("__or__" , self, other); }
@@ -144,7 +144,7 @@ public:
     virtual ObjectRef numericIncMul(ObjectRef self, ObjectRef other) { return applyBinary("__inc_mul__", self, other, "__mul__"); }
     virtual ObjectRef numericIncDiv(ObjectRef self, ObjectRef other) { return applyBinary("__inc_div__", self, other, "__div__"); }
     virtual ObjectRef numericIncMod(ObjectRef self, ObjectRef other) { return applyBinary("__inc_mod__", self, other, "__mod__"); }
-    virtual ObjectRef numericIncPow(ObjectRef self, ObjectRef other) { return applyBinary("__inc_pow__", self, other, "__pow__"); }
+    virtual ObjectRef numericIncPower(ObjectRef self, ObjectRef other) { return applyBinary("__inc_pow__", self, other, "__pow__"); }
 
 public:
     virtual ObjectRef numericIncOr (ObjectRef self, ObjectRef other) { return applyBinary("__inc_or__" , self, other, "__or__" ); }
@@ -173,8 +173,8 @@ public:
 
 public:
     virtual ObjectRef comparableEq(ObjectRef self, ObjectRef other);
-    virtual ObjectRef comparableLe(ObjectRef self, ObjectRef other) { return applyBinary("__le__", self, other); }
-    virtual ObjectRef comparableGe(ObjectRef self, ObjectRef other) { return applyBinary("__ge__", self, other); }
+    virtual ObjectRef comparableLt(ObjectRef self, ObjectRef other) { return applyBinary("__lt__", self, other); }
+    virtual ObjectRef comparableGt(ObjectRef self, ObjectRef other) { return applyBinary("__gt__", self, other); }
 
 public:
     virtual ObjectRef comparableNeq(ObjectRef self, ObjectRef other);
@@ -183,6 +183,7 @@ public:
 
 public:
     virtual ObjectRef comparableCompare(ObjectRef self, ObjectRef other) { return applyBinary("__compare__", self, other); }
+    virtual ObjectRef comparableContains(ObjectRef self, ObjectRef other) { return applyBinary("__contains__", self, other); }
 
 };
 }

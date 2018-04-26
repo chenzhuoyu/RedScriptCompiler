@@ -24,7 +24,7 @@ protected:
 
 protected:
     int32_t _gen;
-    std::atomic_int32_t _refCount;
+    int32_t _ref;
 
 private:
     /* make sure object aligns with 16-bytes */
@@ -36,14 +36,12 @@ private:
 
 public:
    ~GCObject() { untrack(); }
-    GCObject() : _gen(GC_UNTRACK), _refCount(GC_UNTRACK) {}
+    GCObject() : _gen(GC_UNTRACK), _ref(GC_UNTRACK) {}
 
 public:
     void track(void);
     void untrack(void);
-
-public:
-    bool isTracked(void) const { return _refCount.load() != GC_UNTRACK; }
+    bool isTracked(void) const { return _ref != GC_UNTRACK; }
 
 };
 
