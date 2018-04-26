@@ -10,7 +10,6 @@
 #include "engine/GarbageCollector.h"
 
 #include "runtime/Object.h"
-#include "lockfree/DoublyLinkedList.h"
 
 namespace RedScript::Engine
 {
@@ -20,7 +19,7 @@ struct Generation
     std::atomic_size_t used;
 
 private:
-    LockFree::DoublyLinkedList<GCObject *> _objects;
+//    LockFree::DoublyLinkedList<GCObject *> _objects;
 
 public:
     Generation(size_t size) : size(size), used(0) {}
@@ -29,14 +28,14 @@ public:
     void addObject(GCObject *object)
     {
         used += Memory::sizeOf(object);
-        _objects.push_back(object, &(object->_iter));
+//        _objects.push_back(object, &(object->_iter));
     }
 
 public:
     void removeObject(GCObject *object)
     {
         used -= Memory::sizeOf(object);
-        _objects.erase(object->_iter);
+//        _objects.erase(object->_iter);
     }
 };
 
