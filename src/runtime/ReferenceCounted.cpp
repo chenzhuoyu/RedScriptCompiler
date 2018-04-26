@@ -28,7 +28,7 @@ void ReferenceCounted::untrack(void) const
 
 bool ReferenceCounted::isTracked(void) const
 {
-    /* static object are always not tracked */
+    /* static objects are always not tracked */
     return !_isStatic && TO_GC(this)->isTracked();
 }
 
