@@ -451,7 +451,9 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 /* build a native class object */
                 case OpCode::MAKE_NATIVE:
                 {
-                    throw Runtime::InternalError("native class not implemented yet");
+                    stack.emplace_back(Runtime::NullObject);
+                    break;
+//                    throw Runtime::InternalError("native class not implemented yet");
                 }
             }
         } catch (const std::exception &e)
