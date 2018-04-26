@@ -5,8 +5,6 @@
 #include <cstdio>
 #include <cstdint>
 
-#include "lockfree/DoublyLinkedList.h"
-
 namespace RedScript::Engine
 {
 class GCObject final
@@ -20,14 +18,17 @@ public:
     static constexpr int GC_OLD         = 1;
     static constexpr int GC_PERM        = 2;
 
-private:
+protected:
+    GCObject *_prev;
+    GCObject *_next;
+
+protected:
     int32_t _gen;
-    std::atomic_int _refCount;
-    LockFree::DoublyLinkedList<GCObject *>::iterator _iter;
+    std::atomic_int32_t _refCount;
 
 private:
-    /* to align the object size with 16-bytes */
-    uintptr_t __not_used_just_for_alignment__;
+    /* make sure object aligns with 16-bytes */
+    uint64_t __not_used_just_for_alignment__ [[gnu::unused]];
 
 private:
     friend class Generation;

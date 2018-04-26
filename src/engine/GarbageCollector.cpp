@@ -6,7 +6,6 @@
 #include <shared_mutex>
 
 #include "engine/Memory.h"
-#include "engine/Thread.h"
 #include "engine/GarbageCollector.h"
 
 #include "runtime/Object.h"
@@ -19,23 +18,46 @@ struct Generation
     std::atomic_size_t used;
 
 private:
-//    LockFree::DoublyLinkedList<GCObject *> _objects;
+    GCObject _head;
+    std::mutex _mutex;
 
 public:
-    Generation(size_t size) : size(size), used(0) {}
+    Generation(size_t size) : size(size), used(0)
+    {
+        _head._prev = &_head;
+        _head._next = &_head;
+    }
+
+private:
+    inline void attach(GCObject *object)
+    {
+        std::unique_lock _(_mutex);
+        object->_next = &_head;
+        object->_prev = _head._prev;
+        _head._prev->_next = object;
+        _head._prev = object;
+    }
+
+private:
+    inline void detach(GCObject *object)
+    {
+        std::unique_lock _(_mutex);
+        object->_prev->_next = object->_next;
+        object->_next->_prev = object->_prev;
+    }
 
 public:
     void addObject(GCObject *object)
     {
+        attach(object);
         used += Memory::sizeOf(object);
-//        _objects.push_back(object, &(object->_iter));
     }
 
 public:
     void removeObject(GCObject *object)
     {
+        detach(object);
         used -= Memory::sizeOf(object);
-//        _objects.erase(object->_iter);
     }
 };
 

@@ -55,11 +55,6 @@ set(SOURCE_FILES
         include/engine/GarbageCollector.h
         include/engine/Interpreter.h
         include/engine/Memory.h
-        include/engine/Thread.h
-        include/lockfree/DoublyLinkedList.h
-        include/lockfree/FreeList.h
-        include/lockfree/HazardMemory.h
-        include/lockfree/IndexGenerator.h
         include/runtime/BoolObject.h
         include/runtime/CodeObject.h
         include/runtime/DecimalObject.h
@@ -86,7 +81,6 @@ set(SOURCE_FILES
         src/engine/GarbageCollector.cpp
         src/engine/Interpreter.cpp
         src/engine/Memory.cpp
-        src/engine/Thread.cpp
         src/runtime/BoolObject.cpp
         src/runtime/CodeObject.cpp
         src/runtime/DecimalObject.cpp
