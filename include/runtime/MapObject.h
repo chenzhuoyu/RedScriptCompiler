@@ -71,7 +71,7 @@ private:
     }
 
 public:
-    virtual ~MapObject() = default;
+    virtual ~MapObject() { clear(); }
     explicit MapObject(Mode mode = Mode::Unordered) : Object(MapTypeObject), _mode(mode) {}
 
 public:
@@ -89,6 +89,7 @@ public:
     void insert(Runtime::ObjectRef key, Runtime::ObjectRef value);
 
 public:
+    void clear(void);
     void enumerate(EnumeratorFunc func);
     void enumerateCopy(EnumeratorFunc func);
 

@@ -112,6 +112,29 @@ void MapObject::insert(Runtime::ObjectRef key, Runtime::ObjectRef value)
     }
 }
 
+void MapObject::clear(void)
+{
+    /* lock in exclusive mode */
+    Utils::RWLock::Write _(_rwlock);
+
+    /* list head */
+    Node *next;
+    Node *node = _head.next;
+
+    /* clear each node */
+    while (node != &_head)
+    {
+        next = node->next;
+        delete node;
+        node = next;
+    }
+
+    /* clear map */
+    _map.clear();
+    _head.prev = &_head;
+    _head.next = &_head;
+}
+
 void MapObject::enumerate(MapObject::EnumeratorFunc func)
 {
     /* lock in shared mode */
