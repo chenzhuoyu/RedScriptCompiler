@@ -756,7 +756,8 @@ struct TCCState {
 
     /* error handling */
     void *error_opaque;
-    void (*error_func)(void *opaque, const char *msg);
+    void (*error_func)(TCCState *s, int is_warning, const char *file,
+                       int lineno, const char *msg, void *opaque);
     int error_set_jmp_enabled;
     jmp_buf error_jmp_buf;
     int nb_errors;

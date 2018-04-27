@@ -97,7 +97,7 @@ set(SOURCE_FILES
         src/runtime/StringObject.cpp
         src/utils/Strings.cpp
         src/RedScript.cpp
-        src/main.cpp)
+        src/main.cpp include/runtime/NativeSyntaxError.h)
 
 add_executable(rsc ${SOURCE_FILES})
 target_link_libraries(rsc -ldl -lfmt -ljemalloc)

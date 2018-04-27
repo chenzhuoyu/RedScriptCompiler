@@ -5,6 +5,12 @@ namespace RedScript::Runtime
 /* type object for map */
 TypeRef MapTypeObject;
 
+size_t MapObject::size(void)
+{
+    Utils::RWLock::Read _(_rwlock);
+    return _map.size();
+}
+
 Runtime::ObjectRef MapObject::back(void)
 {
     Utils::RWLock::Read _(_rwlock);
@@ -104,6 +110,48 @@ void MapObject::insert(Runtime::ObjectRef key, Runtime::ObjectRef value)
             attach(node, &_head);
         }
     }
+}
+
+void MapObject::enumerate(MapObject::EnumeratorFunc func)
+{
+    /* lock in shared mode */
+    Utils::RWLock::Read _(_rwlock);
+    Node *node = _head.next;
+
+    /* traverse each node */
+    while ((node != &_head) && func(node->key, node->value))
+        node = node->next;
+}
+
+void MapObject::enumerateCopy(MapObject::EnumeratorFunc func)
+{
+    std::vector<Runtime::ObjectRef> keys;
+    std::vector<Runtime::ObjectRef> values;
+
+    /* restrict the lock within scope, and perform
+     * copy operations before actual enumeration */
+    {
+        /* lock in shared mode */
+        Utils::RWLock::Read _(_rwlock);
+        Node *node = _head.next;
+
+        /* reserve space for key value pair */
+        keys.reserve(_map.size());
+        values.reserve(_map.size());
+
+        /* copy key-value pair into buffer */
+        while (node != &_head)
+        {
+            keys.emplace_back(node->key);
+            values.emplace_back(node->value);
+            node = node->next;
+        }
+    }
+
+    /* now left the locking zone, invoke the callback */
+    for (size_t i = 0; i < keys.size(); i++)
+        if (!func(std::move(keys[i]), std::move(values[i])))
+            break;
 }
 
 void MapObject::initialize(void)

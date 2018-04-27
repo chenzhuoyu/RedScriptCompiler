@@ -6,6 +6,8 @@
 #include "runtime/MapObject.h"
 #include "runtime/BoolObject.h"
 #include "runtime/NullObject.h"
+#include "runtime/StringObject.h"
+#include "runtime/NativeClassObject.h"
 
 #include "runtime/RuntimeError.h"
 #include "runtime/InternalError.h"
@@ -103,6 +105,10 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                     /* read local ID */
                     uint32_t id = OPERAND(p);
 
+                    /* check stack */
+                    if (stack.empty())
+                        throw Runtime::InternalError("Stack is empty");
+
                     /* check local ID */
                     if (id >= locals.size())
                         throw Runtime::InternalError(Utils::Strings::format("Local ID %u out of range", id));
@@ -127,7 +133,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                     if (locals[id].isNull())
                         throw Runtime::RuntimeError(Utils::Strings::format("Variable \"%s\" referenced before assignment", code->locals()[id]));
 
-                    /* load the local into stack */
+                    /* clear local reference */
                     locals[id] = nullptr;
                     break;
                 }
@@ -195,7 +201,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 {
                     /* check for stack */
                     if (stack.size() < 2)
-                        throw Runtime::InternalError("Stack is empty");
+                        throw Runtime::InternalError("Stack underflow");
 
                     /* pushing the top two elements */
                     stack.emplace_back(*(stack.end() - 2));
@@ -222,6 +228,10 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 case OpCode::BOOL_NOT:
                 case OpCode::MAKE_ITER:
                 {
+                    /* check stack */
+                    if (stack.empty())
+                        throw Runtime::InternalError("Stack is empty");
+
                     /* retrive stack top */
                     Runtime::ObjectRef r;
                     Runtime::ObjectRef a = std::move(stack.back());
@@ -278,6 +288,10 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 case OpCode::GEQ:
                 case OpCode::IN:
                 {
+                    /* check stack */
+                    if (stack.size() < 2)
+                        throw Runtime::InternalError("Stack underflow");
+
                     /* pop top 2 elements */
                     Runtime::ObjectRef r;
                     Runtime::ObjectRef a = std::move(*(stack.end() - 2));
@@ -363,6 +377,10 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 case OpCode::BRTRUE:
                 case OpCode::BRFALSE:
                 {
+                    /* check stack */
+                    if (stack.empty())
+                        throw Runtime::InternalError("Stack is empty");
+
                     /* jump offset */
                     int32_t d = OPERAND(p);
                     const char *q = p + d - sizeof(uint32_t) - 1;
@@ -396,6 +414,11 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 /* advance iterator */
                 case OpCode::ITER_NEXT:
                 {
+                    /* check stack */
+                    if (stack.empty())
+                        throw Runtime::InternalError("Stack is empty");
+
+                    /* push new object on stack top, don't replace iterator */
                     stack.emplace_back(stack.back()->type()->iterableNext(stack.back()));
                     break;
                 }
@@ -450,7 +473,36 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 /* build a native class object */
                 case OpCode::MAKE_NATIVE:
                 {
-                    throw Runtime::InternalError("native class not implemented yet");
+                    /* extract constant ID */
+                    uint32_t id = OPERAND(p);
+
+                    /* check stack */
+                    if (stack.empty())
+                        throw Runtime::InternalError("Stack is empty");
+
+                    /* check operand range */
+                    if (id >= code->consts().size())
+                        throw Runtime::InternalError("Constant ID out of range");
+
+                    /* load options from stack */
+                    Runtime::ObjectRef source = code->consts()[id];
+                    Runtime::ObjectRef options = std::move(stack.back());
+
+                    /* must be a map */
+                    if (source->type() != Runtime::StringTypeObject)
+                        throw Runtime::InternalError("Invalid source string");
+
+                    /* must be a map */
+                    if (options->type() != Runtime::MapTypeObject)
+                        throw Runtime::InternalError("Invalid options map");
+
+                    /* replace stack top with native class object */
+                    stack.back() = Runtime::Object::newObject<Runtime::NativeClassObject>(
+                        source.as<Runtime::StringObject>()->value(),
+                        options.as<Runtime::MapObject>()
+                    );
+
+                    break;
                 }
             }
         } catch (const std::exception &e)

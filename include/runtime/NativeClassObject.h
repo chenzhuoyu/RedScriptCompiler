@@ -4,8 +4,11 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <libtcc.h>
 
 #include "runtime/Object.h"
+#include "runtime/MapObject.h"
+#include "runtime/NativeSyntaxError.h"
 
 namespace RedScript::Runtime
 {
@@ -21,9 +24,17 @@ extern TypeRef NativeClassTypeObject;
 
 class NativeClassObject : public Object
 {
+    TCCState *_tcc;
+    std::string _code;
+    std::vector<NativeSyntaxError> _errors;
+    std::vector<std::pair<std::string, std::string>> _options;
+
 public:
-    virtual ~NativeClassObject() = default;
-    explicit NativeClassObject() : Object(NativeClassTypeObject) {}
+    virtual ~NativeClassObject() { tcc_delete(_tcc); }
+    explicit NativeClassObject(const std::string &code, Runtime::Reference<Runtime::MapObject> &&options);
+
+public:
+    const std::vector<NativeSyntaxError> &errors(void) const { return _errors; }
 
 public:
     static void shutdown(void) {}

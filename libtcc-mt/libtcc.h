@@ -28,7 +28,7 @@ LIBTCCAPI void tcc_set_lib_path(TCCState *s, const char *path);
 
 /* set error/warning display callback */
 LIBTCCAPI void tcc_set_error_func(TCCState *s, void *error_opaque,
-    void (*error_func)(void *opaque, const char *msg));
+    void (*error_func)(TCCState *s, int is_warning, const char *file, int lineno, const char *msg, void *opaque));
 
 /* set options as from command line (multiple supported) */
 LIBTCCAPI void tcc_set_options(TCCState *s, const char *str);

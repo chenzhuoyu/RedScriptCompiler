@@ -593,33 +593,35 @@ static void strcat_printf(char *buf, int buf_size, const char *fmt, ...)
 
 static void error1(TCCState *s1, int is_warning, const char *fmt, va_list ap)
 {
+    int line;
+    const char *fn;
     char buf[2048];
     BufferedFile **pf, *f;
 
     buf[0] = '\0';
     /* use upper file if inline ":asm:" or token ":paste:" */
     for (f = s1->file; f && f->filename[0] == ':'; f = f->prev);
-    if (f) {
-        for(pf = s1->include_stack; pf < s1->include_stack_ptr; pf++)
-            strcat_printf(buf, sizeof(buf), "In file included from %s:%d:\n",
-                (*pf)->filename, (*pf)->line_num);
-        if (s1->error_set_jmp_enabled) {
-            strcat_printf(buf, sizeof(buf), "%s:%d: ",
-                f->filename, f->line_num - ((s1->tok_flags & TOK_FLAG_BOL) != 0));
-        } else {
-            strcat_printf(buf, sizeof(buf), "%s: ",
-                f->filename);
-        }
-    } else {
-        strcat_printf(buf, sizeof(buf), "tcc: ");
-    }
-    if (is_warning)
-        strcat_printf(buf, sizeof(buf), "warning: ");
-    else
-        strcat_printf(buf, sizeof(buf), "error: ");
-    strcat_vprintf(buf, sizeof(buf), fmt, ap);
-
     if (!s1->error_func) {
+        if (f) {
+            for(pf = s1->include_stack; pf < s1->include_stack_ptr; pf++)
+                strcat_printf(buf, sizeof(buf), "In file included from %s:%d:\n",
+                    (*pf)->filename, (*pf)->line_num);
+            if (s1->error_set_jmp_enabled) {
+                strcat_printf(buf, sizeof(buf), "%s:%d: ",
+                    f->filename, f->line_num - ((s1->tok_flags & TOK_FLAG_BOL) != 0));
+            } else {
+                strcat_printf(buf, sizeof(buf), "%s: ",
+                    f->filename);
+            }
+        } else {
+            strcat_printf(buf, sizeof(buf), "tcc: ");
+        }
+        if (is_warning)
+            strcat_printf(buf, sizeof(buf), "warning: ");
+        else
+            strcat_printf(buf, sizeof(buf), "error: ");
+        strcat_vprintf(buf, sizeof(buf), fmt, ap);
+
         /* default case: stderr */
         if (s1->output_type == TCC_OUTPUT_PREPROCESS && s1->ppfp == stdout)
             /* print a newline during tcc -E */
@@ -628,14 +630,30 @@ static void error1(TCCState *s1, int is_warning, const char *fmt, va_list ap)
         fprintf(stderr, "%s\n", buf);
         fflush(stderr); /* print error/warning now (win32) */
     } else {
-        s1->error_func(s1->error_opaque, buf);
+        strcat_vprintf(buf, sizeof(buf), fmt, ap);
+        if (f) {
+            for(pf = s1->include_stack; pf < s1->include_stack_ptr; pf++)
+                strcat_printf(buf, sizeof(buf), "In file included from %s:%d:\n",
+                    (*pf)->filename, (*pf)->line_num);
+            if (s1->error_set_jmp_enabled) {
+                line = f->line_num - ((s1->tok_flags & TOK_FLAG_BOL) != 0);
+            } else {
+                line = -1;
+            }
+            fn = f->filename;
+        } else {
+            line = -1;
+            fn = NULL;
+        }
+        s1->error_func(s1, is_warning, fn, line, buf, s1->error_opaque);
     }
     if (!is_warning || s1->warn_error)
         s1->nb_errors++;
 }
 
 LIBTCCAPI void tcc_set_error_func(TCCState *s, void *error_opaque,
-                        void (*error_func)(void *opaque, const char *msg))
+    void (*error_func)(TCCState *s, int is_warning, const char *file,
+                       int lineno, const char *msg, void *opaque))
 {
     s->error_opaque = error_opaque;
     s->error_func = error_func;

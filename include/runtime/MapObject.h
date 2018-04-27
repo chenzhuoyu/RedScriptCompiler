@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <functional>
 #include <unordered_map>
 
 #include "utils/RWLock.h"
@@ -44,6 +45,9 @@ public:
         Unordered,
     };
 
+public:
+    typedef std::function<bool(Runtime::ObjectRef, Runtime::ObjectRef)> EnumeratorFunc;
+
 private:
     Mode _mode;
     Node _head;
@@ -71,6 +75,7 @@ public:
     explicit MapObject(Mode mode = Mode::Unordered) : Object(MapTypeObject), _mode(mode) {}
 
 public:
+    size_t size(void);
     Runtime::ObjectRef back(void);
     Runtime::ObjectRef front(void);
 
@@ -82,6 +87,10 @@ public:
     bool has(Runtime::ObjectRef key);
     bool remove(Runtime::ObjectRef key) { return bool(pop(key)); }
     void insert(Runtime::ObjectRef key, Runtime::ObjectRef value);
+
+public:
+    void enumerate(EnumeratorFunc func);
+    void enumerateCopy(EnumeratorFunc func);
 
 public:
     static void shutdown(void) {}
