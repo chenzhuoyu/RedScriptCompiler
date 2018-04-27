@@ -1,0 +1,93 @@
+#ifndef REDSCRIPT_RUNTIME_MAPOBJECT_H
+#define REDSCRIPT_RUNTIME_MAPOBJECT_H
+
+#include <vector>
+#include <string>
+#include <cstdint>
+#include <unordered_map>
+
+#include "utils/RWLock.h"
+#include "runtime/Object.h"
+
+namespace RedScript::Runtime
+{
+class MapType : public Type
+{
+public:
+    explicit MapType() : Type("map") {}
+
+};
+
+/* type object for map */
+extern TypeRef MapTypeObject;
+
+class MapObject : public Object
+{
+    struct Node
+    {
+        Node *prev;
+        Node *next;
+        Runtime::ObjectRef key;
+        Runtime::ObjectRef value;
+
+    public:
+        Node() : prev(this), next(this), key(nullptr), value(nullptr) {}
+        Node(Runtime::ObjectRef &key, Runtime::ObjectRef &value) : prev(this), next(this), key(key), value(value) {}
+
+    };
+
+public:
+    enum class Mode : int
+    {
+        LRU,
+        Ordered,
+        Unordered,
+    };
+
+private:
+    Mode _mode;
+    Node _head;
+    Utils::RWLock _rwlock;
+    std::unordered_map<Runtime::ObjectRef, Node *> _map;
+
+private:
+    static inline void detach(Node *node)
+    {
+        node->prev->next = node->next;
+        node->next->prev = node->prev;
+    }
+
+private:
+    static inline void attach(Node *node, Node *head)
+    {
+        node->next = head;
+        node->prev = head->prev;
+        head->prev->next = node;
+        head->prev = node;
+    }
+
+public:
+    virtual ~MapObject() = default;
+    explicit MapObject(Mode mode = Mode::Unordered) : Object(MapTypeObject), _mode(mode) {}
+
+public:
+    Runtime::ObjectRef back(void);
+    Runtime::ObjectRef front(void);
+
+public:
+    Runtime::ObjectRef pop(Runtime::ObjectRef key);
+    Runtime::ObjectRef find(Runtime::ObjectRef key);
+
+public:
+    bool has(Runtime::ObjectRef key);
+    bool remove(Runtime::ObjectRef key) { return bool(pop(key)); }
+    void insert(Runtime::ObjectRef key, Runtime::ObjectRef value);
+
+public:
+    static void shutdown(void) {}
+    static void initialize(void);
+
+};
+}
+
+#endif /* REDSCRIPT_RUNTIME_MAPOBJECT_H */

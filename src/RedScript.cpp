@@ -4,11 +4,13 @@
 
 #include "runtime/Object.h"
 #include "runtime/IntObject.h"
+#include "runtime/MapObject.h"
 #include "runtime/BoolObject.h"
 #include "runtime/CodeObject.h"
 #include "runtime/NullObject.h"
 #include "runtime/StringObject.h"
 #include "runtime/DecimalObject.h"
+#include "runtime/NativeClassObject.h"
 #include "runtime/ExceptionBlockObject.h"
 
 namespace RedScript
@@ -17,8 +19,10 @@ void shutdown(void)
 {
     /* generic objects */
     RedScript::Runtime::ExceptionBlockObject::shutdown();
+    RedScript::Runtime::NativeClassObject::shutdown();
     RedScript::Runtime::DecimalObject::shutdown();
     RedScript::Runtime::CodeObject::shutdown();
+    RedScript::Runtime::MapObject::shutdown();
 
     /* pooled objects */
     RedScript::Runtime::StringObject::shutdown();
@@ -48,8 +52,10 @@ void initialize(size_t young, size_t old, size_t perm)
     RedScript::Runtime::StringObject::initialize();
 
     /* generic objects */
+    RedScript::Runtime::MapObject::initialize();
     RedScript::Runtime::CodeObject::initialize();
     RedScript::Runtime::DecimalObject::initialize();
+    RedScript::Runtime::NativeClassObject::initialize();
     RedScript::Runtime::ExceptionBlockObject::initialize();
 }
 }

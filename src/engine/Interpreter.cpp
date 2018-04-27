@@ -3,6 +3,7 @@
 #include "utils/Strings.h"
 #include "engine/Interpreter.h"
 
+#include "runtime/MapObject.h"
 #include "runtime/BoolObject.h"
 #include "runtime/NullObject.h"
 
@@ -219,6 +220,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 case OpCode::NEG:
                 case OpCode::BIT_NOT:
                 case OpCode::BOOL_NOT:
+                case OpCode::MAKE_ITER:
                 {
                     /* retrive stack top */
                     Runtime::ObjectRef r;
@@ -227,10 +229,11 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                     /* dispatch opcode */
                     switch (opcode)
                     {
-                        case OpCode::POS      : r = a->type()->numericPos(a); break;
-                        case OpCode::NEG      : r = a->type()->numericNeg(a); break;
-                        case OpCode::BIT_NOT  : r = a->type()->numericNot(a); break;
-                        case OpCode::BOOL_NOT : r = a->type()->boolNot(a); break;
+                        case OpCode::POS       : r = a->type()->numericPos(a); break;
+                        case OpCode::NEG       : r = a->type()->numericNeg(a); break;
+                        case OpCode::BIT_NOT   : r = a->type()->numericNot(a); break;
+                        case OpCode::BOOL_NOT  : r = a->type()->boolNot(a); break;
+                        case OpCode::MAKE_ITER : r = a->type()->iterableIter(a); break;
 
                         /* never happens */
                         default:
@@ -411,15 +414,19 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 case OpCode::MAKE_MAP:
                 {
                     /* item count */
-                    uint32_t n = OPERAND(p);
-                    Runtime::ObjectRef map = Runtime::NullObject;
+                    auto map = Runtime::Object::newObject<Runtime::MapObject>(Runtime::MapObject::Mode::Ordered);
+                    uint32_t count = OPERAND(p);
 
-                    // TODO: build an actual map
-                    if (n)
-                        throw Runtime::InternalError("not implemented yet");
+                    /* check stack size */
+                    if (stack.size() < count * 2)
+                        throw Runtime::InternalError("Stack underflow");
+
+                    /* build the map */
+                    for (auto it = stack.end() - count * 2; it != stack.end(); it += 2)
+                        map->insert(std::move(*it), std::move(*(it + 1)));
 
                     /* adjust the stack */
-                    stack.resize(stack.size() - n);
+                    stack.resize(stack.size() - count);
                     stack.emplace_back(map);
                     break;
                 }
@@ -440,20 +447,10 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                     throw Runtime::InternalError("not implemented yet");
                 }
 
-                /* convert stack top into iterator */
-                case OpCode::MAKE_ITER:
-                {
-                    Runtime::ObjectRef a = std::move(stack.back());
-                    stack.back() = std::move(a->type()->iterableIter(a));
-                    break;
-                }
-
                 /* build a native class object */
                 case OpCode::MAKE_NATIVE:
                 {
-                    stack.emplace_back(Runtime::NullObject);
-                    break;
-//                    throw Runtime::InternalError("native class not implemented yet");
+                    throw Runtime::InternalError("native class not implemented yet");
                 }
             }
         } catch (const std::exception &e)

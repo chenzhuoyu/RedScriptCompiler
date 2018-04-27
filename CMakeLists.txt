@@ -55,12 +55,14 @@ set(SOURCE_FILES
         include/engine/GarbageCollector.h
         include/engine/Interpreter.h
         include/engine/Memory.h
+        include/engine/Thread.h
         include/runtime/BoolObject.h
         include/runtime/CodeObject.h
         include/runtime/DecimalObject.h
         include/runtime/ExceptionBlockObject.h
         include/runtime/InternalError.h
         include/runtime/IntObject.h
+        include/runtime/MapObject.h
         include/runtime/NativeClassObject.h
         include/runtime/NullObject.h
         include/runtime/Object.h
@@ -72,6 +74,7 @@ set(SOURCE_FILES
         include/utils/Immovable.h
         include/utils/NonCopyable.h
         include/utils/Preprocessor.h
+        include/utils/RWLock.h
         include/utils/Strings.h
         include/RedScript.h
         src/compiler/AST.cpp
@@ -86,6 +89,7 @@ set(SOURCE_FILES
         src/runtime/DecimalObject.cpp
         src/runtime/ExceptionBlockObject.cpp
         src/runtime/IntObject.cpp
+        src/runtime/MapObject.cpp
         src/runtime/NativeClassObject.cpp
         src/runtime/NullObject.cpp
         src/runtime/Object.cpp
