@@ -778,10 +778,14 @@ static int tcc_compile(TCCState *s1)
 
 LIBTCCAPI int tcc_compile_string(TCCState *s, const char *str)
 {
-    int len, ret;
+    size_t len = strlen(str);
+    return tcc_compile_string_ex(s, "<string>", str, len);
+}
 
-    len = strlen(str);
-    tcc_open_bf(s, "<string>", len);
+LIBTCCAPI int tcc_compile_string_ex(TCCState *s, const char *name, const char *str, size_t len)
+{
+    int ret;
+    tcc_open_bf(s, name, (int)len);
     memcpy(s->file->buffer, str, len);
     ret = tcc_compile(s);
     tcc_close(s);
