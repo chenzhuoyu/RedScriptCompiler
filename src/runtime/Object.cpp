@@ -94,7 +94,7 @@ bool Type::objectIsSubclassOf(ObjectRef self, TypeRef type)
     return t == type;
 }
 
-ObjectRef Type::objectDelAttr(ObjectRef self, const std::string &name)
+void Type::objectDelAttr(ObjectRef self, const std::string &name)
 {
     throw Runtime::InternalError("not implemented yet");
 }
@@ -104,7 +104,12 @@ ObjectRef Type::objectGetAttr(ObjectRef self, const std::string &name)
     throw Runtime::InternalError("not implemented yet");
 }
 
-ObjectRef Type::objectSetAttr(ObjectRef self, const std::string &name, ObjectRef value)
+void Type::objectSetAttr(ObjectRef self, const std::string &name, ObjectRef value)
+{
+    throw Runtime::InternalError("not implemented yet");
+}
+
+void Type::objectDefineAttr(ObjectRef self, const std::string &name, ObjectRef value)
 {
     throw Runtime::InternalError("not implemented yet");
 }

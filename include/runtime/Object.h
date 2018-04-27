@@ -99,9 +99,10 @@ public:
     virtual bool objectIsInstanceOf(ObjectRef self, TypeRef type) { return objectIsSubclassOf(self->type(), type); }
 
 public:
-    virtual ObjectRef objectDelAttr(ObjectRef self, const std::string &name);
+    virtual void      objectDelAttr(ObjectRef self, const std::string &name);
     virtual ObjectRef objectGetAttr(ObjectRef self, const std::string &name);
-    virtual ObjectRef objectSetAttr(ObjectRef self, const std::string &name, ObjectRef value);
+    virtual void      objectSetAttr(ObjectRef self, const std::string &name, ObjectRef value);
+    virtual void      objectDefineAttr(ObjectRef self, const std::string &name, ObjectRef value);
 
 public:
     virtual ObjectRef objectInvoke(ObjectRef self, const std::vector<ObjectRef> &args);
@@ -165,9 +166,9 @@ public:
 
 public:
     virtual ObjectRef sequenceLen    (ObjectRef self)                                    { return applyUnary  ("__len__"    , self               ); }
-    virtual ObjectRef sequenceDelItem(ObjectRef self, ObjectRef other)                   { return applyBinary ("__delitem__", self, other        ); }
+    virtual void      sequenceDelItem(ObjectRef self, ObjectRef other)                   {        applyBinary ("__delitem__", self, other        ); }
     virtual ObjectRef sequenceGetItem(ObjectRef self, ObjectRef other)                   { return applyBinary ("__getitem__", self, other        ); }
-    virtual ObjectRef sequenceSetItem(ObjectRef self, ObjectRef second, ObjectRef third) { return applyTernary("__setitem__", self, second, third); }
+    virtual void      sequenceSetItem(ObjectRef self, ObjectRef second, ObjectRef third) {        applyTernary("__setitem__", self, second, third); }
 
 /*** Comparable Protocol ***/
 

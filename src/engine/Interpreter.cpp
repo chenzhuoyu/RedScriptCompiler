@@ -140,27 +140,141 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
 
                 /* define attributes */
                 case OpCode::DEF_ATTR:
+                {
+                    /* read local ID */
+                    uint32_t id = OPERAND(p);
+
+                    /* check stack */
+                    if (stack.size() < 2)
+                        throw Runtime::InternalError("Stack underflow");
+
+                    /* check local ID */
+                    if (id >= code->names().size())
+                        throw Runtime::InternalError(Utils::Strings::format("Name ID %u out of range", id));
+
+                    /* pop top 2 elements */
+                    Runtime::ObjectRef a = std::move(*(stack.end() - 2));
+                    Runtime::ObjectRef b = std::move(*(stack.end() - 1));
+
+                    /* define attribute from stack */
+                    stack.resize(stack.size() - 2);
+                    b->type()->objectDefineAttr(b, code->names()[id], a);
+                    break;
+                }
 
                 /* get attributes */
                 case OpCode::GET_ATTR:
+                {
+                    /* read local ID */
+                    uint32_t id = OPERAND(p);
+
+                    /* check stack */
+                    if (stack.empty())
+                        throw Runtime::InternalError("Stack is empty");
+
+                    /* check local ID */
+                    if (id >= code->names().size())
+                        throw Runtime::InternalError(Utils::Strings::format("Name ID %u out of range", id));
+
+                    /* replace stack top with new object */
+                    stack.back() = stack.back()->type()->objectGetAttr(stack.back(), code->names()[id]);
+                    break;
+                }
 
                 /* set attributes, error if not exists */
                 case OpCode::SET_ATTR:
+                {
+                    /* read local ID */
+                    uint32_t id = OPERAND(p);
+
+                    /* check stack */
+                    if (stack.size() < 2)
+                        throw Runtime::InternalError("Stack underflow");
+
+                    /* check local ID */
+                    if (id >= code->names().size())
+                        throw Runtime::InternalError(Utils::Strings::format("Name ID %u out of range", id));
+
+                    /* pop top 2 elements */
+                    Runtime::ObjectRef a = std::move(*(stack.end() - 2));
+                    Runtime::ObjectRef b = std::move(*(stack.end() - 1));
+
+                    /* define attribute from stack */
+                    stack.resize(stack.size() - 2);
+                    b->type()->objectSetAttr(b, code->names()[id], a);
+                    break;
+                }
 
                 /* remove attributes */
                 case OpCode::DEL_ATTR:
+                {
+                    /* read local ID */
+                    uint32_t id = OPERAND(p);
+
+                    /* check stack */
+                    if (stack.empty())
+                        throw Runtime::InternalError("Stack is empty");
+
+                    /* check local ID */
+                    if (id >= code->names().size())
+                        throw Runtime::InternalError(Utils::Strings::format("Name ID %u out of range", id));
+
+                    /* remove the attribute */
+                    stack.back()->type()->objectDelAttr(stack.back(), code->names()[id]);
+                    stack.pop_back();
+                    break;
+                }
 
                 /* get by index */
                 case OpCode::GET_ITEM:
+                {
+                    /* check stack */
+                    if (stack.size() < 2)
+                        throw Runtime::InternalError("Stack underflow");
+
+                    /* pop top 2 elements */
+                    Runtime::ObjectRef a = std::move(*(stack.end() - 2));
+                    Runtime::ObjectRef b = std::move(*(stack.end() - 1));
+
+                    /* replace stack top with new object */
+                    stack.pop_back();
+                    stack.back() = a->type()->sequenceGetItem(a, b);
+                    break;
+                }
 
                 /* set by index */
                 case OpCode::SET_ITEM:
+                {
+                    /* check stack */
+                    if (stack.size() < 3)
+                        throw Runtime::InternalError("Stack underflow");
+
+                    /* pop top 3 elements */
+                    Runtime::ObjectRef a = std::move(*(stack.end() - 3));
+                    Runtime::ObjectRef b = std::move(*(stack.end() - 2));
+                    Runtime::ObjectRef c = std::move(*(stack.end() - 1));
+
+                    /* set the index from stack */
+                    stack.resize(stack.size() - 3);
+                    b->type()->sequenceSetItem(b, c, a);
+                    break;
+                }
 
                 /* remove by index */
                 case OpCode::DEL_ITEM:
                 {
-                    // TODO: implement these
-                    throw Runtime::InternalError("not implemented yet");
+                    /* check stack */
+                    if (stack.size() < 2)
+                        throw Runtime::InternalError("Stack underflow");
+
+                    /* pop top 2 elements */
+                    Runtime::ObjectRef a = std::move(*(stack.end() - 2));
+                    Runtime::ObjectRef b = std::move(*(stack.end() - 1));
+
+                    /* delete index from stack */
+                    stack.resize(stack.size() - 2);
+                    a->type()->sequenceDelItem(a, b);
+                    break;
                 }
 
                 /* return stack top */
@@ -236,6 +350,9 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                     Runtime::ObjectRef r;
                     Runtime::ObjectRef a = std::move(stack.back());
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wswitch"
+
                     /* dispatch opcode */
                     switch (opcode)
                     {
@@ -244,11 +361,9 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                         case OpCode::BIT_NOT   : r = a->type()->numericNot(a); break;
                         case OpCode::BOOL_NOT  : r = a->type()->boolNot(a); break;
                         case OpCode::MAKE_ITER : r = a->type()->iterableIter(a); break;
-
-                        /* never happens */
-                        default:
-                            throw Runtime::InternalError("Invalid unary operator instruction");
                     }
+
+#pragma clang diagnostic pop
 
                     /* replace the stack top */
                     stack.back() = std::move(r);
@@ -298,6 +413,9 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                     Runtime::ObjectRef b = std::move(*(stack.end() - 1));
                     stack.pop_back();
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wswitch"
+
                     /* dispatch operators */
                     switch (opcode)
                     {
@@ -339,11 +457,9 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                         case OpCode::LEQ         : r = a->type()->comparableLeq(a, b); break;
                         case OpCode::GEQ         : r = a->type()->comparableGeq(a, b); break;
                         case OpCode::IN          : r = a->type()->comparableContains(a, b); break;
-
-                        /* never happens */
-                        default:
-                            throw Runtime::InternalError("Invalid binary operator instruction");
                     }
+
+#pragma clang diagnostic pop
 
                     /* replace the stack top */
                     stack.back() = std::move(r);
@@ -400,9 +516,17 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
 
                 /* throw exception */
                 case OpCode::RAISE:
+                {
+                    // TODO: implement these
+                    throw Runtime::InternalError("not implemented yet");
+                }
 
                 /* setup exception handling block */
                 case OpCode::PUSH_BLOCK:
+                {
+                    // TODO: implement these
+                    throw Runtime::InternalError("not implemented yet");
+                }
 
                 /* destroy exception handling block */
                 case OpCode::POP_BLOCK:
@@ -425,6 +549,10 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
 
                 /* expand sequence in reverse order */
                 case OpCode::EXPAND_SEQ:
+                {
+                    // TODO: implement these
+                    throw Runtime::InternalError("not implemented yet");
+                }
 
                 /* import module */
                 case OpCode::IMPORT_ALIAS:
@@ -456,12 +584,24 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
 
                 /* build an array object */
                 case OpCode::MAKE_ARRAY:
+                {
+                    // TODO: implement these
+                    throw Runtime::InternalError("not implemented yet");
+                }
 
                 /* build a tuple object */
                 case OpCode::MAKE_TUPLE:
+                {
+                    // TODO: implement these
+                    throw Runtime::InternalError("not implemented yet");
+                }
 
                 /* build a function object */
                 case OpCode::MAKE_FUNCTION:
+                {
+                    // TODO: implement these
+                    throw Runtime::InternalError("not implemented yet");
+                }
 
                 /* build a class object */
                 case OpCode::MAKE_CLASS:
