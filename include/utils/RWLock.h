@@ -22,7 +22,7 @@ class RWLock final : public Immovable, public NonCopyable
         };
 
         std::atomic<uint32_t> _rw;
-        std::atomic<uint32_t> _all;
+        std::atomic<uint64_t> _all;
     };
 
 private:
@@ -30,7 +30,7 @@ private:
     std::atomic_size_t _rlocks;
 
 public:
-    RWLock() : _owner(nullptr), _rlocks(0), _tickets(0) {}
+    RWLock() : _all(0), _owner(nullptr), _rlocks(0) {}
 
 public:
     size_t reads(void) const { return _rlocks.load(); }
