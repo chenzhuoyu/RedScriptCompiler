@@ -1238,6 +1238,7 @@ static void del_type(TCCState *s1, TCCType *type)
             type->types[i] = NULL;
     }
 
+    tcc_free(s1, type->name);
     dynarray_reset(s1, &type->names, &type->nb_names);
     dynarray_reset(s1, &type->values, &type->nb_values);
 }
@@ -1270,6 +1271,7 @@ static void free_function(TCCState *s1, TCCFunction *func)
     tcc_free(s1, func->name);
     dynarray_reset(s1, &func->args, &func->nb_args);
     dynarray_reset(s1, &func->arg_names, &func->nb_arg_names);
+    tcc_free(s1, func);
 }
 
 static char *pstrcatresize(TCCState *s1, char *s, const char *t) {
@@ -1459,11 +1461,13 @@ ST_FUNC TCCType *tcc_resolver_add_type(TCCState *s1, CType *type)
         return vtype;
     }
 
-    if (!(vtype->t & VT_FORWARD) && ((*ptype)->t & VT_FORWARD)) {
-        del_type(s1, *ptype);
-        copy_type(*ptype, vtype);
+    if ((vtype->t & VT_FORWARD) || !((*ptype)->t & VT_FORWARD)) {
+        free_type(s1, vtype);
+        return *ptype;
     }
 
+    del_type(s1, *ptype);
+    copy_type(*ptype, vtype);
     tcc_free(s1, vtype);
     return *ptype;
 }

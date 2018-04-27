@@ -214,19 +214,23 @@ ST_FUNC void tcc_run_free(TCCState *s1)
 {
     int i = 0;
     while (i < s1->nb_runtime_mem) {
-        void *mem = s1->runtime_mem[i++];
-        size_t size = (size_t)s1->runtime_mem[i++];
+        void *mem = s1->runtime_mem[i];
+        size_t size = (size_t)s1->runtime_mem[i + 1];
 
 #ifdef _WIN64
         VirtualFree(mem, size, MEM_RELEASE);
 #else
         munmap(mem, size);
 #endif
+        s1->runtime_mem[i++] = NULL;
+        s1->runtime_mem[i++] = NULL;
     }
+    dynarray_reset(s1, &s1->runtime_mem, &s1->nb_runtime_mem);
 
 #ifdef _WIN64
     for (i = 0; i < s1->nb_function_table; i++)
         win64_del_function_table(s1->function_table[i]);
+    dynarray_reset(s1, &s1->function_table, &s1->nb_function_table);
 #endif
 }
 
