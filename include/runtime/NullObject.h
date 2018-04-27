@@ -16,6 +16,7 @@ public:
 
 public:
     virtual bool objectIsTrue(ObjectRef self) override { return false; }
+    virtual std::string objectRepr(ObjectRef self) override { return "null"; }
 
 };
 

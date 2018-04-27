@@ -60,16 +60,6 @@ ObjectRef Type::applyTernary(const char *name, ObjectRef self, ObjectRef second,
     throw Runtime::InternalError("not implemented yet");
 }
 
-void Type::objectClear(ObjectRef self)
-{
-
-}
-
-void Type::objectTraverse(ObjectRef self, Type::VisitFunction visit)
-{
-
-}
-
 uint64_t Type::objectHash(ObjectRef self)
 {
     std::hash<uintptr_t> hash;
@@ -83,7 +73,8 @@ StringList Type::objectDir(ObjectRef self)
 
 std::string Type::objectRepr(ObjectRef self)
 {
-    return std::string();
+    /* basic object representation */
+    return Utils::Strings::format("<%s object at %p>", _name, static_cast<void *>(self.get()));
 }
 
 bool Type::objectIsSubclassOf(ObjectRef self, TypeRef type)
@@ -105,22 +96,22 @@ bool Type::objectIsSubclassOf(ObjectRef self, TypeRef type)
 
 ObjectRef Type::objectDelAttr(ObjectRef self, const std::string &name)
 {
-    return ObjectRef();
+    throw Runtime::InternalError("not implemented yet");
 }
 
 ObjectRef Type::objectGetAttr(ObjectRef self, const std::string &name)
 {
-    return ObjectRef();
+    throw Runtime::InternalError("not implemented yet");
 }
 
 ObjectRef Type::objectSetAttr(ObjectRef self, const std::string &name, ObjectRef value)
 {
-    return ObjectRef();
+    throw Runtime::InternalError("not implemented yet");
 }
 
 ObjectRef Type::objectInvoke(ObjectRef self, const std::vector<ObjectRef> &args)
 {
-    return ObjectRef();
+    throw Runtime::InternalError("not implemented yet");
 }
 
 ObjectRef Type::comparableEq(ObjectRef self, ObjectRef other)

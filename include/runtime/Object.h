@@ -84,8 +84,8 @@ public:
     typedef std::function<void(ObjectRef)> VisitFunction;
 
 public:
-    virtual void objectClear   (ObjectRef self);
-    virtual void objectTraverse(ObjectRef self, VisitFunction visit);
+    virtual void objectClear   (ObjectRef self) {}
+    virtual void objectTraverse(ObjectRef self, VisitFunction visit) {}
 
 public:
     virtual uint64_t    objectHash(ObjectRef self);
