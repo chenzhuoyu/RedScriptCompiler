@@ -75,6 +75,7 @@ set(SOURCE_FILES
         include/utils/NonCopyable.h
         include/utils/Preprocessor.h
         include/utils/RWLock.h
+        include/utils/SpinLock.h
         include/utils/Strings.h
         include/RedScript.h
         src/compiler/AST.cpp

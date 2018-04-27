@@ -1,6 +1,5 @@
 #include <new>
 #include <mutex>
-#include <atomic>
 #include <memory>
 #include <cstdlib>
 #include <stdexcept>
@@ -8,6 +7,7 @@
 #include "engine/Memory.h"
 #include "engine/GarbageCollector.h"
 
+#include "utils/SpinLock.h"
 #include "runtime/Object.h"
 
 namespace RedScript::Engine
@@ -19,7 +19,7 @@ struct Generation
 
 private:
     GCObject _head;
-    std::mutex _mutex;
+    Utils::SpinLock _spin;
 
 public:
     Generation(size_t size) : size(size), used(0)
@@ -31,7 +31,7 @@ public:
 private:
     inline void attach(GCObject *object)
     {
-        std::unique_lock _(_mutex);
+        Utils::SpinLock::Scope _(_spin);
         object->_next = &_head;
         object->_prev = _head._prev;
         _head._prev->_next = object;
@@ -41,7 +41,7 @@ private:
 private:
     inline void detach(GCObject *object)
     {
-        std::unique_lock _(_mutex);
+        Utils::SpinLock::Scope _(_spin);
         object->_prev->_next = object->_next;
         object->_next->_prev = object->_prev;
     }
