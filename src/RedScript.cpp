@@ -8,6 +8,8 @@
 #include "runtime/BoolObject.h"
 #include "runtime/CodeObject.h"
 #include "runtime/NullObject.h"
+#include "runtime/ArrayObject.h"
+#include "runtime/TupleObject.h"
 #include "runtime/StringObject.h"
 #include "runtime/DecimalObject.h"
 #include "runtime/NativeClassObject.h"
@@ -21,6 +23,8 @@ void shutdown(void)
     RedScript::Runtime::ExceptionBlockObject::shutdown();
     RedScript::Runtime::NativeClassObject::shutdown();
     RedScript::Runtime::DecimalObject::shutdown();
+    RedScript::Runtime::TupleObject::shutdown();
+    RedScript::Runtime::ArrayObject::shutdown();
     RedScript::Runtime::CodeObject::shutdown();
     RedScript::Runtime::MapObject::shutdown();
 
@@ -54,6 +58,8 @@ void initialize(size_t young, size_t old, size_t perm)
     /* generic objects */
     RedScript::Runtime::MapObject::initialize();
     RedScript::Runtime::CodeObject::initialize();
+    RedScript::Runtime::ArrayObject::initialize();
+    RedScript::Runtime::TupleObject::initialize();
     RedScript::Runtime::DecimalObject::initialize();
     RedScript::Runtime::NativeClassObject::initialize();
     RedScript::Runtime::ExceptionBlockObject::initialize();

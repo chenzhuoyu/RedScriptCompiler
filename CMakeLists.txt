@@ -56,6 +56,7 @@ set(SOURCE_FILES
         include/engine/Interpreter.h
         include/engine/Memory.h
         include/engine/Thread.h
+        include/runtime/ArrayObject.h
         include/runtime/BoolObject.h
         include/runtime/CodeObject.h
         include/runtime/DecimalObject.h
@@ -64,13 +65,17 @@ set(SOURCE_FILES
         include/runtime/IntObject.h
         include/runtime/MapObject.h
         include/runtime/NativeClassObject.h
+        include/runtime/NativeSyntaxError.h
         include/runtime/NullObject.h
         include/runtime/Object.h
         include/runtime/ReferenceCounted.h
         include/runtime/RuntimeError.h
+        include/runtime/StopIteration.h
         include/runtime/StringObject.h
         include/runtime/SyntaxError.h
         include/runtime/TypeError.h
+        include/runtime/TupleObject.h
+        include/runtime/ValueError.h
         include/utils/Immovable.h
         include/utils/NonCopyable.h
         include/utils/Preprocessor.h
@@ -85,6 +90,7 @@ set(SOURCE_FILES
         src/engine/GarbageCollector.cpp
         src/engine/Interpreter.cpp
         src/engine/Memory.cpp
+        src/runtime/ArrayObject.cpp
         src/runtime/BoolObject.cpp
         src/runtime/CodeObject.cpp
         src/runtime/DecimalObject.cpp
@@ -96,9 +102,10 @@ set(SOURCE_FILES
         src/runtime/Object.cpp
         src/runtime/ReferenceCounted.cpp
         src/runtime/StringObject.cpp
+        src/runtime/TupleObject.cpp
         src/utils/Strings.cpp
         src/RedScript.cpp
-        src/main.cpp include/runtime/NativeSyntaxError.h)
+        src/main.cpp)
 
 add_executable(rsc ${SOURCE_FILES})
 target_link_libraries(rsc -ldl -lfmt -ljemalloc)

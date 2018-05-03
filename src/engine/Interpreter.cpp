@@ -6,11 +6,15 @@
 #include "runtime/MapObject.h"
 #include "runtime/BoolObject.h"
 #include "runtime/NullObject.h"
+#include "runtime/ArrayObject.h"
+#include "runtime/TupleObject.h"
 #include "runtime/StringObject.h"
 #include "runtime/NativeClassObject.h"
 
+#include "runtime/ValueError.h"
 #include "runtime/RuntimeError.h"
 #include "runtime/InternalError.h"
+#include "runtime/StopIteration.h"
 
 #define OPERAND(p) ({ uint32_t v = *(uint32_t *)p; p += sizeof(uint32_t); v; })
 
@@ -550,8 +554,51 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 /* expand sequence in reverse order */
                 case OpCode::EXPAND_SEQ:
                 {
-                    // TODO: implement these
-                    throw Runtime::InternalError("not implemented yet");
+                    /* expected sequence size */
+                    size_t i = 0;
+                    uint32_t count = OPERAND(p);
+                    std::vector<Runtime::ObjectRef> items(count);
+
+                    /* check stack */
+                    if (stack.empty())
+                        throw Runtime::InternalError("Stack is empty");
+
+                    /* pop the stack top, convert to iterator */
+                    auto iter = stack.back()->type()->iterableIter(stack.back());
+                    stack.pop_back();
+
+                    /* get all items from iterator */
+                    try
+                    {
+                        while (i < count)
+                        {
+                            items[i] = iter->type()->iterableNext(iter);
+                            i++;
+                        }
+
+                    /* iterator drained in the middle of expanding */
+                    } catch (const Runtime::StopIteration &)
+                    {
+                        throw Runtime::ValueError(Utils::Strings::format(
+                            "Needs %lu more items to unpack",
+                            count - i
+                        ));
+                    }
+
+                    /* and the iterator should have exact `count` items */
+                    try
+                    {
+                        iter->type()->iterableNext(iter);
+                        throw Runtime::ValueError("Too many items to unpack");
+
+                    /* `StopIteration` is expected */
+                    } catch (const Runtime::StopIteration &)
+                    {
+                        /* should have no more items */
+                        /* this is expected, so ignore this exception */
+                    }
+
+                    break;
                 }
 
                 /* import module */
@@ -585,15 +632,43 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 /* build an array object */
                 case OpCode::MAKE_ARRAY:
                 {
-                    // TODO: implement these
-                    throw Runtime::InternalError("not implemented yet");
+                    /* create array object */
+                    auto size = OPERAND(p);
+                    auto array = Runtime::Object::newObject<Runtime::ArrayObject>(size);
+
+                    /* check stack */
+                    if (stack.size() < size)
+                        throw Runtime::InternalError("Stack underflow");
+
+                    /* extract each item, in reverse order */
+                    for (ssize_t i = size - 1; i >= 0; i--)
+                        array->items()[i] = std::move(*(stack.end() - i - 1));
+
+                    /* push result into stack */
+                    stack.resize(stack.size() - size);
+                    stack.emplace_back(std::move(array));
+                    break;
                 }
 
                 /* build a tuple object */
                 case OpCode::MAKE_TUPLE:
                 {
-                    // TODO: implement these
-                    throw Runtime::InternalError("not implemented yet");
+                    /* create tuple object */
+                    auto size = OPERAND(p);
+                    auto tuple = Runtime::Object::newObject<Runtime::TupleObject>(size);
+
+                    /* check stack */
+                    if (stack.size() < size)
+                        throw Runtime::InternalError("Stack underflow");
+
+                    /* extract each item, in reverse order */
+                    for (ssize_t i = size - 1; i >= 0; i--)
+                        tuple->items()[i] = std::move(*(stack.end() - i - 1));
+
+                    /* push result into stack */
+                    stack.resize(stack.size() - size);
+                    stack.emplace_back(std::move(tuple));
+                    break;
                 }
 
                 /* build a function object */
