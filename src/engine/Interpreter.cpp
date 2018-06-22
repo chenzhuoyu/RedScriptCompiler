@@ -16,7 +16,12 @@
 #include "runtime/InternalError.h"
 #include "runtime/StopIteration.h"
 
-#define OPERAND(p) ({ uint32_t v = *(uint32_t *)p; p += sizeof(uint32_t); v; })
+#define OPERAND() ({                                                        \
+    auto v = p;                                                             \
+    p += sizeof(uint32_t);                                                  \
+    if (p >= e) throw Runtime::InternalError("Unexpected end of bytecode"); \
+    *reinterpret_cast<const uint32_t *>(v);                                 \
+})
 
 namespace RedScript::Engine
 {
@@ -66,7 +71,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 case OpCode::LOAD_CONST:
                 {
                     /* read constant ID */
-                    uint32_t id = OPERAND(p);
+                    uint32_t id = OPERAND();
 
                     /* check constant ID */
                     if (id >= code->consts().size())
@@ -88,7 +93,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 case OpCode::LOAD_LOCAL:
                 {
                     /* read local ID */
-                    uint32_t id = OPERAND(p);
+                    uint32_t id = OPERAND();
 
                     /* check local ID */
                     if (id >= locals.size())
@@ -107,7 +112,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 case OpCode::STOR_LOCAL:
                 {
                     /* read local ID */
-                    uint32_t id = OPERAND(p);
+                    uint32_t id = OPERAND();
 
                     /* check stack */
                     if (stack.empty())
@@ -127,7 +132,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 case OpCode::DEL_LOCAL:
                 {
                     /* read local ID */
-                    uint32_t id = OPERAND(p);
+                    uint32_t id = OPERAND();
 
                     /* check local ID */
                     if (id >= locals.size())
@@ -146,7 +151,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 case OpCode::DEF_ATTR:
                 {
                     /* read local ID */
-                    uint32_t id = OPERAND(p);
+                    uint32_t id = OPERAND();
 
                     /* check stack */
                     if (stack.size() < 2)
@@ -170,7 +175,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 case OpCode::GET_ATTR:
                 {
                     /* read local ID */
-                    uint32_t id = OPERAND(p);
+                    uint32_t id = OPERAND();
 
                     /* check stack */
                     if (stack.empty())
@@ -189,7 +194,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 case OpCode::SET_ATTR:
                 {
                     /* read local ID */
-                    uint32_t id = OPERAND(p);
+                    uint32_t id = OPERAND();
 
                     /* check stack */
                     if (stack.size() < 2)
@@ -213,7 +218,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 case OpCode::DEL_ATTR:
                 {
                     /* read local ID */
-                    uint32_t id = OPERAND(p);
+                    uint32_t id = OPERAND();
 
                     /* check stack */
                     if (stack.empty())
@@ -481,7 +486,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 case OpCode::BR:
                 {
                     /* jump offset */
-                    int32_t d = OPERAND(p);
+                    int32_t d = OPERAND();
                     const char *q = p + d - sizeof(uint32_t) - 1;
 
                     /* check the jump address */
@@ -502,7 +507,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                         throw Runtime::InternalError("Stack is empty");
 
                     /* jump offset */
-                    int32_t d = OPERAND(p);
+                    int32_t d = OPERAND();
                     const char *q = p + d - sizeof(uint32_t) - 1;
 
                     /* check the jump address */
@@ -556,7 +561,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 {
                     /* expected sequence size */
                     size_t i = 0;
-                    uint32_t count = OPERAND(p);
+                    uint32_t count = OPERAND();
                     std::vector<Runtime::ObjectRef> items(count);
 
                     /* check stack */
@@ -613,7 +618,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 {
                     /* item count */
                     auto map = Runtime::Object::newObject<Runtime::MapObject>(Runtime::MapObject::Mode::Ordered);
-                    uint32_t count = OPERAND(p);
+                    uint32_t count = OPERAND();
 
                     /* check stack size */
                     if (stack.size() < count * 2)
@@ -633,7 +638,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 case OpCode::MAKE_ARRAY:
                 {
                     /* create array object */
-                    auto size = OPERAND(p);
+                    auto size = OPERAND();
                     auto array = Runtime::Object::newObject<Runtime::ArrayObject>(size);
 
                     /* check stack */
@@ -654,7 +659,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 case OpCode::MAKE_TUPLE:
                 {
                     /* create tuple object */
-                    auto size = OPERAND(p);
+                    auto size = OPERAND();
                     auto tuple = Runtime::Object::newObject<Runtime::TupleObject>(size);
 
                     /* check stack */
@@ -689,7 +694,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 case OpCode::MAKE_NATIVE:
                 {
                     /* extract constant ID */
-                    uint32_t id = OPERAND(p);
+                    uint32_t id = OPERAND();
 
                     /* check stack */
                     if (stack.empty())
@@ -731,3 +736,5 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
     throw Runtime::InternalError("Unexpected termination of eval loop");
 }
 }
+
+#undef OPERAND

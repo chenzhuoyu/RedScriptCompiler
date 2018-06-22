@@ -32,15 +32,11 @@ static inline std::string join(const Iterable &list, const std::string &delim = 
     return result;
 }
 
-template <typename ... Args>
-static inline std::string format(const fmt::CStringRef &fmt, const Args & ... args)
+template <typename Str, typename ... Args>
+static inline std::string format(Str &&fmt, Args && ... args)
 {
-    typedef fmt::internal::ArgArray<sizeof...(Args)> ArgArray;
-    typename ArgArray::Type array { ArgArray::template make<fmt::BasicFormatter<char>>(args)... };
-
-    fmt::MemoryWriter mw;
-    fmt::printf(mw, fmt, fmt::ArgList(fmt::internal::make_type(args...), array));
-    return mw.str();
+    /* use libfmt to format strings */
+    return fmt::sprintf(std::forward<Str>(fmt), std::forward<Args>(args) ...);
 }
 }
 
