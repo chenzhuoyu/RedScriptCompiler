@@ -906,6 +906,7 @@ void CodeGenerator::visitExpression(const std::unique_ptr<AST::Expression> &node
             /* boolean or, with short-circuit evaluation */
             case Token::Operator::BoolOr:
             {
+                emit(item.op, Engine::OpCode::DUP);
                 patches.emplace_back(emitJump(item.op, Engine::OpCode::BRTRUE));
                 break;
             }
@@ -913,6 +914,7 @@ void CodeGenerator::visitExpression(const std::unique_ptr<AST::Expression> &node
             /* boolean and, with short-circuit evaluation */
             case Token::Operator::BoolAnd:
             {
+                emit(item.op, Engine::OpCode::DUP);
                 patches.emplace_back(emitJump(item.op, Engine::OpCode::BRFALSE));
                 break;
             }
