@@ -221,8 +221,8 @@ public:
     operator bool(void) const { return _object != nullptr; }
 
 public:
-    bool operator!=(std::nullptr_t) const { return _object == nullptr; }
-    bool operator==(std::nullptr_t) const { return _object != nullptr; }
+    bool operator!=(std::nullptr_t) const { return _object != nullptr; }
+    bool operator==(std::nullptr_t) const { return _object == nullptr; }
 
 public:
     template <typename U>
