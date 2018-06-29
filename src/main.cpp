@@ -54,9 +54,10 @@
 //)source";
 
 const char *source = R"source(#!/usr/bin/env redscript
-if (1 == 2 and 3 == 4) {
+if (a == 1) {
     println('hello, world')
 }
+a = 1
 )source";
 
 #include <iostream>
@@ -144,7 +145,7 @@ static void run(void)
 
     RedScript::Engine::Interpreter intp;
     std::cout << "--------------------- EVAL ---------------------" << std::endl;
-    RedScript::Runtime::ObjectRef ret = intp.eval(code);
+    RedScript::Runtime::ObjectRef ret = intp.eval(code, {});
 
     std::cout << "--------------------- RETURN ---------------------" << std::endl;
     std::cout << ret->type()->objectRepr(ret) << std::endl;

@@ -1,12 +1,12 @@
-#ifndef REDSCRIPT_RUNTIME_VALUEERROR_H
-#define REDSCRIPT_RUNTIME_VALUEERROR_H
+#ifndef REDSCRIPT_EXCEPTIONS_VALUEERROR_H
+#define REDSCRIPT_EXCEPTIONS_VALUEERROR_H
 
 #include <string>
 #include <exception>
 
 #include "utils/Strings.h"
 
-namespace RedScript::Runtime
+namespace RedScript::Exceptions
 {
 class ValueError : public std::exception
 {
@@ -30,4 +30,4 @@ public:
 };
 }
 
-#endif /* REDSCRIPT_RUNTIME_VALUEERROR_H */
+#endif /* REDSCRIPT_EXCEPTIONS_VALUEERROR_H */

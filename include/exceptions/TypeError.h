@@ -1,12 +1,12 @@
-#ifndef REDSCRIPT_RUNTIME_TYPEERROR_H
-#define REDSCRIPT_RUNTIME_TYPEERROR_H
+#ifndef REDSCRIPT_EXCEPTIONS_TYPEERROR_H
+#define REDSCRIPT_EXCEPTIONS_TYPEERROR_H
 
 #include <string>
 #include <exception>
 
 #include "utils/Strings.h"
 
-namespace RedScript::Runtime
+namespace RedScript::Exceptions
 {
 class TypeError : public std::exception
 {
@@ -30,4 +30,4 @@ public:
 };
 }
 
-#endif /* REDSCRIPT_RUNTIME_TYPEERROR_H */
+#endif /* REDSCRIPT_EXCEPTIONS_TYPEERROR_H */

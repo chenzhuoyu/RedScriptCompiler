@@ -2,7 +2,7 @@
 #include "runtime/BoolObject.h"
 
 #include "utils/Strings.h"
-#include "runtime/TypeError.h"
+#include "exceptions/TypeError.h"
 
 namespace RedScript::Runtime
 {
@@ -84,10 +84,13 @@ ObjectRef IntType::comparableGeq(ObjectRef self, ObjectRef other)
 ObjectRef IntType::comparableCompare(ObjectRef self, ObjectRef other)
 {
     if (!other->type()->objectIsInstanceOf(other, IntTypeObject))
-        throw TypeError(Utils::Strings::format("\"%s\" is not comparable with \"int\"", other->type()->name()));
-    else
-        // TODO: implement cmp
-        return IntObject::fromInt(self.as<IntObject>()->_value > other.as<IntObject>()->_value ? 1 : self.as<IntObject>()->_value < other.as<IntObject>()->_value ? -1 : 0);
+        throw Exceptions::TypeError(Utils::Strings::format("\"%s\" is not comparable with \"int\"", other->type()->name()));
+
+    // TODO: implement cmp
+    return IntObject::fromInt(
+        self.as<IntObject>()->_value > other.as<IntObject>()->_value ? 1 :
+        self.as<IntObject>()->_value < other.as<IntObject>()->_value ? -1 : 0
+    );
 }
 
 ObjectRef IntObject::fromInt(int64_t value)

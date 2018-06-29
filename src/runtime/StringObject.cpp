@@ -3,7 +3,7 @@
 #include "runtime/StringObject.h"
 
 #include "utils/Strings.h"
-#include "runtime/TypeError.h"
+#include "exceptions/TypeError.h"
 
 namespace RedScript::Runtime
 {
@@ -85,7 +85,7 @@ ObjectRef StringType::comparableGeq(ObjectRef self, ObjectRef other)
 ObjectRef StringType::comparableCompare(ObjectRef self, ObjectRef other)
 {
     if (!other->type()->objectIsInstanceOf(other, StringTypeObject))
-        throw TypeError(Utils::Strings::format("\"%s\" is not comparable with \"str\"", other->type()->name()));
+        throw Exceptions::TypeError(Utils::Strings::format("\"%s\" is not comparable with \"str\"", other->type()->name()));
     else
         return IntObject::fromInt(self.as<StringObject>()->_value.compare(other.as<StringObject>()->_value));
 }

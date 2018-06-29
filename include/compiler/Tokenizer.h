@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "utils/Strings.h"
-#include "runtime/SyntaxError.h"
+#include "exceptions/SyntaxError.h"
 
 namespace RedScript::Compiler
 {
@@ -157,7 +157,7 @@ public:
     void asEof(void) const
     {
         if (_type != Type::Eof)
-            throw Runtime::SyntaxError(this, Utils::Strings::format("\"Eof\" expected, but got \"%s\"", toString()));
+            throw Exceptions::SyntaxError(this, Utils::Strings::format("\"Eof\" expected, but got \"%s\"", toString()));
     }
 
 public:
@@ -166,7 +166,7 @@ public:
         if (_type == Type::Float)
             return _float;
         else
-            throw Runtime::SyntaxError(this, Utils::Strings::format("\"Float\" expected, but got \"%s\"", toString()));
+            throw Exceptions::SyntaxError(this, Utils::Strings::format("\"Float\" expected, but got \"%s\"", toString()));
     }
 
 public:
@@ -175,7 +175,7 @@ public:
         if (_type == Type::Integer)
             return _integer;
         else
-            throw Runtime::SyntaxError(this, Utils::Strings::format("\"Integer\" expected, but got \"%s\"", toString()));
+            throw Exceptions::SyntaxError(this, Utils::Strings::format("\"Integer\" expected, but got \"%s\"", toString()));
     }
 
 public:
@@ -184,7 +184,7 @@ public:
         if (_type == Type::Keywords)
             return _keyword;
         else
-            throw Runtime::SyntaxError(this, Utils::Strings::format("\"Keyword\" expected, but got \"%s\"", toString()));
+            throw Exceptions::SyntaxError(this, Utils::Strings::format("\"Keyword\" expected, but got \"%s\"", toString()));
     }
 
 public:
@@ -193,7 +193,7 @@ public:
         if (_type == Type::Operators)
             return _operator;
         else
-            throw Runtime::SyntaxError(this, Utils::Strings::format("\"Operator\" expected, but got \"%s\"", toString()));
+            throw Exceptions::SyntaxError(this, Utils::Strings::format("\"Operator\" expected, but got \"%s\"", toString()));
     }
 
 public:
@@ -202,7 +202,7 @@ public:
         if (_type == Type::String)
             return _string;
         else
-            throw Runtime::SyntaxError(this, Utils::Strings::format("\"String\" expected, but got \"%s\"", toString()));
+            throw Exceptions::SyntaxError(this, Utils::Strings::format("\"String\" expected, but got \"%s\"", toString()));
     }
 
 public:
@@ -211,7 +211,7 @@ public:
         if (_type == Type::Identifiers)
             return _string;
         else
-            throw Runtime::SyntaxError(this, Utils::Strings::format("\"Identifier\" expected, but got \"%s\"", toString()));
+            throw Exceptions::SyntaxError(this, Utils::Strings::format("\"Identifier\" expected, but got \"%s\"", toString()));
     }
 
 public:
@@ -419,7 +419,7 @@ public:
 
         /* check for token type and value */
         if (!token->is<Token::Type::Keywords>() || (token->asKeyword() != value))
-            throw Runtime::SyntaxError(token, Utils::Strings::format("%s expected", Token::toString(value)));
+            throw Exceptions::SyntaxError(token, Utils::Strings::format("%s expected", Token::toString(value)));
     }
 
 public:
@@ -431,7 +431,7 @@ public:
 
         /* check for token type and value */
         if (!token->is<Token::Type::Operators>() || (token->asOperator() != value))
-            throw Runtime::SyntaxError(token, Utils::Strings::format("%s expected", Token::toString(value)));
+            throw Exceptions::SyntaxError(token, Utils::Strings::format("%s expected", Token::toString(value)));
     }
 };
 }

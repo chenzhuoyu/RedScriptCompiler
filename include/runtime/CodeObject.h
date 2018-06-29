@@ -48,6 +48,10 @@ public:
     std::vector<std::pair<int, int>> &lineNums(void) { return _lineNumTable; }
 
 public:
+    std::unordered_map<std::string, uint32_t> &nameMap(void) { return _names; }
+    std::unordered_map<std::string, uint32_t> &localMap(void) { return _locals; }
+
+public:
     uint32_t addName(const std::string &name);
     uint32_t addLocal(const std::string &name);
     uint32_t addConst(Runtime::ObjectRef value);
@@ -58,7 +62,7 @@ public:
     uint32_t emitOperand(int row, int col, Engine::OpCode op, int32_t v);
 
 public:
-    bool isLocal(const std::string &value) { return _locals.find(value) != _locals.end(); }
+    bool isLocal(const std::string &value) const { return _locals.find(value) != _locals.end(); }
     void patchBranch(uint32_t offset, uint32_t address) { *(uint32_t *)(&_buffer[offset]) = address - offset + 1; }
 
 public:

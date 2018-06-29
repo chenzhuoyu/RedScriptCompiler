@@ -1,9 +1,9 @@
-#ifndef REDSCRIPT_RUNTIME_NATIVESYNTAXERROR_H
-#define REDSCRIPT_RUNTIME_NATIVESYNTAXERROR_H
+#ifndef REDSCRIPT_EXCEPTIONS_NATIVESYNTAXERROR_H
+#define REDSCRIPT_EXCEPTIONS_NATIVESYNTAXERROR_H
 
-#include "runtime/SyntaxError.h"
+#include "SyntaxError.h"
 
-namespace RedScript::Runtime
+namespace RedScript::Exceptions
 {
 class NativeSyntaxError : public SyntaxError
 {
@@ -27,4 +27,4 @@ public:
 };
 }
 
-#endif /* REDSCRIPT_RUNTIME_NATIVESYNTAXERROR_H */
+#endif /* REDSCRIPT_EXCEPTIONS_NATIVESYNTAXERROR_H */

@@ -1,9 +1,9 @@
-#ifndef REDSCRIPT_RUNTIME_STOPITERATION_H
-#define REDSCRIPT_RUNTIME_STOPITERATION_H
+#ifndef REDSCRIPT_EXCEPTIONS_STOPITERATION_H
+#define REDSCRIPT_EXCEPTIONS_STOPITERATION_H
 
 #include <exception>
 
-namespace RedScript::Runtime
+namespace RedScript::Exceptions
 {
 class StopIteration : public std::exception
 {
@@ -16,4 +16,4 @@ public:
 };
 }
 
-#endif /* REDSCRIPT_RUNTIME_STOPITERATION_H */
+#endif /* REDSCRIPT_EXCEPTIONS_STOPITERATION_H */

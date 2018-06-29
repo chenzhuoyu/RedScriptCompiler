@@ -1,5 +1,5 @@
 #include "runtime/CodeObject.h"
-#include "runtime/RuntimeError.h"
+#include "exceptions/RuntimeError.h"
 
 namespace RedScript::Runtime
 {
@@ -16,9 +16,9 @@ uint32_t CodeObject::addName(const std::string &name)
     if (it != _names.end())
         return it->second;
 
-    /* each code object can have at most 4G strings */
+    /* each code object can have at most 4G names */
     if (p >= UINT32_MAX)
-        throw Runtime::RuntimeError("Too many names");
+        throw Exceptions::RuntimeError("Too many names");
 
     /* add to string table */
     _nameTable.emplace_back(name);
@@ -36,9 +36,9 @@ uint32_t CodeObject::addLocal(const std::string &name)
     if (it != _locals.end())
         return it->second;
 
-    /* each code object can have at most 4G strings */
+    /* each code object can have at most 4G locals */
     if (p >= UINT32_MAX)
-        throw Runtime::RuntimeError("Too many locals");
+        throw Exceptions::RuntimeError("Too many locals");
 
     /* add to string table */
     _localTable.emplace_back(name);
@@ -58,7 +58,7 @@ uint32_t CodeObject::addConst(Runtime::ObjectRef value)
 
     /* each code object can have at most 4G constants */
     if (p >= UINT32_MAX)
-        throw Runtime::RuntimeError("Too many constants");
+        throw Exceptions::RuntimeError("Too many constants");
 
     /* add to constant table */
     _constTable.emplace_back(value);
@@ -73,7 +73,7 @@ uint32_t CodeObject::emit(int row, int col, Engine::OpCode op)
 
     /* each code object is limited to 4G */
     if (p >= UINT32_MAX)
-        throw Runtime::RuntimeError("Code exceeds 4G limit");
+        throw Exceptions::RuntimeError("Code exceeds 4G limit");
 
     /* add to instruction buffer */
     _buffer.emplace_back(static_cast<uint8_t>(op));
@@ -88,7 +88,7 @@ uint32_t CodeObject::emitJump(int row, int col, Engine::OpCode op)
 
     /* check for operand space */
     if (p >= UINT32_MAX - sizeof(int32_t) - 1)
-        throw Runtime::RuntimeError("Code exceeds 4G limit");
+        throw Exceptions::RuntimeError("Code exceeds 4G limit");
 
     /* preserve space in instruction buffer */
     _buffer.resize(p + sizeof(int32_t) + 1);
@@ -104,7 +104,7 @@ uint32_t CodeObject::emitOperand(int row, int col, Engine::OpCode op, int32_t v)
 
     /* check for operand space */
     if (n >= UINT32_MAX - sizeof(int32_t) - 1)
-        throw Runtime::RuntimeError("Code exceeds 4G limit");
+        throw Exceptions::RuntimeError("Code exceeds 4G limit");
 
     /* add operand to instruction buffer */
     _buffer.insert(_buffer.end(), p, p + sizeof(int32_t));

@@ -12,8 +12,8 @@
 
 #include "runtime/Object.h"
 #include "runtime/CodeObject.h"
-#include "runtime/RuntimeError.h"
-#include "runtime/InternalError.h"
+#include "exceptions/RuntimeError.h"
+#include "exceptions/InternalError.h"
 
 namespace RedScript::Compiler
 {
@@ -83,7 +83,7 @@ private:
     inline uint32_t pc(void)
     {
         if (buffer().size() > UINT32_MAX)
-            throw Runtime::RuntimeError("Code exceeds 4G limit");
+            throw Exceptions::RuntimeError("Code exceeds 4G limit");
         else
             return static_cast<uint32_t>(buffer().size());
     }
@@ -99,15 +99,15 @@ private:
         CodeFrame(CodeGenerator *self, CodeType type) : _left(false), _self(self) { self->_frames.emplace_back(type); }
 
     public:
-        Runtime::ObjectRef leave(void)
+        GenerationFrame::CodeReference leave(void)
         {
             /* already left */
             if (_left)
-                throw Runtime::InternalError("Outside of code scope");
+                throw Exceptions::InternalError("Outside of code scope");
 
             /* get the most recent code object */
             auto &code = _self->_frames;
-            Runtime::ObjectRef ref = std::move(code.back().code);
+            GenerationFrame::CodeReference ref = std::move(code.back().code);
 
             /* pop from code stack */
             _left = true;
@@ -156,7 +156,7 @@ private:
         {
             /* already left */
             if (_left)
-                throw Runtime::InternalError("Outside of breakable scope");
+                throw Exceptions::InternalError("Outside of breakable scope");
 
             /* get the most recent code object */
             auto &stack = _self->breakStack();
@@ -183,7 +183,7 @@ private:
         {
             /* already left */
             if (_left)
-                throw Runtime::InternalError("Outside of continuable scope");
+                throw Exceptions::InternalError("Outside of continuable scope");
 
             /* get the most recent code object */
             auto &stack = _self->continueStack();
@@ -199,6 +199,9 @@ public:
     Runtime::ObjectRef build(void);
 
 /*** Language Structures ***/
+
+private:
+    uint32_t mergeCodeFrame(CodeFrame &frame);
 
 private:
     void buildClassObject(const std::unique_ptr<AST::Class> &node);

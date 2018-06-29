@@ -1,9 +1,10 @@
 #include "runtime/StringObject.h"
 #include "runtime/NativeClassObject.h"
 
-#include "runtime/RuntimeError.h"
-#include "runtime/InternalError.h"
+#include "exceptions/RuntimeError.h"
+#include "exceptions/InternalError.h"
 
+// TODO: remove this
 #include <iostream>
 namespace RedScript::Runtime
 {
@@ -80,11 +81,11 @@ NativeClassObject::NativeClassObject(
     {
         /* key must be string */
         if (key->type() != StringTypeObject)
-            throw Runtime::InternalError("Non-string keys");
+            throw Exceptions::InternalError("Non-string keys");
 
         /* value must be string either */
         if (value->type() != StringTypeObject)
-            throw Runtime::InternalError("Non-string values");
+            throw Exceptions::InternalError("Non-string values");
 
         /* add to options list */
         _options.emplace_back(key.as<StringObject>()->value(), value.as<StringObject>()->value());
@@ -110,7 +111,7 @@ NativeClassObject::NativeClassObject(
 
     /* link the code in memory */
     if (tcc_relocate(_tcc) < 0)
-        throw Runtime::RuntimeError("Unable to link native object in memory");
+        throw Exceptions::RuntimeError("Unable to link native object in memory");
 
     tcc_list_types(_tcc, [](TCCState *s, const char *name, TCCType *type, void *) -> char
     {

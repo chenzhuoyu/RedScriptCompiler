@@ -1,12 +1,12 @@
-#ifndef REDSCRIPT_RUNTIME_SYNTAXERROR_H
-#define REDSCRIPT_RUNTIME_SYNTAXERROR_H
+#ifndef REDSCRIPT_EXCEPTIONS_SYNTAXERROR_H
+#define REDSCRIPT_EXCEPTIONS_SYNTAXERROR_H
 
 #include <string>
 #include <exception>
 
 #include "utils/Strings.h"
 
-namespace RedScript::Runtime
+namespace RedScript::Exceptions
 {
 class SyntaxError : public std::exception
 {
@@ -39,4 +39,4 @@ public:
 };
 }
 
-#endif /* REDSCRIPT_RUNTIME_SYNTAXERROR_H */
+#endif /* REDSCRIPT_EXCEPTIONS_SYNTAXERROR_H */

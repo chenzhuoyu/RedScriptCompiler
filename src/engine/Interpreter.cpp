@@ -1,3 +1,4 @@
+#include <memory>
 #include <vector>
 
 #include "utils/Strings.h"
@@ -11,21 +12,25 @@
 #include "runtime/StringObject.h"
 #include "runtime/NativeClassObject.h"
 
-#include "runtime/ValueError.h"
-#include "runtime/RuntimeError.h"
-#include "runtime/InternalError.h"
-#include "runtime/StopIteration.h"
+#include "exceptions/NameError.h"
+#include "exceptions/ValueError.h"
+#include "exceptions/RuntimeError.h"
+#include "exceptions/InternalError.h"
+#include "exceptions/StopIteration.h"
 
-#define OPERAND() ({                                                        \
-    auto v = p;                                                             \
-    p += sizeof(uint32_t);                                                  \
-    if (p >= e) throw Runtime::InternalError("Unexpected end of bytecode"); \
-    *reinterpret_cast<const uint32_t *>(v);                                 \
+#define OPERAND() ({                                                            \
+    auto v = p;                                                                 \
+    p += sizeof(uint32_t);                                                      \
+    if (p >= e) throw Exceptions::InternalError("Unexpected end of bytecode");  \
+    *reinterpret_cast<const uint32_t *>(v);                                     \
 })
 
 namespace RedScript::Engine
 {
-Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> code)
+Runtime::ObjectRef Interpreter::eval(
+    Runtime::Reference<Runtime::CodeObject> code,
+    const std::unordered_map<std::string, ClosureRef> &closure
+)
 {
     /* bytecode pointers */
     const char *s = code->buffer().data();
@@ -35,6 +40,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
     /* runtime data structures */
     std::vector<Runtime::ObjectRef> stack;
     std::vector<Runtime::ObjectRef> locals(code->locals().size());
+    std::vector<std::unique_ptr<Closure::Context>> closures(code->locals().size());
 
     /* loop until code ends */
     while (p < e)
@@ -75,7 +81,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
 
                     /* check constant ID */
                     if (id >= code->consts().size())
-                        throw Runtime::InternalError(Utils::Strings::format("Constant ID %u out of range", id));
+                        throw Exceptions::InternalError(Utils::Strings::format("Constant ID %u out of range", id));
 
                     /* load the constant into stack */
                     stack.emplace_back(code->consts()[id]);
@@ -85,8 +91,45 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 /* load by name */
                 case OpCode::LOAD_NAME:
                 {
-                    // TODO: load by name
-                    throw Runtime::InternalError("not implemented yet");
+                    /* read name ID */
+                    uint32_t id = OPERAND();
+
+                    /* check name ID */
+                    if (id >= code->names().size())
+                        throw Exceptions::InternalError(Utils::Strings::format("Name ID %u out of range", id));
+
+                    /* find name in locals */
+                    auto name = code->names()[id];
+                    auto iter = code->localMap().find(name);
+
+                    /* found, use the local value */
+                    if ((iter != code->localMap().end()))
+                    {
+                        /* must be assigned before using */
+                        if (locals[iter->second] == nullptr)
+                            throw Exceptions::RuntimeError(Utils::Strings::format("Variable \"%s\" referenced before assignment", name));
+
+                        /* push onto the stack */
+                        stack.emplace_back(locals[iter->second]);
+                        break;
+                    }
+
+                    /* otherwise, find in closure map */
+                    auto cliter = closure.find(name);
+
+                    /* found, use the closure value */
+                    if (cliter != closure.end())
+                    {
+                        stack.emplace_back(cliter->second->get());
+                        break;
+                    }
+
+                    /* otherwise, it's an error */
+                    throw Exceptions::NameError(
+                        line.first,
+                        line.second,
+                        Utils::Strings::format("\"%s\" is not defined", name)
+                    );
                 }
 
                 /* load local variable */
@@ -97,11 +140,11 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
 
                     /* check local ID */
                     if (id >= locals.size())
-                        throw Runtime::InternalError(Utils::Strings::format("Local ID %u out of range", id));
+                        throw Exceptions::InternalError(Utils::Strings::format("Local ID %u out of range", id));
 
                     /* should have initialized */
                     if (locals[id].isNull())
-                        throw Runtime::RuntimeError(Utils::Strings::format("Variable \"%s\" referenced before assignment", code->locals()[id]));
+                        throw Exceptions::RuntimeError(Utils::Strings::format("Variable \"%s\" referenced before assignment", code->locals()[id]));
 
                     /* load the local into stack */
                     stack.emplace_back(locals[id]);
@@ -116,11 +159,11 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
 
                     /* check stack */
                     if (stack.empty())
-                        throw Runtime::InternalError("Stack is empty");
+                        throw Exceptions::InternalError("Stack is empty");
 
                     /* check local ID */
                     if (id >= locals.size())
-                        throw Runtime::InternalError(Utils::Strings::format("Local ID %u out of range", id));
+                        throw Exceptions::InternalError(Utils::Strings::format("Local ID %u out of range", id));
 
                     /* set the local from stack */
                     locals[id] = std::move(stack.back());
@@ -136,14 +179,15 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
 
                     /* check local ID */
                     if (id >= locals.size())
-                        throw Runtime::InternalError(Utils::Strings::format("Local ID %u out of range", id));
+                        throw Exceptions::InternalError(Utils::Strings::format("Local ID %u out of range", id));
 
                     /* should have initialized */
                     if (locals[id].isNull())
-                        throw Runtime::RuntimeError(Utils::Strings::format("Variable \"%s\" referenced before assignment", code->locals()[id]));
+                        throw Exceptions::RuntimeError(Utils::Strings::format("Variable \"%s\" referenced before assignment", code->locals()[id]));
 
                     /* clear local reference */
                     locals[id] = nullptr;
+                    closures[id] = nullptr;
                     break;
                 }
 
@@ -155,11 +199,11 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
 
                     /* check stack */
                     if (stack.size() < 2)
-                        throw Runtime::InternalError("Stack underflow");
+                        throw Exceptions::InternalError("Stack underflow");
 
                     /* check local ID */
                     if (id >= code->names().size())
-                        throw Runtime::InternalError(Utils::Strings::format("Name ID %u out of range", id));
+                        throw Exceptions::InternalError(Utils::Strings::format("Name ID %u out of range", id));
 
                     /* pop top 2 elements */
                     Runtime::ObjectRef a = std::move(*(stack.end() - 2));
@@ -179,11 +223,11 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
 
                     /* check stack */
                     if (stack.empty())
-                        throw Runtime::InternalError("Stack is empty");
+                        throw Exceptions::InternalError("Stack is empty");
 
                     /* check local ID */
                     if (id >= code->names().size())
-                        throw Runtime::InternalError(Utils::Strings::format("Name ID %u out of range", id));
+                        throw Exceptions::InternalError(Utils::Strings::format("Name ID %u out of range", id));
 
                     /* replace stack top with new object */
                     stack.back() = stack.back()->type()->objectGetAttr(stack.back(), code->names()[id]);
@@ -198,11 +242,11 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
 
                     /* check stack */
                     if (stack.size() < 2)
-                        throw Runtime::InternalError("Stack underflow");
+                        throw Exceptions::InternalError("Stack underflow");
 
                     /* check local ID */
                     if (id >= code->names().size())
-                        throw Runtime::InternalError(Utils::Strings::format("Name ID %u out of range", id));
+                        throw Exceptions::InternalError(Utils::Strings::format("Name ID %u out of range", id));
 
                     /* pop top 2 elements */
                     Runtime::ObjectRef a = std::move(*(stack.end() - 2));
@@ -222,11 +266,11 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
 
                     /* check stack */
                     if (stack.empty())
-                        throw Runtime::InternalError("Stack is empty");
+                        throw Exceptions::InternalError("Stack is empty");
 
                     /* check local ID */
                     if (id >= code->names().size())
-                        throw Runtime::InternalError(Utils::Strings::format("Name ID %u out of range", id));
+                        throw Exceptions::InternalError(Utils::Strings::format("Name ID %u out of range", id));
 
                     /* remove the attribute */
                     stack.back()->type()->objectDelAttr(stack.back(), code->names()[id]);
@@ -239,7 +283,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 {
                     /* check stack */
                     if (stack.size() < 2)
-                        throw Runtime::InternalError("Stack underflow");
+                        throw Exceptions::InternalError("Stack underflow");
 
                     /* pop top 2 elements */
                     Runtime::ObjectRef a = std::move(*(stack.end() - 2));
@@ -256,7 +300,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 {
                     /* check stack */
                     if (stack.size() < 3)
-                        throw Runtime::InternalError("Stack underflow");
+                        throw Exceptions::InternalError("Stack underflow");
 
                     /* pop top 3 elements */
                     Runtime::ObjectRef a = std::move(*(stack.end() - 3));
@@ -274,7 +318,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 {
                     /* check stack */
                     if (stack.size() < 2)
-                        throw Runtime::InternalError("Stack underflow");
+                        throw Exceptions::InternalError("Stack underflow");
 
                     /* pop top 2 elements */
                     Runtime::ObjectRef a = std::move(*(stack.end() - 2));
@@ -291,7 +335,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 {
                     /* check for stack */
                     if (stack.empty())
-                        throw Runtime::InternalError("Stack is empty");
+                        throw Exceptions::InternalError("Stack is empty");
 
                     /* return the stack top */
                     // TODO: check exception handling blocks
@@ -304,7 +348,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 case OpCode::CALL_FUNCTION:
                 {
                     // TODO: implement this
-                    throw Runtime::InternalError("not implemented yet");
+                    throw Exceptions::InternalError("not implemented yet");
                 }
 
                 /* duplicate stack top */
@@ -312,7 +356,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 {
                     /* check for stack */
                     if (stack.empty())
-                        throw Runtime::InternalError("Stack is empty");
+                        throw Exceptions::InternalError("Stack is empty");
 
                     /* pushing the top again */
                     stack.emplace_back(stack.back());
@@ -324,7 +368,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 {
                     /* check for stack */
                     if (stack.size() < 2)
-                        throw Runtime::InternalError("Stack underflow");
+                        throw Exceptions::InternalError("Stack underflow");
 
                     /* pushing the top two elements */
                     stack.emplace_back(*(stack.end() - 2));
@@ -337,7 +381,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 {
                     /* check for stack */
                     if (stack.empty())
-                        throw Runtime::InternalError("Stack is empty");
+                        throw Exceptions::InternalError("Stack is empty");
 
                     /* discard stack top */
                     stack.pop_back();
@@ -353,7 +397,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 {
                     /* check stack */
                     if (stack.empty())
-                        throw Runtime::InternalError("Stack is empty");
+                        throw Exceptions::InternalError("Stack is empty");
 
                     /* retrive stack top */
                     Runtime::ObjectRef r;
@@ -414,7 +458,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 {
                     /* check stack */
                     if (stack.size() < 2)
-                        throw Runtime::InternalError("Stack underflow");
+                        throw Exceptions::InternalError("Stack underflow");
 
                     /* pop top 2 elements */
                     Runtime::ObjectRef r;
@@ -479,7 +523,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 case OpCode::EXC_MATCH:
                 {
                     // TODO: implement these
-                    throw Runtime::InternalError("not implemented yet");
+                    throw Exceptions::InternalError("not implemented yet");
                 }
 
                 /* unconditional branch */
@@ -491,7 +535,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
 
                     /* check the jump address */
                     if (q < s || q >= e)
-                        throw Runtime::InternalError("Jump outside of code");
+                        throw Exceptions::InternalError("Jump outside of code");
 
                     /* set the instruction pointer */
                     p = q;
@@ -504,7 +548,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 {
                     /* check stack */
                     if (stack.empty())
-                        throw Runtime::InternalError("Stack is empty");
+                        throw Exceptions::InternalError("Stack is empty");
 
                     /* jump offset */
                     int32_t d = OPERAND();
@@ -512,7 +556,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
 
                     /* check the jump address */
                     if (q < s || q >= e)
-                        throw Runtime::InternalError("Jump outside of code");
+                        throw Exceptions::InternalError("Jump outside of code");
 
                     /* set the instruction pointer if condition met */
                     if ((opcode == OpCode::BRTRUE) == stack.back()->type()->objectIsTrue(stack.back()))
@@ -527,21 +571,21 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 case OpCode::RAISE:
                 {
                     // TODO: implement these
-                    throw Runtime::InternalError("not implemented yet");
+                    throw Exceptions::InternalError("not implemented yet");
                 }
 
                 /* setup exception handling block */
                 case OpCode::PUSH_BLOCK:
                 {
                     // TODO: implement these
-                    throw Runtime::InternalError("not implemented yet");
+                    throw Exceptions::InternalError("not implemented yet");
                 }
 
                 /* destroy exception handling block */
                 case OpCode::POP_BLOCK:
                 {
                     // TODO: implement these
-                    throw Runtime::InternalError("not implemented yet");
+                    throw Exceptions::InternalError("not implemented yet");
                 }
 
                 /* advance iterator */
@@ -549,7 +593,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 {
                     /* check stack */
                     if (stack.empty())
-                        throw Runtime::InternalError("Stack is empty");
+                        throw Exceptions::InternalError("Stack is empty");
 
                     /* push new object on stack top, don't replace iterator */
                     stack.emplace_back(stack.back()->type()->iterableNext(stack.back()));
@@ -566,7 +610,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
 
                     /* check stack */
                     if (stack.empty())
-                        throw Runtime::InternalError("Stack is empty");
+                        throw Exceptions::InternalError("Stack is empty");
 
                     /* pop the stack top, convert to iterator */
                     auto iter = stack.back()->type()->iterableIter(stack.back());
@@ -582,9 +626,9 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                         }
 
                     /* iterator drained in the middle of expanding */
-                    } catch (const Runtime::StopIteration &)
+                    } catch (const Exceptions::StopIteration &)
                     {
-                        throw Runtime::ValueError(Utils::Strings::format(
+                        throw Exceptions::ValueError(Utils::Strings::format(
                             "Needs %lu more items to unpack",
                             count - i
                         ));
@@ -594,10 +638,10 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                     try
                     {
                         iter->type()->iterableNext(iter);
-                        throw Runtime::ValueError("Too many items to unpack");
+                        throw Exceptions::ValueError("Too many items to unpack");
 
                     /* `StopIteration` is expected */
-                    } catch (const Runtime::StopIteration &)
+                    } catch (const Exceptions::StopIteration &)
                     {
                         /* should have no more items */
                         /* this is expected, so ignore this exception */
@@ -610,7 +654,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 case OpCode::IMPORT_ALIAS:
                 {
                     // TODO: implement these
-                    throw Runtime::InternalError("not implemented yet");
+                    throw Exceptions::InternalError("not implemented yet");
                 }
 
                 /* build a map object */
@@ -622,7 +666,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
 
                     /* check stack size */
                     if (stack.size() < count * 2)
-                        throw Runtime::InternalError("Stack underflow");
+                        throw Exceptions::InternalError("Stack underflow");
 
                     /* build the map */
                     for (auto it = stack.end() - count * 2; it != stack.end(); it += 2)
@@ -643,7 +687,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
 
                     /* check stack */
                     if (stack.size() < size)
-                        throw Runtime::InternalError("Stack underflow");
+                        throw Exceptions::InternalError("Stack underflow");
 
                     /* extract each item, in reverse order */
                     for (ssize_t i = size - 1; i >= 0; i--)
@@ -664,7 +708,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
 
                     /* check stack */
                     if (stack.size() < size)
-                        throw Runtime::InternalError("Stack underflow");
+                        throw Exceptions::InternalError("Stack underflow");
 
                     /* extract each item, in reverse order */
                     for (ssize_t i = size - 1; i >= 0; i--)
@@ -680,14 +724,14 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
                 case OpCode::MAKE_FUNCTION:
                 {
                     // TODO: implement these
-                    throw Runtime::InternalError("not implemented yet");
+                    throw Exceptions::InternalError("not implemented yet");
                 }
 
                 /* build a class object */
                 case OpCode::MAKE_CLASS:
                 {
                     // TODO: implement these
-                    throw Runtime::InternalError("not implemented yet");
+                    throw Exceptions::InternalError("not implemented yet");
                 }
 
                 /* build a native class object */
@@ -698,11 +742,11 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
 
                     /* check stack */
                     if (stack.empty())
-                        throw Runtime::InternalError("Stack is empty");
+                        throw Exceptions::InternalError("Stack is empty");
 
                     /* check operand range */
                     if (id >= code->consts().size())
-                        throw Runtime::InternalError("Constant ID out of range");
+                        throw Exceptions::InternalError("Constant ID out of range");
 
                     /* load options from stack */
                     Runtime::ObjectRef source = code->consts()[id];
@@ -710,11 +754,11 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
 
                     /* must be a map */
                     if (source->type() != Runtime::StringTypeObject)
-                        throw Runtime::InternalError("Invalid source string");
+                        throw Exceptions::InternalError("Invalid source string");
 
                     /* must be a map */
                     if (options->type() != Runtime::MapTypeObject)
-                        throw Runtime::InternalError("Invalid options map");
+                        throw Exceptions::InternalError("Invalid options map");
 
                     /* replace stack top with native class object */
                     stack.back() = Runtime::Object::newObject<Runtime::NativeClassObject>(
@@ -733,7 +777,7 @@ Runtime::ObjectRef Interpreter::eval(Runtime::Reference<Runtime::CodeObject> cod
     }
 
     /* really should not get here */
-    throw Runtime::InternalError("Unexpected termination of eval loop");
+    throw Exceptions::InternalError("Unexpected termination of eval loop");
 }
 }
 

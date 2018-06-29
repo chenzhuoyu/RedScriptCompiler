@@ -1,6 +1,6 @@
 #include "runtime/Object.h"
 #include "runtime/BoolObject.h"
-#include "runtime/InternalError.h"
+#include "exceptions/InternalError.h"
 
 namespace RedScript::Runtime
 {
@@ -47,17 +47,17 @@ void Object::initialize(void)
 
 ObjectRef Type::applyUnary(const char *name, ObjectRef self)
 {
-    throw Runtime::InternalError("not implemented yet");
+    throw Exceptions::InternalError("not implemented yet");
 }
 
 ObjectRef Type::applyBinary(const char *name, ObjectRef self, ObjectRef other, const char *alternative)
 {
-    throw Runtime::InternalError("not implemented yet");
+    throw Exceptions::InternalError("not implemented yet");
 }
 
 ObjectRef Type::applyTernary(const char *name, ObjectRef self, ObjectRef second, ObjectRef third)
 {
-    throw Runtime::InternalError("not implemented yet");
+    throw Exceptions::InternalError("not implemented yet");
 }
 
 uint64_t Type::objectHash(ObjectRef self)
@@ -96,27 +96,27 @@ bool Type::objectIsSubclassOf(ObjectRef self, TypeRef type)
 
 void Type::objectDelAttr(ObjectRef self, const std::string &name)
 {
-    throw Runtime::InternalError("not implemented yet");
+    throw Exceptions::InternalError("not implemented yet");
 }
 
 ObjectRef Type::objectGetAttr(ObjectRef self, const std::string &name)
 {
-    throw Runtime::InternalError("not implemented yet");
+    throw Exceptions::InternalError("not implemented yet");
 }
 
 void Type::objectSetAttr(ObjectRef self, const std::string &name, ObjectRef value)
 {
-    throw Runtime::InternalError("not implemented yet");
+    throw Exceptions::InternalError("not implemented yet");
 }
 
 void Type::objectDefineAttr(ObjectRef self, const std::string &name, ObjectRef value)
 {
-    throw Runtime::InternalError("not implemented yet");
+    throw Exceptions::InternalError("not implemented yet");
 }
 
 ObjectRef Type::objectInvoke(ObjectRef self, const std::vector<ObjectRef> &args)
 {
-    throw Runtime::InternalError("not implemented yet");
+    throw Exceptions::InternalError("not implemented yet");
 }
 
 ObjectRef Type::comparableEq(ObjectRef self, ObjectRef other)

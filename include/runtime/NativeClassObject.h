@@ -8,7 +8,7 @@
 
 #include "runtime/Object.h"
 #include "runtime/MapObject.h"
-#include "runtime/NativeSyntaxError.h"
+#include "exceptions/NativeSyntaxError.h"
 
 namespace RedScript::Runtime
 {
@@ -26,7 +26,7 @@ class NativeClassObject : public Object
 {
     TCCState *_tcc;
     std::string _code;
-    std::vector<NativeSyntaxError> _errors;
+    std::vector<Exceptions::NativeSyntaxError> _errors;
     std::vector<std::pair<std::string, std::string>> _options;
 
 public:
@@ -34,7 +34,7 @@ public:
     explicit NativeClassObject(const std::string &code, Runtime::Reference<Runtime::MapObject> &&options);
 
 public:
-    const std::vector<NativeSyntaxError> &errors(void) const { return _errors; }
+    const std::vector<Exceptions::NativeSyntaxError> &errors(void) const { return _errors; }
 
 public:
     static void shutdown(void) {}

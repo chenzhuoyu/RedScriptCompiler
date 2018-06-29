@@ -1,12 +1,12 @@
-#ifndef REDSCRIPT_RUNTIME_RUNTIMEERROR_H
-#define REDSCRIPT_RUNTIME_RUNTIMEERROR_H
+#ifndef REDSCRIPT_EXCEPTIONS_RUNTIMEERROR_H
+#define REDSCRIPT_EXCEPTIONS_RUNTIMEERROR_H
 
 #include <string>
 #include <exception>
 
 #include "utils/Strings.h"
 
-namespace RedScript::Runtime
+namespace RedScript::Exceptions
 {
 class RuntimeError : public std::exception
 {
@@ -30,4 +30,4 @@ public:
 };
 }
 
-#endif /* REDSCRIPT_RUNTIME_RUNTIMEERROR_H */
+#endif /* REDSCRIPT_EXCEPTIONS_RUNTIMEERROR_H */

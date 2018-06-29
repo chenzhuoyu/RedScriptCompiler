@@ -52,30 +52,32 @@ set(SOURCE_FILES
         include/compiler/Parser.h
         include/compiler/Tokenizer.h
         include/engine/Bytecode.h
+        include/engine/Closure.h
         include/engine/GarbageCollector.h
         include/engine/Interpreter.h
         include/engine/Memory.h
         include/engine/Thread.h
+        include/exceptions/InternalError.h
+        include/exceptions/NameError.h
+        include/exceptions/NativeSyntaxError.h
+        include/exceptions/RuntimeError.h
+        include/exceptions/StopIteration.h
+        include/exceptions/SyntaxError.h
+        include/exceptions/TypeError.h
+        include/exceptions/ValueError.h
         include/runtime/ArrayObject.h
         include/runtime/BoolObject.h
         include/runtime/CodeObject.h
         include/runtime/DecimalObject.h
         include/runtime/ExceptionBlockObject.h
-        include/runtime/InternalError.h
         include/runtime/IntObject.h
         include/runtime/MapObject.h
         include/runtime/NativeClassObject.h
-        include/runtime/NativeSyntaxError.h
         include/runtime/NullObject.h
         include/runtime/Object.h
         include/runtime/ReferenceCounted.h
-        include/runtime/RuntimeError.h
-        include/runtime/StopIteration.h
         include/runtime/StringObject.h
-        include/runtime/SyntaxError.h
-        include/runtime/TypeError.h
         include/runtime/TupleObject.h
-        include/runtime/ValueError.h
         include/utils/Immovable.h
         include/utils/NonCopyable.h
         include/utils/Preprocessor.h
