@@ -54,9 +54,10 @@
 //)source";
 
 const char *source = R"source(#!/usr/bin/env redscript
-def foo(a, b, c = 10, *d, **e) {
-    return 1;
+def test(s) {
+    println(s)
 }
+test('hello, world')
 )source";
 
 #include <iostream>

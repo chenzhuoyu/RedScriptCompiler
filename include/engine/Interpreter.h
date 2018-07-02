@@ -11,6 +11,9 @@ namespace RedScript::Engine
 {
 class Interpreter
 {
+    Runtime::ObjectRef tupleConcat(Runtime::ObjectRef a, Runtime::ObjectRef b);
+    Runtime::ObjectRef hashmapConcat(Runtime::ObjectRef a, Runtime::ObjectRef b);
+
 public:
     Runtime::ObjectRef eval(
         Runtime::Reference<Runtime::CodeObject> code,

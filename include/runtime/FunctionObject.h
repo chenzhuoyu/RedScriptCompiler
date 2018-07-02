@@ -1,6 +1,7 @@
 #ifndef REDSCRIPT_RUNTIME_FUNCTIONOBJECT_H
 #define REDSCRIPT_RUNTIME_FUNCTIONOBJECT_H
 
+#include "engine/Closure.h"
 #include "runtime/Object.h"
 #include "runtime/CodeObject.h"
 #include "runtime/TupleObject.h"
@@ -12,6 +13,9 @@ class FunctionType : public Type
 public:
     explicit FunctionType() : Type("function") {}
 
+public:
+    virtual ObjectRef objectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs) override;
+
 };
 
 /* type object for function */
@@ -21,10 +25,18 @@ class FunctionObject : public Object
 {
     Reference<CodeObject> _code;
     Reference<TupleObject> _defaults;
+    std::unordered_map<std::string, Engine::ClosureRef> _closure;
 
 public:
     virtual ~FunctionObject() = default;
-    explicit FunctionObject(ObjectRef code, ObjectRef defaults);
+    explicit FunctionObject(
+        Reference<CodeObject> code,
+        Reference<TupleObject> defaults,
+        std::unordered_map<std::string, Engine::ClosureRef> &closure
+    ) : Object(FunctionTypeObject),
+        _code(std::move(code)),
+        _closure(std::move(closure)),
+        _defaults(std::move(defaults)) {}
 
 public:
     static void shutdown(void) {}

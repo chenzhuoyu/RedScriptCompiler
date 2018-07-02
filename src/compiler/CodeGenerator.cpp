@@ -209,9 +209,6 @@ void CodeGenerator::visitFor(const std::unique_ptr<AST::For> &node)
     /* patch all "break" branches, after "else" clause */
     for (uint32_t offset : breakBranches)
         patchBranch(offset, pc());
-
-    /* drop the stack top iterator */
-    emit(node, Engine::OpCode::DROP);
 }
 
 void CodeGenerator::visitTry(const std::unique_ptr<AST::Try> &node)
@@ -224,6 +221,7 @@ void CodeGenerator::visitTry(const std::unique_ptr<AST::Try> &node)
     /* generate the body within an exception handling block */
     emitOperand(node, Engine::OpCode::PUSH_BLOCK, addConst(block));
     visitStatement(node->body);
+    emit(node, Engine::OpCode::POP_BLOCK);
 
     /* skip the exception block, to the finally block */
     jumpFinally.push_back(emitJump(node->body, Engine::OpCode::BR));
@@ -232,7 +230,7 @@ void CodeGenerator::visitTry(const std::unique_ptr<AST::Try> &node)
     /* generate "except" if any */
     for (const auto &except : node->excepts)
     {
-        /* patch the last "except" block if any */
+        /* patch the previous "except" block if any */
         if (!isFirst)
         {
             jumpFinally.emplace_back(emitJump(except.exception, Engine::OpCode::BR));
@@ -271,9 +269,6 @@ void CodeGenerator::visitTry(const std::unique_ptr<AST::Try> &node)
         block->setFinally(pc());
         visitStatement(node->finally);
     }
-
-    /* exit the exception handling context */
-    emit(node, Engine::OpCode::POP_BLOCK);
 }
 
 void CodeGenerator::visitClass(const std::unique_ptr<AST::Class> &node)

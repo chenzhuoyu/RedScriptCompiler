@@ -1,3 +1,4 @@
+#include "runtime/MapObject.h"
 #include "runtime/FunctionObject.h"
 #include "exceptions/InternalError.h"
 
@@ -6,19 +7,12 @@ namespace RedScript::Runtime
 /* type object for function */
 TypeRef FunctionTypeObject;
 
-FunctionObject::FunctionObject(ObjectRef code, ObjectRef defaults) : Object(FunctionTypeObject)
+ObjectRef FunctionType::objectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs)
 {
-    /* check for code object */
-    if (!(code->type().isIdenticalWith(CodeTypeObject)))
-        throw Exceptions::InternalError("`code` must be a code object");
-
-    /* check for tuple object */
-    if (!(defaults->type().isIdenticalWith(TupleTypeObject)))
-        throw Exceptions::InternalError("`defaults` must be a tuple object");
-
-    /* convert to corresponding type */
-    _code = code.as<CodeObject>();
-    _defaults = defaults.as<TupleObject>();
+    printf("self: %s\n", self->type()->objectRepr(self).c_str());
+    printf("args: %s (%zu)\n", args->type()->objectRepr(args).c_str(), args.as<Runtime::TupleObject>()->size());
+    printf("kwargs: %s (%zu)\n", kwargs->type()->objectRepr(kwargs).c_str(), kwargs.as<Runtime::MapObject>()->size());
+    return Type::objectInvoke(self, args, kwargs);
 }
 
 void FunctionObject::initialize(void)

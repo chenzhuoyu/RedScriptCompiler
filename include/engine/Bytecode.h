@@ -81,7 +81,7 @@ enum class OpCode : uint8_t
     PUSH_BLOCK      = 0x54,         // PUSH_BLOCK       <block>     Load exception rescure block
     POP_BLOCK       = 0x55,         // POP_BLOCK                    Restore stack and destroy rescure block
 
-    ITER_NEXT       = 0x56,         // ITER_NEXT        <pc>        push(<stack_top>.__next__()), if StopIteration, goto <pc>
+    ITER_NEXT       = 0x56,         // ITER_NEXT        <pc>        push(<stack_top>.__next__()), if StopIteration, drop <stack_top> and goto <pc>
     EXPAND_SEQ      = 0x57,         // EXPAND_SEQ       <count>     Expand sequence on <stack_top> in reverse order
     IMPORT_ALIAS    = 0x58,         // IMPORT_ALIAS     <name>      Import a module <name>, from file <stack_top>
 

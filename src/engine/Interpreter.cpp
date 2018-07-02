@@ -28,6 +28,82 @@
 
 namespace RedScript::Engine
 {
+Runtime::ObjectRef Interpreter::tupleConcat(Runtime::ObjectRef a, Runtime::ObjectRef b)
+{
+    /* both are null */
+    if (a.isNull() && b.isNull())
+        return Runtime::Object::newObject<Runtime::TupleObject>(0);
+
+    /* a == null, b != null */
+    if (a.isNull() && !(b.isNull()))
+        return b;
+
+    /* b == null, a != null */
+    if (b.isNull() && !(a.isNull()))
+        return a;
+
+    /* check for left tuple */
+    if (!(a->type().isIdenticalWith(Runtime::TupleTypeObject)))
+        throw Exceptions::InternalError("Invalid left tuple object");
+
+    /* check for right tuple */
+    if (!(b->type().isIdenticalWith(Runtime::TupleTypeObject)))
+        throw Exceptions::InternalError("Invalid right tuple object");
+
+    /* calculate it's size, and allocate a new tuple */
+    auto tupleA = a.as<Runtime::TupleObject>();
+    auto tupleB = b.as<Runtime::TupleObject>();
+    auto result = Runtime::Object::newObject<Runtime::TupleObject>(tupleA->size() + tupleB->size());
+
+    /* copy all items from left tuple */
+    for (size_t i = 0; i < tupleA->size(); i++)
+        result->items()[i] = tupleA->items()[i];
+
+    /* copy all items from right tuple */
+    for (size_t i = 0; i < tupleB->size(); i++)
+        result->items()[i + tupleA->size()] = tupleB->items()[i];
+
+    /* move to prevent copy */
+    return std::move(result);
+}
+
+Runtime::ObjectRef Interpreter::hashmapConcat(Runtime::ObjectRef a, Runtime::ObjectRef b)
+{
+    /* both are null */
+    if (a.isNull() && b.isNull())
+        return Runtime::Object::newObject<Runtime::MapObject>(Runtime::MapObject::Mode::Ordered);
+
+    /* a == null, b != null */
+    if (a.isNull() && !(b.isNull()))
+        return b;
+
+    /* b == null, a != null */
+    if (b.isNull() && !(a.isNull()))
+        return a;
+
+    /* check for left map */
+    if (!(a->type().isIdenticalWith(Runtime::MapTypeObject)))
+        throw Exceptions::InternalError("Invalid left map object");
+
+    /* check for right map */
+    if (!(b->type().isIdenticalWith(Runtime::MapTypeObject)))
+        throw Exceptions::InternalError("Invalid right map object");
+
+    /* convert to map types */
+    auto mapA = a.as<Runtime::MapObject>();
+    auto mapB = b.as<Runtime::MapObject>();
+
+    /* all merge to left map */
+    mapB->enumerate([&](Runtime::ObjectRef key, Runtime::ObjectRef value)
+    {
+        mapA->insert(key, value);
+        return true;
+    });
+
+    /* move to prevent copy */
+    return std::move(a);
+}
+
 Runtime::ObjectRef Interpreter::eval(
     Runtime::Reference<Runtime::CodeObject> code,
     const std::unordered_map<std::string, ClosureRef> &closure
@@ -121,6 +197,11 @@ Runtime::ObjectRef Interpreter::eval(
                     /* found, use the closure value */
                     if (cliter != closure.end())
                     {
+                        /* must be assigned before using */
+                        if (cliter->second->get().isNull())
+                            throw Exceptions::RuntimeError(Utils::Strings::format("Variable \"%s\" referenced before assignment", name));
+
+                        /* push onto the stack */
                         stack.emplace_back(cliter->second->get());
                         break;
                     }
@@ -348,8 +429,99 @@ Runtime::ObjectRef Interpreter::eval(
                 /* invoke as function */
                 case OpCode::CALL_FUNCTION:
                 {
-                    // TODO: implement this
-                    throw Exceptions::InternalError("not implemented yet");
+                    /* invocation flags */
+                    uint32_t flags = OPERAND();
+                    Runtime::ObjectRef obj = nullptr;
+                    Runtime::ObjectRef vargs = nullptr;
+                    Runtime::ObjectRef kwargs = nullptr;
+
+                    /* decorator invocation */
+                    if (flags & FI_DECORATOR)
+                    {
+                        /* should be the only flag */
+                        if (flags != FI_DECORATOR)
+                            throw Exceptions::InternalError(Utils::Strings::format("Invalid invocation flags 0x%.8x", flags));
+
+                        /* check for stack */
+                        if (stack.empty())
+                            throw Exceptions::InternalError("Stack is empty");
+
+                        /* create invocation parameters */
+                        vargs = Runtime::Object::newObject<Runtime::TupleObject>(1);
+                        kwargs = Runtime::Object::newObject<Runtime::MapObject>(Runtime::MapObject::Mode::Ordered);
+
+                        /* build a tuple from stack top */
+                        vargs.as<Runtime::TupleObject>()->items()[0] = stack.back();
+                        stack.pop_back();
+                    }
+
+                    /* normal invocation */
+                    else
+                    {
+                        Runtime::ObjectRef args = nullptr;
+                        Runtime::ObjectRef named = nullptr;
+
+                        /* have keyword arguments */
+                        if (flags & FI_KWARGS)
+                        {
+                            /* check for stack */
+                            if (stack.empty())
+                                throw Exceptions::InternalError("Stack is empty");
+
+                            /* pop keyword arguments from stack */
+                            kwargs = std::move(stack.back());
+                            stack.pop_back();
+                        }
+
+                        /* have variadic arguments */
+                        if (flags & FI_VARGS)
+                        {
+                            /* check for stack */
+                            if (stack.empty())
+                                throw Exceptions::InternalError("Stack is empty");
+
+                            /* pop variadic arguments from stack */
+                            vargs = std::move(stack.back());
+                            stack.pop_back();
+                        }
+
+                        /* have named arguments */
+                        if (flags & FI_NAMED)
+                        {
+                            /* check for stack */
+                            if (stack.empty())
+                                throw Exceptions::InternalError("Stack is empty");
+
+                            /* pop named arguments from stack */
+                            named = std::move(stack.back());
+                            stack.pop_back();
+                        }
+
+                        /* have arguments */
+                        if (flags & FI_ARGS)
+                        {
+                            /* check for stack */
+                            if (stack.empty())
+                                throw Exceptions::InternalError("Stack is empty");
+
+                            /* pop normal arguments from stack */
+                            args = std::move(stack.back());
+                            stack.pop_back();
+                        }
+
+                        /* merge with other arguments */
+                        vargs = tupleConcat(args, vargs);
+                        kwargs = hashmapConcat(named, kwargs);
+                    }
+
+                    /* check for stack */
+                    if (stack.empty())
+                        throw Exceptions::InternalError("Stack is empty");
+
+                    /* pop callable object from stack, and invoke it */
+                    obj = std::move(stack.back());
+                    stack.back() = obj->type()->objectInvoke(obj, vargs, kwargs);
+                    break;
                 }
 
                 /* duplicate stack top */
@@ -596,9 +768,24 @@ Runtime::ObjectRef Interpreter::eval(
                     if (stack.empty())
                         throw Exceptions::InternalError("Stack is empty");
 
-                    /* push new object on stack top, don't replace iterator */
-                    stack.emplace_back(stack.back()->type()->iterableNext(stack.back()));
-                    break;
+                    /* jump address when iterator drained */
+                    int32_t d = OPERAND();
+                    const char *q = p + d - sizeof(uint32_t) - 1;
+
+                    /* try push new object on stack top, don't destroy the iterator */
+                    try
+                    {
+                        stack.emplace_back(stack.back()->type()->iterableNext(stack.back()));
+                        break;
+                    }
+
+                    /* iterator drained, drop the iterator, and jump to address */
+                    catch (const Exceptions::StopIteration &)
+                    {
+                        p = q;
+                        stack.pop_back();
+                        break;
+                    }
                 }
 
                 /* expand sequence in reverse order */
@@ -614,7 +801,8 @@ Runtime::ObjectRef Interpreter::eval(
                         throw Exceptions::InternalError("Stack is empty");
 
                     /* pop the stack top, convert to iterator */
-                    auto iter = stack.back()->type()->iterableIter(stack.back());
+                    auto top = std::move(stack.back());
+                    auto iter = top->type()->iterableIter(top);
                     stack.pop_back();
 
                     /* get all items from iterator */
@@ -625,9 +813,10 @@ Runtime::ObjectRef Interpreter::eval(
                             items[i] = iter->type()->iterableNext(iter);
                             i++;
                         }
+                    }
 
                     /* iterator drained in the middle of expanding */
-                    } catch (const Exceptions::StopIteration &)
+                    catch (const Exceptions::StopIteration &)
                     {
                         throw Exceptions::ValueError(Utils::Strings::format(
                             "Needs %lu more items to unpack",
@@ -640,13 +829,18 @@ Runtime::ObjectRef Interpreter::eval(
                     {
                         iter->type()->iterableNext(iter);
                         throw Exceptions::ValueError("Too many items to unpack");
+                    }
 
                     /* `StopIteration` is expected */
-                    } catch (const Exceptions::StopIteration &)
+                    catch (const Exceptions::StopIteration &)
                     {
                         /* should have no more items */
                         /* this is expected, so ignore this exception */
                     }
+
+                    /* push back to the stack in reverse order */
+                    for (auto it = items.rbegin(); it != items.rend(); it++)
+                        stack.emplace_back(*it);
 
                     break;
                 }
@@ -674,7 +868,7 @@ Runtime::ObjectRef Interpreter::eval(
                         map->insert(std::move(*it), std::move(*(it + 1)));
 
                     /* adjust the stack */
-                    stack.resize(stack.size() - count);
+                    stack.resize(stack.size() - count * 2);
                     stack.emplace_back(map);
                     break;
                 }
@@ -738,8 +932,49 @@ Runtime::ObjectRef Interpreter::eval(
                     if (id >= code->consts().size())
                         throw Exceptions::InternalError(Utils::Strings::format("Constant ID %u out of range", id));
 
+                    /* check for tuple object */
+                    if (!(def->type().isIdenticalWith(Runtime::TupleTypeObject)))
+                        throw Exceptions::InternalError("Invalid tuple object");
+
+                    /* check for code object */
+                    if (!(code->consts()[id]->type().isIdenticalWith(Runtime::CodeTypeObject)))
+                        throw Exceptions::InternalError("Invalid code object");
+
+                    /* convert to corresponding type */
+                    auto funcDef = def.as<Runtime::TupleObject>();
+                    auto funcCode = code->consts()[id].as<Runtime::CodeObject>();
+                    std::unordered_map<std::string, Engine::ClosureRef> funcClosure;
+
+                    /* build function closure */
+                    for (const auto &item : funcCode->names())
+                    {
+                        /* find from local variables first */
+                        auto iter = code->localMap().find(item);
+
+                        /* it's a local variable, wrap it as closure */
+                        if (iter != code->localMap().end())
+                        {
+                            closures[iter->second] = std::make_unique<Closure::Context>(&locals, iter->second);
+                            funcClosure.emplace(item, closures[iter->second]->ref);
+                        }
+                        else
+                        {
+                            /* otherwise, find in closure map */
+                            auto cliter = closure.find(item);
+
+                            /* if found, inherit the closure */
+                            if (cliter != closure.end())
+                                funcClosure.emplace(item, cliter->second);
+
+                            /* if not found, it should never be found again,
+                             * but we don't throw exceptions here, the opcode
+                             * LOAD_NAME will throw an exception for us when it
+                             * comes to resolving the name */
+                        }
+                    }
+
                     /* create function object, and put on stack */
-                    stack.back() = Runtime::Object::newObject<Runtime::FunctionObject>(code->consts()[id], def);
+                    stack.back() = Runtime::Object::newObject<Runtime::FunctionObject>(funcCode, funcDef, funcClosure);
                     break;
                 }
 
@@ -785,7 +1020,10 @@ Runtime::ObjectRef Interpreter::eval(
                     break;
                 }
             }
-        } catch (const std::exception &e)
+        }
+
+        /* exceptions occured when executing, try exception recovery */
+        catch (const std::runtime_error &e)
         {
             // TODO: exception recovery
             throw;

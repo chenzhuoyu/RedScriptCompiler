@@ -3,6 +3,7 @@
 
 #include <string>
 #include <cstdint>
+#include <initializer_list>
 
 #include "runtime/Object.h"
 
@@ -25,7 +26,7 @@ class TupleObject : public Object
 
 public:
     virtual ~TupleObject() { delete [] _items; }
-    explicit TupleObject(size_t size) : Object(TupleTypeObject), _items(new ObjectRef[size]) {}
+    explicit TupleObject(size_t size) : Object(TupleTypeObject), _size(size), _items(new ObjectRef[size]) {}
 
 public:
     size_t size(void) const { return _size; }
