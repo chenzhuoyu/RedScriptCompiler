@@ -105,7 +105,7 @@ public:
     virtual void      objectDefineAttr(ObjectRef self, const std::string &name, ObjectRef value);
 
 public:
-    virtual ObjectRef objectInvoke(ObjectRef self, const std::vector<ObjectRef> &args);
+    virtual ObjectRef objectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs);
 
 /*** Boolean Protocol ***/
 

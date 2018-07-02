@@ -114,7 +114,7 @@ void Type::objectDefineAttr(ObjectRef self, const std::string &name, ObjectRef v
     throw Exceptions::InternalError("not implemented yet");
 }
 
-ObjectRef Type::objectInvoke(ObjectRef self, const std::vector<ObjectRef> &args)
+ObjectRef Type::objectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs)
 {
     throw Exceptions::InternalError("not implemented yet");
 }
