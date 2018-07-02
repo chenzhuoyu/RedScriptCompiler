@@ -71,7 +71,7 @@ enum class OpCode : uint8_t
     LEQ             = 0x44,
     GEQ             = 0x45,
     IN              = 0x46,         // IN                           <stack_top> in <stack_top - 1>
-    EXC_MATCH       = 0x47,         // EXC_MATCH                    exception on <stack_top - 1> matches <stack_top>, clear if match
+    EXC_MATCH       = 0x47,         // EXC_MATCH                    exception in thread state matches <stack_top>, clear if match
 
     BR              = 0x50,         // BR               <pc>        Branch to <pc>
     BRTRUE          = 0x51,         // BRTRUE           <pc>        Branch to <pc> if <stack_top> represents True
@@ -80,10 +80,11 @@ enum class OpCode : uint8_t
     RAISE           = 0x53,         // RAISE                        Raise an exception at <stack_top>
     PUSH_BLOCK      = 0x54,         // PUSH_BLOCK       <block>     Load exception rescure block
     POP_BLOCK       = 0x55,         // POP_BLOCK                    Restore stack and destroy rescure block
+    END_FINALLY     = 0x56,         // END_FINALLY                  Mark the finally block ends
 
-    ITER_NEXT       = 0x56,         // ITER_NEXT        <pc>        push(<stack_top>.__next__()), if StopIteration, drop <stack_top> and goto <pc>
-    EXPAND_SEQ      = 0x57,         // EXPAND_SEQ       <count>     Expand sequence on <stack_top> in reverse order
-    IMPORT_ALIAS    = 0x58,         // IMPORT_ALIAS     <name>      Import a module <name>, from file <stack_top>
+    ITER_NEXT       = 0x57,         // ITER_NEXT        <pc>        push(<stack_top>.__next__()), if StopIteration, drop <stack_top> and goto <pc>
+    EXPAND_SEQ      = 0x58,         // EXPAND_SEQ       <count>     Expand sequence on <stack_top> in reverse order
+    IMPORT_ALIAS    = 0x59,         // IMPORT_ALIAS     <name>      Import a module <name>, from file <stack_top>
 
     MAKE_MAP        = 0x60,         // MAKE_MAP         <count>     Construct a map literal that contains <count> keys and values
     MAKE_ARRAY      = 0x61,         // MAKE_ARRAY       <count>     Construct an array literal that contains <count> items
@@ -103,7 +104,7 @@ static const uint32_t FI_ARGS       = 0x00000001;    /* have arguments */
 static const uint32_t FI_NAMED      = 0x00000002;    /* have named arguments */
 static const uint32_t FI_VARGS      = 0x00000004;    /* have variable arguments */
 static const uint32_t FI_KWARGS     = 0x00000008;    /* have keyword arguments */
-static const uint32_t FI_DECORATOR  = 0x00000010;    /* decorator invocation */
+static const uint32_t FI_DECORATOR  = 0x00000010;    /* decorator invocation, exclusive flag */
 
 /* flags for each opcode */
 static uint32_t OpCodeFlags[256] = {
@@ -207,12 +208,12 @@ static uint32_t OpCodeFlags[256] = {
     0,                  /* 0x53 :: RAISE         */
     OP_V,               /* 0x54 :: PUSH_BLOCK    */
     0,                  /* 0x55 :: POP_BLOCK     */
+    0,                  /* 0x56 :: END_FINALLY   */
 
-    OP_V | OP_REL,      /* 0x56 :: ITER_NEXT     */
-    OP_V,               /* 0x57 :: EXPAND_SEQ    */
-    OP_V,               /* 0x58 :: IMPORT_ALIAS  */
+    OP_V | OP_REL,      /* 0x57 :: ITER_NEXT     */
+    OP_V,               /* 0x58 :: EXPAND_SEQ    */
+    OP_V,               /* 0x59 :: IMPORT_ALIAS  */
 
-    0,
     0,
     0,
     0,
@@ -334,12 +335,12 @@ static const char *OpCodeNames[256] = {
     "RAISE",                /* 0x53 */
     "PUSH_BLOCK",           /* 0x54 */
     "POP_BLOCK",            /* 0x55 */
+    "END_FINALLY",          /* 0x56 */
 
-    "ITER_NEXT",            /* 0x56 */
-    "EXPAND_SEQ",           /* 0x57 */
-    "IMPORT_ALIAS",         /* 0x58 */
+    "ITER_NEXT",            /* 0x57 */
+    "EXPAND_SEQ",           /* 0x58 */
+    "IMPORT_ALIAS",         /* 0x59 */
 
-    nullptr,
     nullptr,
     nullptr,
     nullptr,

@@ -761,6 +761,13 @@ Runtime::ObjectRef Interpreter::eval(
                     throw Exceptions::InternalError("not implemented yet");
                 }
 
+                /* end of the finally block */
+                case OpCode::END_FINALLY:
+                {
+                    // TODO: implement these
+                    throw Exceptions::InternalError("not implemented yet");
+                }
+
                 /* advance iterator */
                 case OpCode::ITER_NEXT:
                 {

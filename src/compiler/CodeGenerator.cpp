@@ -214,7 +214,8 @@ void CodeGenerator::visitFor(const std::unique_ptr<AST::For> &node)
 void CodeGenerator::visitTry(const std::unique_ptr<AST::Try> &node)
 {
     bool isFirst = true;
-    uint32_t lastOffset = UINT32_MAX;
+    uint32_t tryStart = pc();
+    uint32_t nextBlock = UINT32_MAX;
     std::vector<uint32_t> jumpFinally = {};
     Runtime::Reference<Runtime::ExceptionBlockObject> block = Runtime::Object::newObject<Runtime::ExceptionBlockObject>();
 
@@ -222,10 +223,7 @@ void CodeGenerator::visitTry(const std::unique_ptr<AST::Try> &node)
     emitOperand(node, Engine::OpCode::PUSH_BLOCK, addConst(block));
     visitStatement(node->body);
     emit(node, Engine::OpCode::POP_BLOCK);
-
-    /* skip the exception block, to the finally block */
-    jumpFinally.push_back(emitJump(node->body, Engine::OpCode::BR));
-    block->setExcept(pc());
+    block->setExcept(pc() - tryStart);
 
     /* generate "except" if any */
     for (const auto &except : node->excepts)
@@ -234,7 +232,7 @@ void CodeGenerator::visitTry(const std::unique_ptr<AST::Try> &node)
         if (!isFirst)
         {
             jumpFinally.emplace_back(emitJump(except.exception, Engine::OpCode::BR));
-            patchBranch(lastOffset, pc());
+            patchBranch(nextBlock, pc());
         }
 
         /* match the current exception */
@@ -243,7 +241,7 @@ void CodeGenerator::visitTry(const std::unique_ptr<AST::Try> &node)
 
         /* skip to next "except" block if not matches */
         isFirst = false;
-        lastOffset = emitJump(except.exception, Engine::OpCode::BRFALSE);
+        nextBlock = emitJump(except.exception, Engine::OpCode::BRFALSE);
 
         /* save to alias if present */
         if (!(except.alias))
@@ -257,18 +255,21 @@ void CodeGenerator::visitTry(const std::unique_ptr<AST::Try> &node)
 
     /* patch the last exception branch if any */
     if (!isFirst)
-        patchBranch(lastOffset, pc());
+        patchBranch(nextBlock, pc());
 
     /* finally all goes here */
     for (const auto &offset : jumpFinally)
         patchBranch(offset, pc());
 
+    /* finally block begins here */
+    block->setFinally(pc() - tryStart);
+
     /* generate finally if any */
     if (node->finally)
-    {
-        block->setFinally(pc());
         visitStatement(node->finally);
-    }
+
+    /* end of the finally block */
+    emit(node, Engine::OpCode::END_FINALLY);
 }
 
 void CodeGenerator::visitClass(const std::unique_ptr<AST::Class> &node)
