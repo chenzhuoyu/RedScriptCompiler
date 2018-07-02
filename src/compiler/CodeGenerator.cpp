@@ -465,7 +465,7 @@ void CodeGenerator::buildCompositeTarget(const std::unique_ptr<AST::Composite> &
                 auto &attr = node->mods.back().attribute->attr;
                 uint32_t vid = addName(attr->name);
 
-                /* it's defining attributes only if : */
+                /* it's defining attributes iff : */
                 if (isInConstructor() &&                                    /* in constructor */
                     (node->mods.size() == 1) &&                             /* must have only one modifier */
                     (node->vtype == AST::Composite::ValueType::Name) &&     /* setting attributes on a solo name */
