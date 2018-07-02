@@ -1,7 +1,6 @@
 #ifndef REDSCRIPT_RUNTIME_EXCEPTIONBLOCKOBJECT_H
 #define REDSCRIPT_RUNTIME_EXCEPTIONBLOCKOBJECT_H
 
-#include <vector>
 #include <string>
 #include <cstdint>
 

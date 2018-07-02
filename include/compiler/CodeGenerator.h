@@ -62,8 +62,13 @@ private:
 
 private:
     inline std::vector<char> &buffer(void) { return code()->buffer(); }
+    inline std::vector<std::string> &args(void) { return code()->args(); }
     inline std::vector<std::string> &names(void) { return code()->names(); }
     inline std::vector<Runtime::ObjectRef> &consts(void) { return code()->consts(); }
+
+private:
+    inline void setVargs(const std::string &vargs) { code()->setVargs(vargs); }
+    inline void setKwargs(const std::string &kwargs) { code()->setKwargs(kwargs); }
 
 private:
     inline uint32_t addName(const std::string &name) { return code()->addName(name); }
@@ -199,9 +204,6 @@ public:
     Runtime::ObjectRef build(void);
 
 /*** Language Structures ***/
-
-private:
-    uint32_t mergeCodeFrame(CodeFrame &frame);
 
 private:
     void buildClassObject(const std::unique_ptr<AST::Class> &node);

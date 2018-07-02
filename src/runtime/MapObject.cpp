@@ -139,11 +139,22 @@ void MapObject::enumerate(MapObject::EnumeratorFunc func)
 {
     /* lock in shared mode */
     Utils::RWLock::Read _(_rwlock);
-    Node *node = _head.next;
 
-    /* traverse each node */
-    while ((node != &_head) && func(node->key, node->value))
-        node = node->next;
+    /* unordered maps have no list head */
+    if (_mode == Mode::Unordered)
+    {
+        /* in which case just walk through the map */
+        for (const auto &item : _map)
+            if (!func(item.first, item.second->value))
+                break;
+    }
+    else
+    {
+        /* otherwise traverse the list, which preserve the order */
+        for (Node *node = _head.next; node != &_head; node = node->next)
+            if (!func(node->key, node->value))
+                break;
+    }
 }
 
 void MapObject::enumerateCopy(MapObject::EnumeratorFunc func)
@@ -151,23 +162,33 @@ void MapObject::enumerateCopy(MapObject::EnumeratorFunc func)
     std::vector<Runtime::ObjectRef> keys;
     std::vector<Runtime::ObjectRef> values;
 
-    /* restrict the lock within scope, and perform
-     * copy operations before actual enumeration */
     {
-        /* lock in shared mode */
+        /* restrict the lock within scope, and perform
+         * copy operations before actual enumeration */
         Utils::RWLock::Read _(_rwlock);
-        Node *node = _head.next;
 
         /* reserve space for key value pair */
         keys.reserve(_map.size());
         values.reserve(_map.size());
 
-        /* copy key-value pair into buffer */
-        while (node != &_head)
+        /* unordered maps have no list head */
+        if (_mode == Mode::Unordered)
         {
-            keys.emplace_back(node->key);
-            values.emplace_back(node->value);
-            node = node->next;
+            /* in which case just walk through the map */
+            for (const auto &item : _map)
+            {
+                keys.emplace_back(item.first);
+                values.emplace_back(item.second->value);
+            }
+        }
+        else
+        {
+            /* otherwise traverse the list, which preserve the order */
+            for (Node *node = _head.next; node != &_head; node = node->next)
+            {
+                keys.emplace_back(node->key);
+                values.emplace_back(node->value);
+            }
         }
     }
 

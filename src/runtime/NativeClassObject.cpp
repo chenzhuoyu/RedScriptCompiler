@@ -80,11 +80,11 @@ NativeClassObject::NativeClassObject(
     options->enumerate([&](ObjectRef key, ObjectRef value)
     {
         /* key must be string */
-        if (key->type() != StringTypeObject)
+        if (!(key->type().isIdenticalWith(StringTypeObject)))
             throw Exceptions::InternalError("Non-string keys");
 
         /* value must be string either */
-        if (value->type() != StringTypeObject)
+        if (!(value->type().isIdenticalWith(StringTypeObject)))
             throw Exceptions::InternalError("Non-string values");
 
         /* add to options list */

@@ -1,8 +1,8 @@
 #ifndef REDSCRIPT_RUNTIME_ARRAYOBJECT_H
 #define REDSCRIPT_RUNTIME_ARRAYOBJECT_H
 
-#include <vector>
 #include <string>
+#include <vector>
 #include <cstdint>
 
 #include "runtime/Object.h"

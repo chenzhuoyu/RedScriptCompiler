@@ -1,7 +1,6 @@
 #ifndef REDSCRIPT_RUNTIME_MAPOBJECT_H
 #define REDSCRIPT_RUNTIME_MAPOBJECT_H
 
-#include <vector>
 #include <string>
 #include <cstdint>
 #include <functional>

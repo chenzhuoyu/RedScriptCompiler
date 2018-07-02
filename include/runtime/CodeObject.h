@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <unordered_map>
 
 #include "engine/Bytecode.h"
 #include "runtime/Object.h"
@@ -25,7 +26,12 @@ class CodeObject : public Object
     friend class CodeType;
 
 private:
+    std::string _vargs;
+    std::string _kwargs;
+
+private:
     std::vector<char> _buffer;
+    std::vector<std::string> _argTable;
     std::vector<std::string> _nameTable;
     std::vector<std::string> _localTable;
     std::vector<Runtime::ObjectRef> _constTable;
@@ -41,7 +47,12 @@ public:
     explicit CodeObject() : Object(CodeTypeObject) {}
 
 public:
+    const std::string &vargs(void) const { return _vargs; }
+    const std::string &kwargs(void) const { return _kwargs; }
+
+public:
     std::vector<char> &buffer(void) { return _buffer; }
+    std::vector<std::string> &args(void) { return _argTable; }
     std::vector<std::string> &names(void) { return _nameTable; }
     std::vector<std::string> &locals(void) { return _localTable; }
     std::vector<Runtime::ObjectRef> &consts(void) { return _constTable; }
@@ -50,6 +61,10 @@ public:
 public:
     std::unordered_map<std::string, uint32_t> &nameMap(void) { return _names; }
     std::unordered_map<std::string, uint32_t> &localMap(void) { return _locals; }
+
+public:
+    void setVargs(const std::string &vargs) { _vargs = vargs; }
+    void setKwargs(const std::string &kwargs) { _kwargs = kwargs; }
 
 public:
     uint32_t addName(const std::string &name);

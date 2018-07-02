@@ -87,11 +87,11 @@ bool Type::objectIsSubclassOf(ObjectRef self, TypeRef type)
     TypeRef t = self.as<Type>();
 
     /* search for parent classes */
-    while (t != type && t != TypeObject)
+    while (t.isIdenticalWith(type) && t.isIdenticalWith(TypeObject))
         t = t->super();
 
     /* check for type */
-    return t == type;
+    return t.isIdenticalWith(type);
 }
 
 void Type::objectDelAttr(ObjectRef self, const std::string &name)

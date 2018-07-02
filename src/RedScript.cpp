@@ -12,6 +12,7 @@
 #include "runtime/TupleObject.h"
 #include "runtime/StringObject.h"
 #include "runtime/DecimalObject.h"
+#include "runtime/FunctionObject.h"
 #include "runtime/NativeClassObject.h"
 #include "runtime/ExceptionBlockObject.h"
 
@@ -22,6 +23,7 @@ void shutdown(void)
     /* generic objects */
     RedScript::Runtime::ExceptionBlockObject::shutdown();
     RedScript::Runtime::NativeClassObject::shutdown();
+    RedScript::Runtime::FunctionObject::shutdown();
     RedScript::Runtime::DecimalObject::shutdown();
     RedScript::Runtime::TupleObject::shutdown();
     RedScript::Runtime::ArrayObject::shutdown();
@@ -61,6 +63,7 @@ void initialize(size_t young, size_t old, size_t perm)
     RedScript::Runtime::ArrayObject::initialize();
     RedScript::Runtime::TupleObject::initialize();
     RedScript::Runtime::DecimalObject::initialize();
+    RedScript::Runtime::FunctionObject::initialize();
     RedScript::Runtime::NativeClassObject::initialize();
     RedScript::Runtime::ExceptionBlockObject::initialize();
 }

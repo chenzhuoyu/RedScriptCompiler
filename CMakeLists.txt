@@ -107,7 +107,7 @@ set(SOURCE_FILES
         src/runtime/TupleObject.cpp
         src/utils/Strings.cpp
         src/RedScript.cpp
-        src/main.cpp)
+        src/main.cpp src/runtime/FunctionObject.cpp include/runtime/FunctionObject.h)
 
 add_executable(rsc ${SOURCE_FILES})
 target_link_libraries(rsc -ldl -lfmt -ljemalloc)

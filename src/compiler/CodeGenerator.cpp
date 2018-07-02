@@ -59,19 +59,6 @@ Runtime::ObjectRef CodeGenerator::build(void)
 
 /*** Language Structures ***/
 
-uint32_t CodeGenerator::mergeCodeFrame(CodeFrame &frame)
-{
-    /* pop the code object out of frame */
-    Runtime::Reference<Runtime::CodeObject> code = frame.leave();
-
-    /* merge it's free variables with ours, if we don't have them */
-    for (const auto &name : code->names())
-        addName(name);
-
-    /* then add to constant table */
-    return addConst(code);
-}
-
 void CodeGenerator::buildClassObject(const std::unique_ptr<AST::Class> &node)
 {
     /* generate super class if any */
@@ -87,7 +74,17 @@ void CodeGenerator::buildClassObject(const std::unique_ptr<AST::Class> &node)
     visitStatement(node->body);
     emit(node->body, Engine::OpCode::LOAD_NULL);
     emit(node->body, Engine::OpCode::POP_RETURN);
-    emitOperand(node, Engine::OpCode::MAKE_CLASS, mergeCodeFrame(cls));
+
+    /* pop the code object out of frame */
+    auto code = cls.leave();
+    auto codeId = addConst(code);
+
+    /* merge it's free variables with ours, if we don't have them */
+    for (const auto &name : code->names())
+        addName(name);
+
+    /* make it a class */
+    emitOperand(node, Engine::OpCode::MAKE_CLASS, codeId);
 }
 
 void CodeGenerator::buildFunctionObject(const std::unique_ptr<AST::Function> &node)
@@ -113,21 +110,40 @@ void CodeGenerator::buildFunctionObject(const std::unique_ptr<AST::Function> &no
 
     /* add all names into local variable table */
     for (const auto &name : node->args)
+    {
         addLocal(name->name);
+        args().emplace_back(name->name);
+    }
 
     /* also add vargs if any */
     if (node->vargs)
+    {
         addLocal(node->vargs->name);
+        setVargs(node->vargs->name);
+    }
 
     /* also add kwargs if any */
     if (node->kwargs)
+    {
         addLocal(node->kwargs->name);
+        setKwargs(node->kwargs->name);
+    }
 
     /* build function body, with a default return statement */
     visitStatement(node->body);
     emit(node->body, Engine::OpCode::LOAD_NULL);
     emit(node->body, Engine::OpCode::POP_RETURN);
-    emitOperand(node, Engine::OpCode::MAKE_FUNCTION, mergeCodeFrame(func));
+
+    /* pop the code object out of frame */
+    auto code = func.leave();
+    auto codeId = addConst(code);
+
+    /* merge it's free variables with ours, if we don't have them */
+    for (const auto &name : code->names())
+        addName(name);
+
+    /* make it a function */
+    emitOperand(node, Engine::OpCode::MAKE_FUNCTION, codeId);
 }
 
 void CodeGenerator::visitIf(const std::unique_ptr<AST::If> &node)

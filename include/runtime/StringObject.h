@@ -1,7 +1,6 @@
 #ifndef REDSCRIPT_RUNTIME_STRINGOBJECT_H
 #define REDSCRIPT_RUNTIME_STRINGOBJECT_H
 
-#include <vector>
 #include <string>
 #include <cstdint>
 

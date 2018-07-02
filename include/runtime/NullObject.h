@@ -1,7 +1,6 @@
 #ifndef REDSCRIPT_RUNTIME_NULLOBJECT_H
 #define REDSCRIPT_RUNTIME_NULLOBJECT_H
 
-#include <vector>
 #include <string>
 #include <cstdint>
 

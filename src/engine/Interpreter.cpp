@@ -10,6 +10,7 @@
 #include "runtime/ArrayObject.h"
 #include "runtime/TupleObject.h"
 #include "runtime/StringObject.h"
+#include "runtime/FunctionObject.h"
 #include "runtime/NativeClassObject.h"
 
 #include "exceptions/NameError.h"
@@ -106,7 +107,7 @@ Runtime::ObjectRef Interpreter::eval(
                     if ((iter != code->localMap().end()))
                     {
                         /* must be assigned before using */
-                        if (locals[iter->second] == nullptr)
+                        if (locals[iter->second].isNull())
                             throw Exceptions::RuntimeError(Utils::Strings::format("Variable \"%s\" referenced before assignment", name));
 
                         /* push onto the stack */
@@ -683,6 +684,7 @@ Runtime::ObjectRef Interpreter::eval(
                 {
                     /* create array object */
                     auto size = OPERAND();
+                    auto iter = stack.rbegin();
                     auto array = Runtime::Object::newObject<Runtime::ArrayObject>(size);
 
                     /* check stack */
@@ -690,8 +692,8 @@ Runtime::ObjectRef Interpreter::eval(
                         throw Exceptions::InternalError("Stack underflow");
 
                     /* extract each item, in reverse order */
-                    for (ssize_t i = size - 1; i >= 0; i--)
-                        array->items()[i] = std::move(*(stack.end() - i - 1));
+                    for (ssize_t i = size; i > 0; i--)
+                        array->items()[i - 1] = std::move(*iter++);
 
                     /* push result into stack */
                     stack.resize(stack.size() - size);
@@ -704,6 +706,7 @@ Runtime::ObjectRef Interpreter::eval(
                 {
                     /* create tuple object */
                     auto size = OPERAND();
+                    auto iter = stack.rbegin();
                     auto tuple = Runtime::Object::newObject<Runtime::TupleObject>(size);
 
                     /* check stack */
@@ -711,8 +714,8 @@ Runtime::ObjectRef Interpreter::eval(
                         throw Exceptions::InternalError("Stack underflow");
 
                     /* extract each item, in reverse order */
-                    for (ssize_t i = size - 1; i >= 0; i--)
-                        tuple->items()[i] = std::move(*(stack.end() - i - 1));
+                    for (ssize_t i = size; i > 0; i--)
+                        tuple->items()[i - 1] = std::move(*iter++);
 
                     /* push result into stack */
                     stack.resize(stack.size() - size);
@@ -723,8 +726,21 @@ Runtime::ObjectRef Interpreter::eval(
                 /* build a function object */
                 case OpCode::MAKE_FUNCTION:
                 {
-                    // TODO: implement these
-                    throw Exceptions::InternalError("not implemented yet");
+                    /* check stack */
+                    if (stack.empty())
+                        throw Exceptions::InternalError("Stack is empty");
+
+                    /* code object ID and defaults pack */
+                    auto id = OPERAND();
+                    auto def = std::move(stack.back());
+
+                    /* check constant ID */
+                    if (id >= code->consts().size())
+                        throw Exceptions::InternalError(Utils::Strings::format("Constant ID %u out of range", id));
+
+                    /* create function object, and put on stack */
+                    stack.back() = Runtime::Object::newObject<Runtime::FunctionObject>(code->consts()[id], def);
+                    break;
                 }
 
                 /* build a class object */

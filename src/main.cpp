@@ -54,10 +54,9 @@
 //)source";
 
 const char *source = R"source(#!/usr/bin/env redscript
-if (a == 1) {
-    println('hello, world')
+def foo(a, b, c = 10, *d, **e) {
+    return 1;
 }
-a = 1
 )source";
 
 #include <iostream>
@@ -92,7 +91,7 @@ static void dis(RedScript::Runtime::Reference<RedScript::Runtime::CodeObject> co
             code->consts()[i]->type()->objectRepr(code->consts()[i]).c_str()
         );
 
-        if (code->consts()[i]->type() == RedScript::Runtime::CodeTypeObject)
+        if (code->consts()[i]->type().isIdenticalWith(RedScript::Runtime::CodeTypeObject))
             codes.push_back(code->consts()[i].as<RedScript::Runtime::CodeObject>());
     }
 
