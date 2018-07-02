@@ -198,9 +198,16 @@ public:
             return Reference<U>(object, TagCheckedU());
     }
 
+private:
+    static inline T *nullChecked(T *object)
+    {
+        /* check for null pointer dereferencing */
+        return object ?: throw std::runtime_error("null pointer dereferencing");
+    }
+
 public:
-    T &operator*(void) { return *_object; }
-    T *operator->(void) { return _object; }
+    T &operator*(void) { return *nullChecked(_object); }
+    T *operator->(void) { return nullChecked(_object); }
 
 public:
     T *get(void) { return _object; }
