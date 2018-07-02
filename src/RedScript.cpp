@@ -21,50 +21,50 @@ namespace RedScript
 void shutdown(void)
 {
     /* generic objects */
-    RedScript::Runtime::ExceptionBlockObject::shutdown();
-    RedScript::Runtime::NativeClassObject::shutdown();
-    RedScript::Runtime::FunctionObject::shutdown();
-    RedScript::Runtime::DecimalObject::shutdown();
-    RedScript::Runtime::TupleObject::shutdown();
-    RedScript::Runtime::ArrayObject::shutdown();
-    RedScript::Runtime::CodeObject::shutdown();
-    RedScript::Runtime::MapObject::shutdown();
+    Runtime::ExceptionBlockObject::shutdown();
+    Runtime::NativeClassObject::shutdown();
+    Runtime::FunctionObject::shutdown();
+    Runtime::DecimalObject::shutdown();
+    Runtime::TupleObject::shutdown();
+    Runtime::ArrayObject::shutdown();
+    Runtime::CodeObject::shutdown();
+    Runtime::MapObject::shutdown();
 
     /* pooled objects */
-    RedScript::Runtime::StringObject::shutdown();
-    RedScript::Runtime::IntObject::shutdown();
+    Runtime::StringObject::shutdown();
+    Runtime::IntObject::shutdown();
 
     /* object sub-system */
-    RedScript::Runtime::_NullObject::shutdown();
-    RedScript::Runtime::BoolObject::shutdown();
-    RedScript::Runtime::Object::shutdown();
+    Runtime::_NullObject::shutdown();
+    Runtime::BoolObject::shutdown();
+    Runtime::Object::shutdown();
 
     /* memory management and garbage collector */
-    RedScript::Engine::GarbageCollector::shutdown();
+    Engine::GarbageCollector::shutdown();
 }
 
 void initialize(size_t young, size_t old, size_t perm)
 {
     /* memory management and garbage collector */
-    RedScript::Engine::GarbageCollector::initialize(young, old, perm);
+    Engine::GarbageCollector::initialize(young, old, perm);
 
     /* object sub-system */
-    RedScript::Runtime::Object::initialize();
-    RedScript::Runtime::BoolObject::initialize();
-    RedScript::Runtime::_NullObject::initialize();
+    Runtime::Object::initialize();
+    Runtime::BoolObject::initialize();
+    Runtime::_NullObject::initialize();
 
     /* pooled objects */
-    RedScript::Runtime::IntObject::initialize();
-    RedScript::Runtime::StringObject::initialize();
+    Runtime::IntObject::initialize();
+    Runtime::StringObject::initialize();
 
     /* generic objects */
-    RedScript::Runtime::MapObject::initialize();
-    RedScript::Runtime::CodeObject::initialize();
-    RedScript::Runtime::ArrayObject::initialize();
-    RedScript::Runtime::TupleObject::initialize();
-    RedScript::Runtime::DecimalObject::initialize();
-    RedScript::Runtime::FunctionObject::initialize();
-    RedScript::Runtime::NativeClassObject::initialize();
-    RedScript::Runtime::ExceptionBlockObject::initialize();
+    Runtime::MapObject::initialize();
+    Runtime::CodeObject::initialize();
+    Runtime::ArrayObject::initialize();
+    Runtime::TupleObject::initialize();
+    Runtime::DecimalObject::initialize();
+    Runtime::FunctionObject::initialize();
+    Runtime::NativeClassObject::initialize();
+    Runtime::ExceptionBlockObject::initialize();
 }
 }
