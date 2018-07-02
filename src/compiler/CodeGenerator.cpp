@@ -437,9 +437,9 @@ void CodeGenerator::buildCompositeTarget(const std::unique_ptr<AST::Composite> &
         {
             switch (node->mods[i].type)
             {
-                case AST::Composite::ModType::Index: visitIndex(node->mods[i].index); break;
-                case AST::Composite::ModType::Invoke: visitInvoke(node->mods[i].invoke); break;
-                case AST::Composite::ModType::Attribute: visitAttribute(node->mods[i].attribute); break;
+                case AST::Composite::ModType::Index     : visitIndex(node->mods[i].index); break;
+                case AST::Composite::ModType::Invoke    : visitInvoke(node->mods[i].invoke); break;
+                case AST::Composite::ModType::Attribute : visitAttribute(node->mods[i].attribute); break;
             }
         }
 
