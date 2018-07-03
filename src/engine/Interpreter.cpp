@@ -1026,6 +1026,22 @@ Runtime::ObjectRef Interpreter::eval(
 
                     break;
                 }
+
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "DuplicateSwitchCase"
+
+                /* even though we have covered all items in `OpCode`, we still
+                 * need this since the opcode is direcly casted from a byte,
+                 * which might be an illegal value */
+                default:
+                {
+                    throw Exceptions::InternalError(Utils::Strings::format(
+                        "Invalid op-code %.2x",
+                        static_cast<uint8_t>(opcode)
+                    ));
+                }
+
+#pragma clang diagnostic pop
             }
         }
 
