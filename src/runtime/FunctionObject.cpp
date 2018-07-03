@@ -1,5 +1,8 @@
+#include <runtime/NullObject.h>
+#include "engine/Interpreter.h"
 #include "runtime/MapObject.h"
 #include "runtime/FunctionObject.h"
+#include "exceptions/InternalError.h"
 
 namespace RedScript::Runtime
 {
@@ -8,10 +11,26 @@ TypeRef FunctionTypeObject;
 
 ObjectRef FunctionType::objectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs)
 {
-    printf("self: %s\n", self->type()->objectRepr(self).c_str());
-    printf("args: %s (%zu)\n", args->type()->objectRepr(args).c_str(), args.as<Runtime::TupleObject>()->size());
-    printf("kwargs: %s (%zu)\n", kwargs->type()->objectRepr(kwargs).c_str(), kwargs.as<Runtime::MapObject>()->size());
-    return Type::objectInvoke(self, args, kwargs);
+    /* check object type */
+    if (self->isNotInstanceOf(FunctionTypeObject))
+        throw Exceptions::InternalError("Invalid function call");
+
+    /* check tuple type */
+    if (args->isNotInstanceOf(TupleTypeObject))
+        throw Exceptions::InternalError("Invalid args tuple object");
+
+    /* check map type */
+    if (kwargs->isNotInstanceOf(MapTypeObject))
+        throw Exceptions::InternalError("Invalid kwargs map object");
+
+    /* call the function handler */
+    return self.as<FunctionObject>()->invoke(args.as<TupleObject>(), kwargs.as<MapObject>());
+}
+
+ObjectRef FunctionObject::invoke(Reference<TupleObject> args, Reference<MapObject> kwargs)
+{
+    printf("hey !!!\n");
+    return RedScript::Runtime::NullObject;
 }
 
 void FunctionObject::initialize(void)

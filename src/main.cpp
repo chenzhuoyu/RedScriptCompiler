@@ -54,7 +54,14 @@
 //)source";
 
 const char *source = R"source(
-#print('hello', 'world', 123, end = '$\n', delim = '|')
+def test(x) {
+    print('hello', 'world', x, end = '$\n', delim = '|')
+    return x
+}
+
+a = 123
+print('enter test')
+print(test(a))
 )source";
 
 #include <iostream>
@@ -146,9 +153,9 @@ static void run(void)
     std::cout << "object usage: " << RedScript::Engine::Memory::objectUsage() << std::endl;
     dis(code);
 
-    RedScript::Engine::Interpreter intp;
+    RedScript::Engine::Interpreter intp(code, RedScript::Engine::Builtins::Globals);
     std::cout << "--------------------- EVAL ---------------------" << std::endl;
-    RedScript::Runtime::ObjectRef ret = intp.eval(code, RedScript::Engine::Builtins::Globals);
+    RedScript::Runtime::ObjectRef ret = intp.eval();
 
     std::cout << "--------------------- RETURN ---------------------" << std::endl;
     std::cout << ret->type()->objectRepr(ret) << std::endl;

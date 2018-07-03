@@ -6,7 +6,7 @@
 
 namespace RedScript::Utils::Arguments
 {
-
+    // TODO: type-safe argument parser
 }
 
 #endif /* REDSCRIPT_UTILS_ARGUMENTS_H */

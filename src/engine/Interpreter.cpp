@@ -1,6 +1,3 @@
-#include <memory>
-#include <vector>
-
 #include "utils/Strings.h"
 #include "engine/Interpreter.h"
 
@@ -102,25 +99,17 @@ Runtime::ObjectRef Interpreter::hashmapConcat(Runtime::ObjectRef a, Runtime::Obj
     return std::move(result);
 }
 
-Runtime::ObjectRef Interpreter::eval(
-    Runtime::Reference<Runtime::CodeObject> code,
-    const std::unordered_map<std::string, ClosureRef> &closure
-)
+Runtime::ObjectRef Interpreter::eval(void)
 {
     /* bytecode pointers */
-    const char *s = code->buffer().data();
-    const char *p = code->buffer().data();
-    const char *e = code->buffer().data() + code->buffer().size();
-
-    /* runtime data structures */
-    std::vector<Runtime::ObjectRef> stack;
-    std::vector<Runtime::ObjectRef> locals(code->locals().size());
-    std::vector<std::unique_ptr<Closure::Context>> closures(code->locals().size());
+    const char *s = _code->buffer().data();
+    const char *p = _code->buffer().data();
+    const char *e = _code->buffer().data() + _code->buffer().size();
 
     /* loop until code ends */
     while (p < e)
     {
-        auto line = code->lineNums()[p - s];
+        auto line = _code->lineNums()[p - s];
         OpCode opcode = static_cast<OpCode>(*p++);
 
         try
@@ -130,21 +119,21 @@ Runtime::ObjectRef Interpreter::eval(
                 /* load null */
                 case OpCode::LOAD_NULL:
                 {
-                    stack.emplace_back(Runtime::NullObject);
+                    _stack.emplace_back(Runtime::NullObject);
                     break;
                 }
 
                 /* load true */
                 case OpCode::LOAD_TRUE:
                 {
-                    stack.emplace_back(Runtime::TrueObject);
+                    _stack.emplace_back(Runtime::TrueObject);
                     break;
                 }
 
                 /* load false */
                 case OpCode::LOAD_FALSE:
                 {
-                    stack.emplace_back(Runtime::FalseObject);
+                    _stack.emplace_back(Runtime::FalseObject);
                     break;
                 }
 
@@ -155,11 +144,11 @@ Runtime::ObjectRef Interpreter::eval(
                     uint32_t id = OPERAND();
 
                     /* check constant ID */
-                    if (id >= code->consts().size())
+                    if (id >= _code->consts().size())
                         throw Exceptions::InternalError(Utils::Strings::format("Constant ID %u out of range", id));
 
                     /* load the constant into stack */
-                    stack.emplace_back(code->consts()[id]);
+                    _stack.emplace_back(_code->consts()[id]);
                     break;
                 }
 
@@ -170,37 +159,37 @@ Runtime::ObjectRef Interpreter::eval(
                     uint32_t id = OPERAND();
 
                     /* check name ID */
-                    if (id >= code->names().size())
+                    if (id >= _code->names().size())
                         throw Exceptions::InternalError(Utils::Strings::format("Name ID %u out of range", id));
 
                     /* find name in locals */
-                    auto name = code->names()[id];
-                    auto iter = code->localMap().find(name);
+                    auto name = _code->names()[id];
+                    auto iter = _code->localMap().find(name);
 
                     /* found, use the local value */
-                    if ((iter != code->localMap().end()))
+                    if ((iter != _code->localMap().end()))
                     {
                         /* must be assigned before using */
-                        if (locals[iter->second].isNull())
+                        if (_locals[iter->second].isNull())
                             throw Exceptions::RuntimeError(Utils::Strings::format("Variable \"%s\" referenced before assignment", name));
 
                         /* push onto the stack */
-                        stack.emplace_back(locals[iter->second]);
+                        _stack.emplace_back(_locals[iter->second]);
                         break;
                     }
 
-                    /* otherwise, find in closure map */
-                    auto cliter = closure.find(name);
+                    /* otherwise, find in closure name map */
+                    auto cliter = _names.find(name);
 
                     /* found, use the closure value */
-                    if (cliter != closure.end())
+                    if (cliter != _names.end())
                     {
                         /* must be assigned before using */
                         if (cliter->second->get().isNull())
                             throw Exceptions::RuntimeError(Utils::Strings::format("Variable \"%s\" referenced before assignment", name));
 
                         /* push onto the stack */
-                        stack.emplace_back(cliter->second->get());
+                        _stack.emplace_back(cliter->second->get());
                         break;
                     }
 
@@ -219,15 +208,15 @@ Runtime::ObjectRef Interpreter::eval(
                     uint32_t id = OPERAND();
 
                     /* check local ID */
-                    if (id >= locals.size())
+                    if (id >= _locals.size())
                         throw Exceptions::InternalError(Utils::Strings::format("Local ID %u out of range", id));
 
                     /* should have initialized */
-                    if (locals[id].isNull())
-                        throw Exceptions::RuntimeError(Utils::Strings::format("Variable \"%s\" referenced before assignment", code->locals()[id]));
+                    if (_locals[id].isNull())
+                        throw Exceptions::RuntimeError(Utils::Strings::format("Variable \"%s\" referenced before assignment", _code->locals()[id]));
 
                     /* load the local into stack */
-                    stack.emplace_back(locals[id]);
+                    _stack.emplace_back(_locals[id]);
                     break;
                 }
 
@@ -238,16 +227,16 @@ Runtime::ObjectRef Interpreter::eval(
                     uint32_t id = OPERAND();
 
                     /* check stack */
-                    if (stack.empty())
+                    if (_stack.empty())
                         throw Exceptions::InternalError("Stack is empty");
 
                     /* check local ID */
-                    if (id >= locals.size())
+                    if (id >= _locals.size())
                         throw Exceptions::InternalError(Utils::Strings::format("Local ID %u out of range", id));
 
                     /* set the local from stack */
-                    locals[id] = std::move(stack.back());
-                    stack.pop_back();
+                    _locals[id] = std::move(_stack.back());
+                    _stack.pop_back();
                     break;
                 }
 
@@ -258,16 +247,16 @@ Runtime::ObjectRef Interpreter::eval(
                     uint32_t id = OPERAND();
 
                     /* check local ID */
-                    if (id >= locals.size())
+                    if (id >= _locals.size())
                         throw Exceptions::InternalError(Utils::Strings::format("Local ID %u out of range", id));
 
                     /* should have initialized */
-                    if (locals[id].isNull())
-                        throw Exceptions::RuntimeError(Utils::Strings::format("Variable \"%s\" referenced before assignment", code->locals()[id]));
+                    if (_locals[id].isNull())
+                        throw Exceptions::RuntimeError(Utils::Strings::format("Variable \"%s\" referenced before assignment", _code->locals()[id]));
 
                     /* clear local reference */
-                    locals[id] = nullptr;
-                    closures[id] = nullptr;
+                    _locals[id] = nullptr;
+                    _closures[id] = nullptr;
                     break;
                 }
 
@@ -278,20 +267,20 @@ Runtime::ObjectRef Interpreter::eval(
                     uint32_t id = OPERAND();
 
                     /* check stack */
-                    if (stack.size() < 2)
+                    if (_stack.size() < 2)
                         throw Exceptions::InternalError("Stack underflow");
 
                     /* check local ID */
-                    if (id >= code->names().size())
+                    if (id >= _code->names().size())
                         throw Exceptions::InternalError(Utils::Strings::format("Name ID %u out of range", id));
 
                     /* pop top 2 elements */
-                    Runtime::ObjectRef a = std::move(*(stack.end() - 2));
-                    Runtime::ObjectRef b = std::move(*(stack.end() - 1));
+                    Runtime::ObjectRef a = std::move(*(_stack.end() - 2));
+                    Runtime::ObjectRef b = std::move(*(_stack.end() - 1));
 
                     /* define attribute from stack */
-                    stack.resize(stack.size() - 2);
-                    b->type()->objectDefineAttr(b, code->names()[id], a);
+                    _stack.resize(_stack.size() - 2);
+                    b->type()->objectDefineAttr(b, _code->names()[id], a);
                     break;
                 }
 
@@ -302,15 +291,15 @@ Runtime::ObjectRef Interpreter::eval(
                     uint32_t id = OPERAND();
 
                     /* check stack */
-                    if (stack.empty())
+                    if (_stack.empty())
                         throw Exceptions::InternalError("Stack is empty");
 
                     /* check local ID */
-                    if (id >= code->names().size())
+                    if (id >= _code->names().size())
                         throw Exceptions::InternalError(Utils::Strings::format("Name ID %u out of range", id));
 
                     /* replace stack top with new object */
-                    stack.back() = stack.back()->type()->objectGetAttr(stack.back(), code->names()[id]);
+                    _stack.back() = _stack.back()->type()->objectGetAttr(_stack.back(), _code->names()[id]);
                     break;
                 }
 
@@ -321,20 +310,20 @@ Runtime::ObjectRef Interpreter::eval(
                     uint32_t id = OPERAND();
 
                     /* check stack */
-                    if (stack.size() < 2)
+                    if (_stack.size() < 2)
                         throw Exceptions::InternalError("Stack underflow");
 
                     /* check local ID */
-                    if (id >= code->names().size())
+                    if (id >= _code->names().size())
                         throw Exceptions::InternalError(Utils::Strings::format("Name ID %u out of range", id));
 
                     /* pop top 2 elements */
-                    Runtime::ObjectRef a = std::move(*(stack.end() - 2));
-                    Runtime::ObjectRef b = std::move(*(stack.end() - 1));
+                    Runtime::ObjectRef a = std::move(*(_stack.end() - 2));
+                    Runtime::ObjectRef b = std::move(*(_stack.end() - 1));
 
                     /* define attribute from stack */
-                    stack.resize(stack.size() - 2);
-                    b->type()->objectSetAttr(b, code->names()[id], a);
+                    _stack.resize(_stack.size() - 2);
+                    b->type()->objectSetAttr(b, _code->names()[id], a);
                     break;
                 }
 
@@ -345,16 +334,16 @@ Runtime::ObjectRef Interpreter::eval(
                     uint32_t id = OPERAND();
 
                     /* check stack */
-                    if (stack.empty())
+                    if (_stack.empty())
                         throw Exceptions::InternalError("Stack is empty");
 
                     /* check local ID */
-                    if (id >= code->names().size())
+                    if (id >= _code->names().size())
                         throw Exceptions::InternalError(Utils::Strings::format("Name ID %u out of range", id));
 
                     /* remove the attribute */
-                    stack.back()->type()->objectDelAttr(stack.back(), code->names()[id]);
-                    stack.pop_back();
+                    _stack.back()->type()->objectDelAttr(_stack.back(), _code->names()[id]);
+                    _stack.pop_back();
                     break;
                 }
 
@@ -362,16 +351,16 @@ Runtime::ObjectRef Interpreter::eval(
                 case OpCode::GET_ITEM:
                 {
                     /* check stack */
-                    if (stack.size() < 2)
+                    if (_stack.size() < 2)
                         throw Exceptions::InternalError("Stack underflow");
 
                     /* pop top 2 elements */
-                    Runtime::ObjectRef a = std::move(*(stack.end() - 2));
-                    Runtime::ObjectRef b = std::move(*(stack.end() - 1));
+                    Runtime::ObjectRef a = std::move(*(_stack.end() - 2));
+                    Runtime::ObjectRef b = std::move(*(_stack.end() - 1));
 
                     /* replace stack top with new object */
-                    stack.pop_back();
-                    stack.back() = a->type()->sequenceGetItem(a, b);
+                    _stack.pop_back();
+                    _stack.back() = a->type()->sequenceGetItem(a, b);
                     break;
                 }
 
@@ -379,16 +368,16 @@ Runtime::ObjectRef Interpreter::eval(
                 case OpCode::SET_ITEM:
                 {
                     /* check stack */
-                    if (stack.size() < 3)
+                    if (_stack.size() < 3)
                         throw Exceptions::InternalError("Stack underflow");
 
                     /* pop top 3 elements */
-                    Runtime::ObjectRef a = std::move(*(stack.end() - 3));
-                    Runtime::ObjectRef b = std::move(*(stack.end() - 2));
-                    Runtime::ObjectRef c = std::move(*(stack.end() - 1));
+                    Runtime::ObjectRef a = std::move(*(_stack.end() - 3));
+                    Runtime::ObjectRef b = std::move(*(_stack.end() - 2));
+                    Runtime::ObjectRef c = std::move(*(_stack.end() - 1));
 
                     /* set the index from stack */
-                    stack.resize(stack.size() - 3);
+                    _stack.resize(_stack.size() - 3);
                     b->type()->sequenceSetItem(b, c, a);
                     break;
                 }
@@ -397,15 +386,15 @@ Runtime::ObjectRef Interpreter::eval(
                 case OpCode::DEL_ITEM:
                 {
                     /* check stack */
-                    if (stack.size() < 2)
+                    if (_stack.size() < 2)
                         throw Exceptions::InternalError("Stack underflow");
 
                     /* pop top 2 elements */
-                    Runtime::ObjectRef a = std::move(*(stack.end() - 2));
-                    Runtime::ObjectRef b = std::move(*(stack.end() - 1));
+                    Runtime::ObjectRef a = std::move(*(_stack.end() - 2));
+                    Runtime::ObjectRef b = std::move(*(_stack.end() - 1));
 
                     /* delete index from stack */
-                    stack.resize(stack.size() - 2);
+                    _stack.resize(_stack.size() - 2);
                     a->type()->sequenceDelItem(a, b);
                     break;
                 }
@@ -414,13 +403,13 @@ Runtime::ObjectRef Interpreter::eval(
                 case OpCode::POP_RETURN:
                 {
                     /* check for stack */
-                    if (stack.empty())
+                    if (_stack.empty())
                         throw Exceptions::InternalError("Stack is empty");
 
                     /* return the stack top */
                     // TODO: check exception handling blocks
-                    Runtime::ObjectRef ret = std::move(stack.back());
-                    stack.pop_back();
+                    Runtime::ObjectRef ret = std::move(_stack.back());
+                    _stack.pop_back();
                     return std::move(ret);
                 }
 
@@ -441,7 +430,7 @@ Runtime::ObjectRef Interpreter::eval(
                             throw Exceptions::InternalError(Utils::Strings::format("Invalid invocation flags 0x%.8x", flags));
 
                         /* check for stack */
-                        if (stack.empty())
+                        if (_stack.empty())
                             throw Exceptions::InternalError("Stack is empty");
 
                         /* create invocation parameters */
@@ -449,8 +438,8 @@ Runtime::ObjectRef Interpreter::eval(
                         kwargs = Runtime::Object::newObject<Runtime::MapObject>(Runtime::MapObject::Mode::Ordered);
 
                         /* build a tuple from stack top */
-                        vargs.as<Runtime::TupleObject>()->items()[0] = stack.back();
-                        stack.pop_back();
+                        vargs.as<Runtime::TupleObject>()->items()[0] = _stack.back();
+                        _stack.pop_back();
                     }
 
                     /* normal invocation */
@@ -463,48 +452,48 @@ Runtime::ObjectRef Interpreter::eval(
                         if (flags & FI_KWARGS)
                         {
                             /* check for stack */
-                            if (stack.empty())
+                            if (_stack.empty())
                                 throw Exceptions::InternalError("Stack is empty");
 
                             /* pop keyword arguments from stack */
-                            kwargs = std::move(stack.back());
-                            stack.pop_back();
+                            kwargs = std::move(_stack.back());
+                            _stack.pop_back();
                         }
 
                         /* have variadic arguments */
                         if (flags & FI_VARGS)
                         {
                             /* check for stack */
-                            if (stack.empty())
+                            if (_stack.empty())
                                 throw Exceptions::InternalError("Stack is empty");
 
                             /* pop variadic arguments from stack */
-                            vargs = std::move(stack.back());
-                            stack.pop_back();
+                            vargs = std::move(_stack.back());
+                            _stack.pop_back();
                         }
 
                         /* have named arguments */
                         if (flags & FI_NAMED)
                         {
                             /* check for stack */
-                            if (stack.empty())
+                            if (_stack.empty())
                                 throw Exceptions::InternalError("Stack is empty");
 
                             /* pop named arguments from stack */
-                            named = std::move(stack.back());
-                            stack.pop_back();
+                            named = std::move(_stack.back());
+                            _stack.pop_back();
                         }
 
                         /* have arguments */
                         if (flags & FI_ARGS)
                         {
                             /* check for stack */
-                            if (stack.empty())
+                            if (_stack.empty())
                                 throw Exceptions::InternalError("Stack is empty");
 
                             /* pop normal arguments from stack */
-                            args = std::move(stack.back());
-                            stack.pop_back();
+                            args = std::move(_stack.back());
+                            _stack.pop_back();
                         }
 
                         /* merge with other arguments */
@@ -513,12 +502,12 @@ Runtime::ObjectRef Interpreter::eval(
                     }
 
                     /* check for stack */
-                    if (stack.empty())
+                    if (_stack.empty())
                         throw Exceptions::InternalError("Stack is empty");
 
                     /* pop callable object from stack, and invoke it */
-                    obj = std::move(stack.back());
-                    stack.back() = obj->type()->objectInvoke(obj, vargs, kwargs);
+                    obj = std::move(_stack.back());
+                    _stack.back() = obj->type()->objectInvoke(obj, vargs, kwargs);
                     break;
                 }
 
@@ -526,11 +515,11 @@ Runtime::ObjectRef Interpreter::eval(
                 case OpCode::DUP:
                 {
                     /* check for stack */
-                    if (stack.empty())
+                    if (_stack.empty())
                         throw Exceptions::InternalError("Stack is empty");
 
                     /* pushing the top again */
-                    stack.emplace_back(stack.back());
+                    _stack.emplace_back(_stack.back());
                     break;
                 }
 
@@ -538,12 +527,12 @@ Runtime::ObjectRef Interpreter::eval(
                 case OpCode::DUP2:
                 {
                     /* check for stack */
-                    if (stack.size() < 2)
+                    if (_stack.size() < 2)
                         throw Exceptions::InternalError("Stack underflow");
 
                     /* pushing the top two elements */
-                    stack.emplace_back(*(stack.end() - 2));
-                    stack.emplace_back(*(stack.end() - 2));
+                    _stack.emplace_back(*(_stack.end() - 2));
+                    _stack.emplace_back(*(_stack.end() - 2));
                     break;
                 }
 
@@ -551,11 +540,11 @@ Runtime::ObjectRef Interpreter::eval(
                 case OpCode::DROP:
                 {
                     /* check for stack */
-                    if (stack.empty())
+                    if (_stack.empty())
                         throw Exceptions::InternalError("Stack is empty");
 
                     /* discard stack top */
-                    stack.pop_back();
+                    _stack.pop_back();
                     break;
                 }
 
@@ -567,12 +556,12 @@ Runtime::ObjectRef Interpreter::eval(
                 case OpCode::MAKE_ITER:
                 {
                     /* check stack */
-                    if (stack.empty())
+                    if (_stack.empty())
                         throw Exceptions::InternalError("Stack is empty");
 
                     /* retrive stack top */
                     Runtime::ObjectRef r;
-                    Runtime::ObjectRef a = std::move(stack.back());
+                    Runtime::ObjectRef a = std::move(_stack.back());
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wswitch"
@@ -590,7 +579,7 @@ Runtime::ObjectRef Interpreter::eval(
 #pragma clang diagnostic pop
 
                     /* replace the stack top */
-                    stack.back() = std::move(r);
+                    _stack.back() = std::move(r);
                     break;
                 }
 
@@ -628,14 +617,14 @@ Runtime::ObjectRef Interpreter::eval(
                 case OpCode::IN:
                 {
                     /* check stack */
-                    if (stack.size() < 2)
+                    if (_stack.size() < 2)
                         throw Exceptions::InternalError("Stack underflow");
 
                     /* pop top 2 elements */
                     Runtime::ObjectRef r;
-                    Runtime::ObjectRef a = std::move(*(stack.end() - 2));
-                    Runtime::ObjectRef b = std::move(*(stack.end() - 1));
-                    stack.pop_back();
+                    Runtime::ObjectRef a = std::move(*(_stack.end() - 2));
+                    Runtime::ObjectRef b = std::move(*(_stack.end() - 1));
+                    _stack.pop_back();
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wswitch"
@@ -686,7 +675,7 @@ Runtime::ObjectRef Interpreter::eval(
 #pragma clang diagnostic pop
 
                     /* replace the stack top */
-                    stack.back() = std::move(r);
+                    _stack.back() = std::move(r);
                     break;
                 }
 
@@ -718,7 +707,7 @@ Runtime::ObjectRef Interpreter::eval(
                 case OpCode::BRFALSE:
                 {
                     /* check stack */
-                    if (stack.empty())
+                    if (_stack.empty())
                         throw Exceptions::InternalError("Stack is empty");
 
                     /* jump offset */
@@ -730,11 +719,11 @@ Runtime::ObjectRef Interpreter::eval(
                         throw Exceptions::InternalError("Jump outside of code");
 
                     /* set the instruction pointer if condition met */
-                    if ((opcode == OpCode::BRTRUE) == stack.back()->type()->objectIsTrue(stack.back()))
+                    if ((opcode == OpCode::BRTRUE) == _stack.back()->type()->objectIsTrue(_stack.back()))
                         p = q;
 
                     /* discard stack top */
-                    stack.pop_back();
+                    _stack.pop_back();
                     break;
                 }
 
@@ -770,7 +759,7 @@ Runtime::ObjectRef Interpreter::eval(
                 case OpCode::ITER_NEXT:
                 {
                     /* check stack */
-                    if (stack.empty())
+                    if (_stack.empty())
                         throw Exceptions::InternalError("Stack is empty");
 
                     /* jump address when iterator drained */
@@ -780,7 +769,7 @@ Runtime::ObjectRef Interpreter::eval(
                     /* try push new object on stack top, don't destroy the iterator */
                     try
                     {
-                        stack.emplace_back(stack.back()->type()->iterableNext(stack.back()));
+                        _stack.emplace_back(_stack.back()->type()->iterableNext(_stack.back()));
                         break;
                     }
 
@@ -788,7 +777,7 @@ Runtime::ObjectRef Interpreter::eval(
                     catch (const Exceptions::StopIteration &)
                     {
                         p = q;
-                        stack.pop_back();
+                        _stack.pop_back();
                         break;
                     }
                 }
@@ -802,13 +791,13 @@ Runtime::ObjectRef Interpreter::eval(
                     std::vector<Runtime::ObjectRef> items(count);
 
                     /* check stack */
-                    if (stack.empty())
+                    if (_stack.empty())
                         throw Exceptions::InternalError("Stack is empty");
 
                     /* pop the stack top, convert to iterator */
-                    auto top = std::move(stack.back());
+                    auto top = std::move(_stack.back());
                     auto iter = top->type()->iterableIter(top);
-                    stack.pop_back();
+                    _stack.pop_back();
 
                     /* get all items from iterator */
                     try
@@ -845,7 +834,7 @@ Runtime::ObjectRef Interpreter::eval(
 
                     /* push back to the stack in reverse order */
                     for (auto it = items.rbegin(); it != items.rend(); it++)
-                        stack.emplace_back(*it);
+                        _stack.emplace_back(*it);
 
                     break;
                 }
@@ -865,16 +854,16 @@ Runtime::ObjectRef Interpreter::eval(
                     uint32_t count = OPERAND();
 
                     /* check stack size */
-                    if (stack.size() < count * 2)
+                    if (_stack.size() < count * 2)
                         throw Exceptions::InternalError("Stack underflow");
 
                     /* build the map */
-                    for (auto it = stack.end() - count * 2; it != stack.end(); it += 2)
+                    for (auto it = _stack.end() - count * 2; it != _stack.end(); it += 2)
                         map->insert(std::move(*it), std::move(*(it + 1)));
 
                     /* adjust the stack */
-                    stack.resize(stack.size() - count * 2);
-                    stack.emplace_back(map);
+                    _stack.resize(_stack.size() - count * 2);
+                    _stack.emplace_back(map);
                     break;
                 }
 
@@ -883,11 +872,11 @@ Runtime::ObjectRef Interpreter::eval(
                 {
                     /* create array object */
                     auto size = OPERAND();
-                    auto iter = stack.rbegin();
+                    auto iter = _stack.rbegin();
                     auto array = Runtime::Object::newObject<Runtime::ArrayObject>(size);
 
                     /* check stack */
-                    if (stack.size() < size)
+                    if (_stack.size() < size)
                         throw Exceptions::InternalError("Stack underflow");
 
                     /* extract each item, in reverse order */
@@ -895,8 +884,8 @@ Runtime::ObjectRef Interpreter::eval(
                         array->items()[i - 1] = std::move(*iter++);
 
                     /* push result into stack */
-                    stack.resize(stack.size() - size);
-                    stack.emplace_back(std::move(array));
+                    _stack.resize(_stack.size() - size);
+                    _stack.emplace_back(std::move(array));
                     break;
                 }
 
@@ -905,11 +894,11 @@ Runtime::ObjectRef Interpreter::eval(
                 {
                     /* create tuple object */
                     auto size = OPERAND();
-                    auto iter = stack.rbegin();
+                    auto iter = _stack.rbegin();
                     auto tuple = Runtime::Object::newObject<Runtime::TupleObject>(size);
 
                     /* check stack */
-                    if (stack.size() < size)
+                    if (_stack.size() < size)
                         throw Exceptions::InternalError("Stack underflow");
 
                     /* extract each item, in reverse order */
@@ -917,8 +906,8 @@ Runtime::ObjectRef Interpreter::eval(
                         tuple->items()[i - 1] = std::move(*iter++);
 
                     /* push result into stack */
-                    stack.resize(stack.size() - size);
-                    stack.emplace_back(std::move(tuple));
+                    _stack.resize(_stack.size() - size);
+                    _stack.emplace_back(std::move(tuple));
                     break;
                 }
 
@@ -926,15 +915,15 @@ Runtime::ObjectRef Interpreter::eval(
                 case OpCode::MAKE_FUNCTION:
                 {
                     /* check stack */
-                    if (stack.empty())
+                    if (_stack.empty())
                         throw Exceptions::InternalError("Stack is empty");
 
                     /* code object ID and defaults pack */
                     auto id = OPERAND();
-                    auto def = std::move(stack.back());
+                    auto def = std::move(_stack.back());
 
                     /* check constant ID */
-                    if (id >= code->consts().size())
+                    if (id >= _code->consts().size())
                         throw Exceptions::InternalError(Utils::Strings::format("Constant ID %u out of range", id));
 
                     /* check for tuple object */
@@ -942,33 +931,33 @@ Runtime::ObjectRef Interpreter::eval(
                         throw Exceptions::InternalError("Invalid tuple object");
 
                     /* check for code object */
-                    if (code->consts()[id]->isNotInstanceOf(Runtime::CodeTypeObject))
+                    if (_code->consts()[id]->isNotInstanceOf(Runtime::CodeTypeObject))
                         throw Exceptions::InternalError("Invalid code object");
 
                     /* convert to corresponding type */
                     auto funcDef = def.as<Runtime::TupleObject>();
-                    auto funcCode = code->consts()[id].as<Runtime::CodeObject>();
+                    auto funcCode = _code->consts()[id].as<Runtime::CodeObject>();
                     std::unordered_map<std::string, Engine::ClosureRef> funcClosure;
 
                     /* build function closure */
                     for (const auto &item : funcCode->names())
                     {
                         /* find from local variables first */
-                        auto iter = code->localMap().find(item);
+                        auto iter = _code->localMap().find(item);
 
                         /* it's a local variable, wrap it as closure */
-                        if (iter != code->localMap().end())
+                        if (iter != _code->localMap().end())
                         {
-                            closures[iter->second] = std::make_unique<Closure::Context>(&locals, iter->second);
-                            funcClosure.emplace(item, closures[iter->second]->ref);
+                            _closures[iter->second] = std::make_unique<Closure::Context>(&_locals, iter->second);
+                            funcClosure.emplace(item, _closures[iter->second]->ref);
                         }
                         else
                         {
                             /* otherwise, find in closure map */
-                            auto cliter = closure.find(item);
+                            auto cliter = _names.find(item);
 
                             /* if found, inherit the closure */
-                            if (cliter != closure.end())
+                            if (cliter != _names.end())
                                 funcClosure.emplace(item, cliter->second);
 
                             /* if not found, it should never be found again,
@@ -979,7 +968,7 @@ Runtime::ObjectRef Interpreter::eval(
                     }
 
                     /* create function object, and put on stack */
-                    stack.back() = Runtime::Object::newObject<Runtime::FunctionObject>(funcCode, funcDef, funcClosure);
+                    _stack.back() = Runtime::Object::newObject<Runtime::FunctionObject>(funcCode, funcDef, funcClosure);
                     break;
                 }
 
@@ -997,16 +986,16 @@ Runtime::ObjectRef Interpreter::eval(
                     uint32_t id = OPERAND();
 
                     /* check stack */
-                    if (stack.empty())
+                    if (_stack.empty())
                         throw Exceptions::InternalError("Stack is empty");
 
                     /* check operand range */
-                    if (id >= code->consts().size())
+                    if (id >= _code->consts().size())
                         throw Exceptions::InternalError("Constant ID out of range");
 
                     /* load options from stack */
-                    Runtime::ObjectRef source = code->consts()[id];
-                    Runtime::ObjectRef options = std::move(stack.back());
+                    Runtime::ObjectRef source = _code->consts()[id];
+                    Runtime::ObjectRef options = std::move(_stack.back());
 
                     /* must be a map */
                     if (source->type() != Runtime::StringTypeObject)
@@ -1017,7 +1006,7 @@ Runtime::ObjectRef Interpreter::eval(
                         throw Exceptions::InternalError("Invalid options map");
 
                     /* replace stack top with native class object */
-                    stack.back() = Runtime::Object::newObject<Runtime::NativeClassObject>(
+                    _stack.back() = Runtime::Object::newObject<Runtime::NativeClassObject>(
                         source.as<Runtime::StringObject>()->value(),
                         options.as<Runtime::MapObject>()
                     );

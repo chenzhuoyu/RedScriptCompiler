@@ -30,6 +30,9 @@ class FunctionObject : public Object
     Reference<TupleObject> _defaults;
     std::unordered_map<std::string, Engine::ClosureRef> _closure;
 
+private:
+    friend class FunctionType;
+
 public:
     virtual ~FunctionObject() = default;
     explicit FunctionObject(
@@ -40,6 +43,9 @@ public:
         _code(std::move(code)),
         _closure(std::move(closure)),
         _defaults(std::move(defaults)) {}
+
+public:
+    ObjectRef invoke(Reference<TupleObject> args, Reference<MapObject> kwargs);
 
 public:
     static void shutdown(void) {}
