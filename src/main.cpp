@@ -54,7 +54,7 @@
 //)source";
 
 const char *source = R"source(
-print('hello', 'world', end = '$\n', delim = '|')
+print('hello', 'world', 123, end = '$\n', delim = '|')
 )source";
 
 #include <iostream>
@@ -87,7 +87,8 @@ static void dis(RedScript::Runtime::Reference<RedScript::Runtime::CodeObject> co
     for (size_t i = 0; i < code->consts().size(); i++)
     {
         printf(
-            "%zu(%d) : %p (%s) :: %s\n", i,
+            "%zu(%d) : %p (%s) :: %s\n",
+            i,
             code->consts()[i]->refCount(),
             code->consts()[i].get(),
             code->consts()[i]->type()->name().c_str(),
@@ -147,7 +148,7 @@ static void run(void)
 
     RedScript::Engine::Interpreter intp;
     std::cout << "--------------------- EVAL ---------------------" << std::endl;
-    RedScript::Runtime::ObjectRef ret = intp.eval(code, RedScript::Engine::Builtins::closure());
+    RedScript::Runtime::ObjectRef ret = intp.eval(code, RedScript::Engine::Builtins::Globals);
 
     std::cout << "--------------------- RETURN ---------------------" << std::endl;
     std::cout << ret->type()->objectRepr(ret) << std::endl;

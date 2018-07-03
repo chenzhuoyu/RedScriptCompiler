@@ -8,6 +8,9 @@
 
 namespace RedScript::Engine
 {
+/* built-in globals */
+std::unordered_map<std::string, ClosureRef> Builtins::Globals;
+
 Runtime::ObjectRef Builtins::print(Runtime::VariadicArgs args, Runtime::KeywordArgs kwargs)
 {
     /* check for "end" and "delim" arguments */
@@ -39,14 +42,15 @@ Runtime::ObjectRef Builtins::print(Runtime::VariadicArgs args, Runtime::KeywordA
     return Runtime::NullObject;
 }
 
-Builtins::BuiltinClosure &Builtins::closure(void)
+void Builtins::shutdown(void)
 {
-    /* create the built-in closure */
-    static BuiltinClosure builtinClosure = {
-        { "print", Closure::ref(Runtime::NativeFunctionObject::newVariadic(&print)) },
-    };
+    /* clear before garbage collector shutdown */
+    Globals.clear();
+}
 
-    /* return it's reference */
-    return builtinClosure;
+void Builtins::initialize(void)
+{
+    /* built-in functions */
+    Globals.emplace("print", Closure::ref(Runtime::NativeFunctionObject::newVariadic(&print)));
 }
 }

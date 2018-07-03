@@ -15,10 +15,11 @@ class Builtins
     static Runtime::ObjectRef print(Runtime::VariadicArgs args, Runtime::KeywordArgs kwargs);
 
 public:
-    typedef std::unordered_map<std::string, ClosureRef> BuiltinClosure;
+    static std::unordered_map<std::string, ClosureRef> Globals;
 
 public:
-    static BuiltinClosure &closure(void);
+    static void shutdown(void);
+    static void initialize(void);
 
 };
 }

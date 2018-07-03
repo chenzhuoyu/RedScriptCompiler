@@ -1,5 +1,6 @@
 #include "RedScript.h"
 
+#include "engine/Builtins.h"
 #include "engine/GarbageCollector.h"
 
 #include "runtime/Object.h"
@@ -21,6 +22,9 @@ namespace RedScript
 {
 void shutdown(void)
 {
+    /* built-in globals */
+    Engine::Builtins::shutdown();
+
     /* generic objects */
     Runtime::ExceptionBlockObject::shutdown();
     Runtime::NativeFunctionObject::shutdown();
@@ -69,5 +73,8 @@ void initialize(size_t young, size_t old, size_t perm)
     Runtime::NativeClassObject::initialize();
     Runtime::NativeFunctionObject::initialize();
     Runtime::ExceptionBlockObject::initialize();
+
+    /* built-in globals */
+    Engine::Builtins::initialize();
 }
 }
