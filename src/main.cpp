@@ -54,7 +54,7 @@
 //)source";
 
 const char *source = R"source(
-print('hello', 'world', 123, end = '$\n', delim = '|')
+#print('hello', 'world', 123, end = '$\n', delim = '|')
 )source";
 
 #include <iostream>
@@ -162,11 +162,11 @@ int main()
 
     RedScript::initialize(young, old, perm);
     run();
+    RedScript::shutdown();
 
     std::cout << "--------------------- MEM ---------------------" << std::endl;
     std::cout << "raw usage: " << RedScript::Engine::Memory::rawUsage() << std::endl;
     std::cout << "array usage: " << RedScript::Engine::Memory::arrayUsage() << std::endl;
     std::cout << "object usage: " << RedScript::Engine::Memory::objectUsage() << std::endl;
-    RedScript::shutdown();
     return 0;
 }
