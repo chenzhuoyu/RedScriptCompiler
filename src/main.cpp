@@ -54,10 +54,10 @@
 //)source";
 
 const char *source = R"source(#!/usr/bin/env redscript
-def test(s) {
-    println(s)
-}
-test('hello, world')
+#def test(s) {
+#    println(s)
+#}
+println('hello, world')
 )source";
 
 #include <iostream>
@@ -73,6 +73,8 @@ test('hello, world')
 #include "utils/Strings.h"
 #include "runtime/Object.h"
 #include "runtime/CodeObject.h"
+#include "runtime/NullObject.h"
+#include "runtime/NativeFunctionObject.h"
 
 #include "compiler/Parser.h"
 #include "compiler/Tokenizer.h"
@@ -132,6 +134,13 @@ static void dis(RedScript::Runtime::Reference<RedScript::Runtime::CodeObject> co
         dis(x);
 }
 
+static RedScript::Runtime::ObjectRef println(RedScript::Runtime::ObjectRef args, RedScript::Runtime::ObjectRef kwargs)
+{
+    std::cout << args->type()->objectRepr(args) << std::endl;
+    std::cout << kwargs->type()->objectRepr(kwargs) << std::endl;
+    return RedScript::Runtime::NullObject;
+}
+
 static void run(void)
 {
     RedScript::Compiler::Parser parser(std::make_unique<RedScript::Compiler::Tokenizer>(source));
@@ -145,7 +154,9 @@ static void run(void)
 
     RedScript::Engine::Interpreter intp;
     std::cout << "--------------------- EVAL ---------------------" << std::endl;
-    RedScript::Runtime::ObjectRef ret = intp.eval(code, {});
+    RedScript::Runtime::ObjectRef ret = intp.eval(code, {
+        { "println", RedScript::Engine::Closure::ref(RedScript::Runtime::Object::newObject<RedScript::Runtime::NativeFunctionObject>(println)) }
+    });
 
     std::cout << "--------------------- RETURN ---------------------" << std::endl;
     std::cout << ret->type()->objectRepr(ret) << std::endl;

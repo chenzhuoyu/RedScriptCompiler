@@ -13,6 +13,9 @@ typedef std::shared_ptr<Closure> ClosureRef;
 
 class Closure final
 {
+    struct Tag {};
+
+private:
     size_t _id;
     Runtime::ObjectRef _object;
     std::vector<Runtime::ObjectRef> *_locals;
@@ -24,14 +27,18 @@ public:
 
     public:
        ~Context() { ref->freeze(); }
-        Context(Runtime::ObjectRef object) : ref(std::make_shared<Closure>(object)) {}
-        Context(std::vector<Runtime::ObjectRef> *locals, size_t id) : ref(std::make_shared<Closure>(locals, id)) {}
+        Context(Runtime::ObjectRef object) : ref(Closure::ref(object)) {}
+        Context(std::vector<Runtime::ObjectRef> *locals, size_t id) : ref(Closure::ref(locals, id)) {}
 
     };
 
 public:
-    Closure(Runtime::ObjectRef object) : _id(0), _locals(nullptr), _object(object) {}
-    Closure(std::vector<Runtime::ObjectRef> *locals, size_t id) : _id(id), _locals(locals) {}
+    Closure(Runtime::ObjectRef object, Tag) : _id(0), _locals(nullptr), _object(object) {}
+    Closure(std::vector<Runtime::ObjectRef> *locals, size_t id, Tag) : _id(id), _locals(locals) {}
+
+public:
+    static ClosureRef ref(Runtime::ObjectRef object) { return std::make_shared<Closure>(object, Tag()); }
+    static ClosureRef ref(std::vector<Runtime::ObjectRef> *locals, size_t id) { return std::make_shared<Closure>(locals, id, Tag()); }
 
 public:
     void freeze(void)

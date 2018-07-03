@@ -5,7 +5,7 @@
 
 namespace RedScript::Runtime
 {
-/* thread-local, so no atomic operations needed */
+/* thread-local, so no atomic operations required */
 static thread_local bool _isStaticObject = true;
 
 ReferenceCounted::ReferenceCounted() : _refCount(1)
@@ -45,7 +45,7 @@ void *ReferenceCounted::operator new(size_t size)
 
 void ReferenceCounted::operator delete(void *self)
 {
-    /* should compatible with nullptr */
+    /* should be compatible with nullptr */
     if (self)
     {
         /* check for static object */

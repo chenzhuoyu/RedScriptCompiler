@@ -1,6 +1,9 @@
 #ifndef REDSCRIPT_RUNTIME_FUNCTIONOBJECT_H
 #define REDSCRIPT_RUNTIME_FUNCTIONOBJECT_H
 
+#include <string>
+#include <unordered_map>
+
 #include "engine/Closure.h"
 #include "runtime/Object.h"
 #include "runtime/CodeObject.h"

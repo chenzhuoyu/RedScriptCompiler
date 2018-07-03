@@ -14,6 +14,7 @@
 #include "runtime/DecimalObject.h"
 #include "runtime/FunctionObject.h"
 #include "runtime/NativeClassObject.h"
+#include "runtime/NativeFunctionObject.h"
 #include "runtime/ExceptionBlockObject.h"
 
 namespace RedScript
@@ -22,6 +23,7 @@ void shutdown(void)
 {
     /* generic objects */
     Runtime::ExceptionBlockObject::shutdown();
+    Runtime::NativeFunctionObject::shutdown();
     Runtime::NativeClassObject::shutdown();
     Runtime::FunctionObject::shutdown();
     Runtime::DecimalObject::shutdown();
@@ -65,6 +67,7 @@ void initialize(size_t young, size_t old, size_t perm)
     Runtime::DecimalObject::initialize();
     Runtime::FunctionObject::initialize();
     Runtime::NativeClassObject::initialize();
+    Runtime::NativeFunctionObject::initialize();
     Runtime::ExceptionBlockObject::initialize();
 }
 }

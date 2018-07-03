@@ -70,9 +70,11 @@ set(SOURCE_FILES
         include/runtime/CodeObject.h
         include/runtime/DecimalObject.h
         include/runtime/ExceptionBlockObject.h
+        include/runtime/FunctionObject.h
         include/runtime/IntObject.h
         include/runtime/MapObject.h
         include/runtime/NativeClassObject.h
+        include/runtime/NativeFunctionObject.h
         include/runtime/NullObject.h
         include/runtime/Object.h
         include/runtime/ReferenceCounted.h
@@ -97,9 +99,11 @@ set(SOURCE_FILES
         src/runtime/CodeObject.cpp
         src/runtime/DecimalObject.cpp
         src/runtime/ExceptionBlockObject.cpp
+        src/runtime/FunctionObject.cpp
         src/runtime/IntObject.cpp
         src/runtime/MapObject.cpp
         src/runtime/NativeClassObject.cpp
+        src/runtime/NativeFunctionObject.cpp
         src/runtime/NullObject.cpp
         src/runtime/Object.cpp
         src/runtime/ReferenceCounted.cpp
@@ -107,7 +111,7 @@ set(SOURCE_FILES
         src/runtime/TupleObject.cpp
         src/utils/Strings.cpp
         src/RedScript.cpp
-        src/main.cpp src/runtime/FunctionObject.cpp include/runtime/FunctionObject.h)
+        src/main.cpp)
 
 add_executable(rsc ${SOURCE_FILES})
 target_link_libraries(rsc -ldl -lfmt -ljemalloc)

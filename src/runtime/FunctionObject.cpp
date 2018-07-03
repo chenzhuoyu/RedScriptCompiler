@@ -1,6 +1,5 @@
 #include "runtime/MapObject.h"
 #include "runtime/FunctionObject.h"
-#include "exceptions/InternalError.h"
 
 namespace RedScript::Runtime
 {
