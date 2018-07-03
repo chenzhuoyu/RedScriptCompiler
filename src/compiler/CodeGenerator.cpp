@@ -387,8 +387,12 @@ void CodeGenerator::visitSwitch(const std::unique_ptr<AST::Switch> &node)
 
 void CodeGenerator::visitFunction(const std::unique_ptr<AST::Function> &node)
 {
+    /* create function object */
     buildFunctionObject(node);
-    emitOperand(node->name, Engine::OpCode::STOR_LOCAL, addLocal(node->name->name));
+
+    /* store as local variable if it's named function */
+    if (node->name != nullptr)
+        emitOperand(node->name, Engine::OpCode::STOR_LOCAL, addLocal(node->name->name));
 }
 
 bool CodeGenerator::isInConstructor(void)

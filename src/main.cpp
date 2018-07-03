@@ -54,14 +54,13 @@
 //)source";
 
 const char *source = R"source(
-def test(x) {
-    print('hello', 'world', x, end = '$\n', delim = '|')
-    return x
+def test(a, b, c = 100, d = 200) {
+    print(a, b, c, d)
+    return 'hello, world'
 }
 
-a = 123
 print('enter test')
-print(test(a))
+print(test(123, 456, d = 789))
 )source";
 
 #include <iostream>

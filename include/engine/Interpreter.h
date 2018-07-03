@@ -3,11 +3,14 @@
 
 #include <memory>
 #include <vector>
+#include <cstdint>
 #include <unordered_map>
 
+#include "utils/Strings.h"
 #include "engine/Closure.h"
 #include "runtime/Object.h"
 #include "runtime/CodeObject.h"
+#include "exceptions/InternalError.h"
 
 namespace RedScript::Engine
 {
@@ -36,8 +39,29 @@ public:
 
 public:
     Runtime::ObjectRef eval(void);
-    std::vector<Runtime::ObjectRef> &locals(void) { return _locals; }
 
+public:
+    void setLocal(uint32_t id, Runtime::ObjectRef value)
+    {
+        /* check for ID range */
+        if (id < _locals.size())
+            _locals[id] = value;
+        else
+            throw Exceptions::InternalError(Utils::Strings::format("Invalid local ID %u", id));
+    }
+
+public:
+    void setLocal(const std::string &name, Runtime::ObjectRef value)
+    {
+        /* find the local variable ID */
+        auto iter = _code->localMap().find(name);
+
+        /* check for existence */
+        if (iter != _code->localMap().end())
+            _locals[iter->second] = value;
+        else
+            throw Exceptions::InternalError(Utils::Strings::format("Invalid local name \"%s\"", name));
+    }
 };
 }
 

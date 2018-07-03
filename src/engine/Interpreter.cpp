@@ -13,7 +13,6 @@
 #include "exceptions/NameError.h"
 #include "exceptions/ValueError.h"
 #include "exceptions/RuntimeError.h"
-#include "exceptions/InternalError.h"
 #include "exceptions/StopIteration.h"
 
 #define OPERAND() ({                                                            \
