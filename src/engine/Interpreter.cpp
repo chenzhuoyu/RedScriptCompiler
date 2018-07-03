@@ -92,16 +92,14 @@ Runtime::ObjectRef Interpreter::hashmapConcat(Runtime::ObjectRef a, Runtime::Obj
     /* convert to map types */
     auto mapA = a.as<Runtime::MapObject>();
     auto mapB = b.as<Runtime::MapObject>();
+    auto result = Runtime::Object::newObject<Runtime::MapObject>(Runtime::MapObject::Mode::Ordered);
 
-    /* all merge to left map */
-    mapB->enumerate([&](Runtime::ObjectRef key, Runtime::ObjectRef value)
-    {
-        mapA->insert(key, value);
-        return true;
-    });
+    /* all merge to result */
+    mapA->enumerate([&](Runtime::ObjectRef key, Runtime::ObjectRef value){ result->insert(key, value); return true; });
+    mapB->enumerate([&](Runtime::ObjectRef key, Runtime::ObjectRef value){ result->insert(key, value); return true; });
 
     /* move to prevent copy */
-    return std::move(a);
+    return std::move(result);
 }
 
 Runtime::ObjectRef Interpreter::eval(
