@@ -47,6 +47,10 @@ public:
     ObjectRef self(void) { return ObjectRef::borrow(this); }
 
 public:
+    bool isInstanceOf(TypeRef type) { return _type.isIdenticalWith(type); }
+    bool isNotInstanceOf(TypeRef type) { return !(_type.isIdenticalWith(type)); }
+
+public:
     static void shutdown(void) {}
     static void initialize(void);
 

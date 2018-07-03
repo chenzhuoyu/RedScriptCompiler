@@ -53,11 +53,8 @@
 //}
 //)source";
 
-const char *source = R"source(#!/usr/bin/env redscript
-#def test(s) {
-#    println(s)
-#}
-println('hello, world')
+const char *source = R"source(
+print('hello', 'world', end = '$\n', delim = '|')
 )source";
 
 #include <iostream>
@@ -68,12 +65,15 @@ println('hello, world')
 
 #include "RedScript.h"
 #include "engine/Memory.h"
+#include "engine/Builtins.h"
 #include "engine/Interpreter.h"
 
 #include "utils/Strings.h"
 #include "runtime/Object.h"
+#include "runtime/MapObject.h"
 #include "runtime/CodeObject.h"
 #include "runtime/NullObject.h"
+#include "runtime/TupleObject.h"
 #include "runtime/NativeFunctionObject.h"
 
 #include "compiler/Parser.h"
@@ -94,7 +94,7 @@ static void dis(RedScript::Runtime::Reference<RedScript::Runtime::CodeObject> co
             code->consts()[i]->type()->objectRepr(code->consts()[i]).c_str()
         );
 
-        if (code->consts()[i]->type().isIdenticalWith(RedScript::Runtime::CodeTypeObject))
+        if (code->consts()[i]->isInstanceOf(RedScript::Runtime::CodeTypeObject))
             codes.push_back(code->consts()[i].as<RedScript::Runtime::CodeObject>());
     }
 
@@ -134,13 +134,6 @@ static void dis(RedScript::Runtime::Reference<RedScript::Runtime::CodeObject> co
         dis(x);
 }
 
-static RedScript::Runtime::ObjectRef println(RedScript::Runtime::ObjectRef args, RedScript::Runtime::ObjectRef kwargs)
-{
-    std::cout << args->type()->objectRepr(args) << std::endl;
-    std::cout << kwargs->type()->objectRepr(kwargs) << std::endl;
-    return RedScript::Runtime::NullObject;
-}
-
 static void run(void)
 {
     RedScript::Compiler::Parser parser(std::make_unique<RedScript::Compiler::Tokenizer>(source));
@@ -154,9 +147,7 @@ static void run(void)
 
     RedScript::Engine::Interpreter intp;
     std::cout << "--------------------- EVAL ---------------------" << std::endl;
-    RedScript::Runtime::ObjectRef ret = intp.eval(code, {
-        { "println", RedScript::Engine::Closure::ref(RedScript::Runtime::Object::newObject<RedScript::Runtime::NativeFunctionObject>(println)) }
-    });
+    RedScript::Runtime::ObjectRef ret = intp.eval(code, RedScript::Engine::Builtins::closure());
 
     std::cout << "--------------------- RETURN ---------------------" << std::endl;
     std::cout << ret->type()->objectRepr(ret) << std::endl;

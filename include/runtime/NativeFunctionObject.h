@@ -5,6 +5,8 @@
 #include <functional>
 
 #include "runtime/Object.h"
+#include "runtime/MapObject.h"
+#include "runtime/TupleObject.h"
 
 namespace RedScript::Runtime
 {
@@ -20,7 +22,11 @@ public:
 
 /* type object for native function */
 extern TypeRef NativeFunctionTypeObject;
-typedef std::function<ObjectRef(ObjectRef, ObjectRef)> NativeFunction;
+
+/* native function types */
+typedef Reference<MapObject> KeywordArgs;
+typedef Reference<TupleObject> VariadicArgs;
+typedef std::function<ObjectRef(VariadicArgs, KeywordArgs)> NativeFunction;
 
 class NativeFunctionObject : public Object
 {
@@ -37,6 +43,12 @@ public:
     static void shutdown(void) {}
     static void initialize(void);
 
+public:
+    static ObjectRef newVariadic(NativeFunction function)
+    {
+        /* custom variadic function */
+        return Object::newObject<NativeFunctionObject>(function);
+    }
 };
 }
 

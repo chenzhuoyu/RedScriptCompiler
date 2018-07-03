@@ -43,11 +43,11 @@ Runtime::ObjectRef Interpreter::tupleConcat(Runtime::ObjectRef a, Runtime::Objec
         return a;
 
     /* check for left tuple */
-    if (!(a->type().isIdenticalWith(Runtime::TupleTypeObject)))
+    if (a->isNotInstanceOf(Runtime::TupleTypeObject))
         throw Exceptions::InternalError("Invalid left tuple object");
 
     /* check for right tuple */
-    if (!(b->type().isIdenticalWith(Runtime::TupleTypeObject)))
+    if (b->isNotInstanceOf(Runtime::TupleTypeObject))
         throw Exceptions::InternalError("Invalid right tuple object");
 
     /* calculate it's size, and allocate a new tuple */
@@ -82,11 +82,11 @@ Runtime::ObjectRef Interpreter::hashmapConcat(Runtime::ObjectRef a, Runtime::Obj
         return a;
 
     /* check for left map */
-    if (!(a->type().isIdenticalWith(Runtime::MapTypeObject)))
+    if (a->isNotInstanceOf(Runtime::MapTypeObject))
         throw Exceptions::InternalError("Invalid left map object");
 
     /* check for right map */
-    if (!(b->type().isIdenticalWith(Runtime::MapTypeObject)))
+    if (b->isNotInstanceOf(Runtime::MapTypeObject))
         throw Exceptions::InternalError("Invalid right map object");
 
     /* convert to map types */
@@ -938,11 +938,11 @@ Runtime::ObjectRef Interpreter::eval(
                         throw Exceptions::InternalError(Utils::Strings::format("Constant ID %u out of range", id));
 
                     /* check for tuple object */
-                    if (!(def->type().isIdenticalWith(Runtime::TupleTypeObject)))
+                    if (def->isNotInstanceOf(Runtime::TupleTypeObject))
                         throw Exceptions::InternalError("Invalid tuple object");
 
                     /* check for code object */
-                    if (!(code->consts()[id]->type().isIdenticalWith(Runtime::CodeTypeObject)))
+                    if (code->consts()[id]->isNotInstanceOf(Runtime::CodeTypeObject))
                         throw Exceptions::InternalError("Invalid code object");
 
                     /* convert to corresponding type */

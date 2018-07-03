@@ -9,8 +9,16 @@ TypeRef NativeFunctionTypeObject;
 ObjectRef NativeFunctionType::objectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs)
 {
     /* check object type */
-    if (!(self->type().isIdenticalWith(NativeFunctionTypeObject)))
+    if (self->isNotInstanceOf(NativeFunctionTypeObject))
         throw Exceptions::InternalError("Invalid native function call");
+
+    /* check tuple type */
+    if (args->isNotInstanceOf(TupleTypeObject))
+        throw Exceptions::InternalError("Invalid tuple object");
+
+    /* check map type */
+    if (kwargs->isNotInstanceOf(MapTypeObject))
+        throw Exceptions::InternalError("Invalid map object");
 
     /* convert to function object */
     auto func = self.as<NativeFunctionObject>();
@@ -21,7 +29,7 @@ ObjectRef NativeFunctionType::objectInvoke(ObjectRef self, ObjectRef args, Objec
         throw Exceptions::InternalError("Empty native function call");
 
     /* call the native function */
-    return function(args, kwargs);
+    return function(args.as<TupleObject>(), kwargs.as<MapObject>());
 }
 
 void NativeFunctionObject::initialize(void)

@@ -51,6 +51,7 @@ set(SOURCE_FILES
         include/compiler/CodeGenerator.h
         include/compiler/Parser.h
         include/compiler/Tokenizer.h
+        include/engine/Builtins.h
         include/engine/Bytecode.h
         include/engine/Closure.h
         include/engine/GarbageCollector.h
@@ -80,6 +81,7 @@ set(SOURCE_FILES
         include/runtime/ReferenceCounted.h
         include/runtime/StringObject.h
         include/runtime/TupleObject.h
+        include/utils/Arguments.h
         include/utils/Immovable.h
         include/utils/NonCopyable.h
         include/utils/Preprocessor.h
@@ -91,6 +93,7 @@ set(SOURCE_FILES
         src/compiler/CodeGenerator.cpp
         src/compiler/Parser.cpp
         src/compiler/Tokenizer.cpp
+        src/engine/Builtins.cpp
         src/engine/GarbageCollector.cpp
         src/engine/Interpreter.cpp
         src/engine/Memory.cpp
