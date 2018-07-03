@@ -11,6 +11,7 @@
 #include "runtime/NativeClassObject.h"
 
 #include "exceptions/NameError.h"
+#include "exceptions/TypeError.h"
 #include "exceptions/ValueError.h"
 #include "exceptions/RuntimeError.h"
 #include "exceptions/StopIteration.h"
@@ -38,13 +39,9 @@ Runtime::ObjectRef Interpreter::tupleConcat(Runtime::ObjectRef a, Runtime::Objec
     if (b.isNull() && !(a.isNull()))
         return a;
 
-    /* check for left tuple */
+    /* check for left tuple, right tuple already checked before */
     if (a->isNotInstanceOf(Runtime::TupleTypeObject))
         throw Exceptions::InternalError("Invalid left tuple object");
-
-    /* check for right tuple */
-    if (b->isNotInstanceOf(Runtime::TupleTypeObject))
-        throw Exceptions::InternalError("Invalid right tuple object");
 
     /* calculate it's size, and allocate a new tuple */
     auto tupleA = a.as<Runtime::TupleObject>();
@@ -77,13 +74,9 @@ Runtime::ObjectRef Interpreter::hashmapConcat(Runtime::ObjectRef a, Runtime::Obj
     if (b.isNull() && !(a.isNull()))
         return a;
 
-    /* check for left map */
+    /* check for left map, right map already checked before */
     if (a->isNotInstanceOf(Runtime::MapTypeObject))
         throw Exceptions::InternalError("Invalid left map object");
-
-    /* check for right map */
-    if (b->isNotInstanceOf(Runtime::MapTypeObject))
-        throw Exceptions::InternalError("Invalid right map object");
 
     /* convert to map types */
     auto mapA = a.as<Runtime::MapObject>();
@@ -457,6 +450,10 @@ Runtime::ObjectRef Interpreter::eval(void)
                             /* pop keyword arguments from stack */
                             kwargs = std::move(_stack.back());
                             _stack.pop_back();
+
+                            /* must be a map */
+                            if (kwargs->isNotInstanceOf(Runtime::MapTypeObject))
+                                throw Exceptions::TypeError("Keyword argument pack must be a map");
                         }
 
                         /* have variadic arguments */
@@ -469,6 +466,10 @@ Runtime::ObjectRef Interpreter::eval(void)
                             /* pop variadic arguments from stack */
                             vargs = std::move(_stack.back());
                             _stack.pop_back();
+
+                            /* must be a tuple */
+                            if (vargs->isNotInstanceOf(Runtime::TupleTypeObject))
+                                throw Exceptions::TypeError("Variadic argument pack must be a tuple");
                         }
 
                         /* have named arguments */
