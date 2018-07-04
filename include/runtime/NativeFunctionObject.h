@@ -28,6 +28,11 @@ typedef Reference<MapObject> KeywordArgs;
 typedef Reference<TupleObject> VariadicArgs;
 typedef std::function<ObjectRef(VariadicArgs, KeywordArgs)> NativeFunction;
 
+typedef std::function<ObjectRef(void)> NullaryFunction;
+typedef std::function<ObjectRef(ObjectRef)> UnaryFunction;
+typedef std::function<ObjectRef(ObjectRef, ObjectRef)> BinaryFunction;
+typedef std::function<ObjectRef(ObjectRef, ObjectRef, ObjectRef)> TernaryFunction;
+
 class NativeFunctionObject : public Object
 {
     NativeFunction _function;
@@ -44,11 +49,12 @@ public:
     static void initialize(void);
 
 public:
-    static ObjectRef newVariadic(NativeFunction function)
-    {
-        /* custom variadic function */
-        return Object::newObject<NativeFunctionObject>(function);
-    }
+    static ObjectRef newNullary (NullaryFunction func);
+    static ObjectRef newUnary   (UnaryFunction   func);
+    static ObjectRef newBinary  (BinaryFunction  func);
+    static ObjectRef newTernary (TernaryFunction func);
+    static ObjectRef newVariadic(NativeFunction  func) { return Object::newObject<NativeFunctionObject>(func); }
+
 };
 }
 
