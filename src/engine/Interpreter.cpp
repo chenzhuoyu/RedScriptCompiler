@@ -29,7 +29,7 @@ Runtime::ObjectRef Interpreter::tupleConcat(Runtime::ObjectRef a, Runtime::Objec
 {
     /* both are null */
     if (a.isNull() && b.isNull())
-        return Runtime::Object::newObject<Runtime::TupleObject>(0);
+        return Runtime::TupleObject::newEmpty();
 
     /* a == null, b != null */
     if (a.isNull() && !(b.isNull()))
@@ -46,7 +46,7 @@ Runtime::ObjectRef Interpreter::tupleConcat(Runtime::ObjectRef a, Runtime::Objec
     /* calculate it's size, and allocate a new tuple */
     auto tupleA = a.as<Runtime::TupleObject>();
     auto tupleB = b.as<Runtime::TupleObject>();
-    auto result = Runtime::Object::newObject<Runtime::TupleObject>(tupleA->size() + tupleB->size());
+    auto result = Runtime::TupleObject::fromSize(tupleA->size() + tupleB->size());
 
     /* copy all items from left tuple */
     for (size_t i = 0; i < tupleA->size(); i++)
@@ -64,7 +64,7 @@ Runtime::ObjectRef Interpreter::hashmapConcat(Runtime::ObjectRef a, Runtime::Obj
 {
     /* both are null */
     if (a.isNull() && b.isNull())
-        return Runtime::Object::newObject<Runtime::MapObject>(Runtime::MapObject::Mode::Ordered);
+        return Runtime::MapObject::newOrdered();
 
     /* a == null, b != null */
     if (a.isNull() && !(b.isNull()))
@@ -81,7 +81,7 @@ Runtime::ObjectRef Interpreter::hashmapConcat(Runtime::ObjectRef a, Runtime::Obj
     /* convert to map types */
     auto mapA = a.as<Runtime::MapObject>();
     auto mapB = b.as<Runtime::MapObject>();
-    auto result = Runtime::Object::newObject<Runtime::MapObject>(Runtime::MapObject::Mode::Ordered);
+    auto result = Runtime::MapObject::newOrdered();
 
     /* all merge to result */
     mapA->enumerate([&](Runtime::ObjectRef key, Runtime::ObjectRef value){ result->insert(key, value); return true; });
@@ -163,7 +163,13 @@ Runtime::ObjectRef Interpreter::eval(void)
                     {
                         /* must be assigned before using */
                         if (_locals[iter->second].isNull())
-                            throw Exceptions::RuntimeError(Utils::Strings::format("Variable \"%s\" referenced before assignment", name));
+                        {
+                            throw Exceptions::NameError(
+                                line.first,
+                                line.second,
+                                Utils::Strings::format("Variable \"%s\" referenced before assignment", name)
+                            );
+                        }
 
                         /* push onto the stack */
                         _stack.emplace_back(_locals[iter->second]);
@@ -178,7 +184,13 @@ Runtime::ObjectRef Interpreter::eval(void)
                     {
                         /* must be assigned before using */
                         if (cliter->second->get().isNull())
-                            throw Exceptions::RuntimeError(Utils::Strings::format("Variable \"%s\" referenced before assignment", name));
+                        {
+                            throw Exceptions::NameError(
+                                line.first,
+                                line.second,
+                                Utils::Strings::format("Variable \"%s\" referenced before assignment", name)
+                            );
+                        }
 
                         /* push onto the stack */
                         _stack.emplace_back(cliter->second->get());
@@ -205,7 +217,13 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                     /* should have initialized */
                     if (_locals[id].isNull())
-                        throw Exceptions::RuntimeError(Utils::Strings::format("Variable \"%s\" referenced before assignment", _code->locals()[id]));
+                    {
+                        throw Exceptions::NameError(
+                            line.first,
+                            line.second,
+                            Utils::Strings::format("Variable \"%s\" referenced before assignment", _code->locals()[id])
+                        );
+                    }
 
                     /* load the local into stack */
                     _stack.emplace_back(_locals[id]);
@@ -244,7 +262,13 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                     /* should have initialized */
                     if (_locals[id].isNull())
-                        throw Exceptions::RuntimeError(Utils::Strings::format("Variable \"%s\" referenced before assignment", _code->locals()[id]));
+                    {
+                        throw Exceptions::NameError(
+                            line.first,
+                            line.second,
+                            Utils::Strings::format("Variable \"%s\" referenced before assignment", _code->locals()[id])
+                        );
+                    }
 
                     /* clear local reference */
                     _locals[id] = nullptr;
@@ -425,12 +449,9 @@ Runtime::ObjectRef Interpreter::eval(void)
                         if (_stack.empty())
                             throw Exceptions::InternalError("Stack is empty");
 
-                        /* create invocation parameters */
-                        vargs = Runtime::Object::newObject<Runtime::TupleObject>(1);
-                        kwargs = Runtime::Object::newObject<Runtime::MapObject>(Runtime::MapObject::Mode::Ordered);
-
                         /* build a tuple from stack top */
-                        vargs.as<Runtime::TupleObject>()->items()[0] = _stack.back();
+                        vargs = Runtime::TupleObject::fromObjects(_stack.back());
+                        kwargs = Runtime::MapObject::newOrdered();
                         _stack.pop_back();
                     }
 
@@ -850,7 +871,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                 case OpCode::MAKE_MAP:
                 {
                     /* item count */
-                    auto map = Runtime::Object::newObject<Runtime::MapObject>(Runtime::MapObject::Mode::Ordered);
+                    auto map = Runtime::MapObject::newOrdered();
                     uint32_t count = OPERAND();
 
                     /* check stack size */
@@ -895,7 +916,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                     /* create tuple object */
                     auto size = OPERAND();
                     auto iter = _stack.rbegin();
-                    auto tuple = Runtime::Object::newObject<Runtime::TupleObject>(size);
+                    auto tuple = Runtime::TupleObject::fromSize(size);
 
                     /* check stack */
                     if (_stack.size() < size)

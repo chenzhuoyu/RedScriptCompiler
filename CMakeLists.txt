@@ -58,6 +58,7 @@ set(SOURCE_FILES
         include/engine/Interpreter.h
         include/engine/Memory.h
         include/engine/Thread.h
+        include/exceptions/AttributeError.h
         include/exceptions/InternalError.h
         include/exceptions/NameError.h
         include/exceptions/NativeSyntaxError.h
@@ -78,6 +79,7 @@ set(SOURCE_FILES
         include/runtime/NativeFunctionObject.h
         include/runtime/NullObject.h
         include/runtime/Object.h
+        include/runtime/ProxyObject.h
         include/runtime/ReferenceCounted.h
         include/runtime/StringObject.h
         include/runtime/TupleObject.h
@@ -109,6 +111,7 @@ set(SOURCE_FILES
         src/runtime/NativeFunctionObject.cpp
         src/runtime/NullObject.cpp
         src/runtime/Object.cpp
+        src/runtime/ProxyObject.cpp
         src/runtime/ReferenceCounted.cpp
         src/runtime/StringObject.cpp
         src/runtime/TupleObject.cpp

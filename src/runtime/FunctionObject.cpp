@@ -75,8 +75,8 @@ ObjectRef FunctionObject::invoke(Reference<TupleObject> args, Reference<MapObjec
     size_t count = std::min(argv.size(), args->size());
 
     /* extra positional arguments and keyword arguments */
-    auto argsMap = Object::newObject<MapObject>(MapObject::Mode::Ordered);
-    auto argsTuple = Object::newObject<TupleObject>(args->size() <= argv.size() ? 0 : args->size() - argv.size());
+    auto argsMap = MapObject::newOrdered();
+    auto argsTuple = TupleObject::fromSize(args->size() <= argv.size() ? 0 : args->size() - argv.size());
 
     /* fill positional arguments */
     while (argc < count)

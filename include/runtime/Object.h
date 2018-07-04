@@ -16,7 +16,7 @@ class Object;
 typedef Reference<Type> TypeRef;
 typedef Reference<Object> ObjectRef;
 typedef std::vector<std::string> StringList;
-typedef std::unordered_map<std::string, ObjectRef> Elements;
+typedef std::unordered_map<std::string, ObjectRef> Dict;
 
 /* the very first class */
 extern TypeRef TypeObject;
@@ -24,8 +24,8 @@ extern TypeRef TypeObject;
 /* simple object */
 class Object : public ReferenceCounted
 {
+    Dict _dict;
     TypeRef _type;
-    Elements _dict;
 
 private:
     template <typename> friend class Reference;
@@ -43,6 +43,7 @@ private:
     bool isNotEquals(Object *other);
 
 public:
+    Dict &dict(void) { return _dict; }
     TypeRef type(void) { return _type; }
     ObjectRef self(void) { return ObjectRef::borrow(this); }
 
@@ -74,8 +75,8 @@ public:
     explicit Type(const std::string &name, TypeRef super) : Object(TypeObject), _name(name), _super(super) {}
 
 public:
-    TypeRef super(void) const { return _super; }
-    const std::string &name(void) const { return _name; }
+    TypeRef super(void) { return _super; }
+    std::string &name(void) { return _name; }
 
 private:
     ObjectRef applyUnary(const char *name, ObjectRef self);
@@ -102,6 +103,10 @@ public:
     virtual bool objectIsSubclassOf(ObjectRef self, TypeRef type);
     virtual bool objectIsInstanceOf(ObjectRef self, TypeRef type) { return objectIsSubclassOf(self->type(), type); }
 
+private:
+    enum class DescriptorType { Proxy, Object, NotADescriptor };
+    DescriptorType resolveDescriptor(ObjectRef obj, ObjectRef &getter, ObjectRef &setter, ObjectRef &deleter);
+
 public:
     virtual void      objectDelAttr(ObjectRef self, const std::string &name);
     virtual ObjectRef objectGetAttr(ObjectRef self, const std::string &name);
@@ -126,11 +131,11 @@ public:
     virtual ObjectRef numericNeg(ObjectRef self) { return applyUnary("__neg__", self); }
 
 public:
-    virtual ObjectRef numericAdd(ObjectRef self, ObjectRef other) { return applyBinary("__add__", self, other); }
-    virtual ObjectRef numericSub(ObjectRef self, ObjectRef other) { return applyBinary("__sub__", self, other); }
-    virtual ObjectRef numericMul(ObjectRef self, ObjectRef other) { return applyBinary("__mul__", self, other); }
-    virtual ObjectRef numericDiv(ObjectRef self, ObjectRef other) { return applyBinary("__div__", self, other); }
-    virtual ObjectRef numericMod(ObjectRef self, ObjectRef other) { return applyBinary("__mod__", self, other); }
+    virtual ObjectRef numericAdd  (ObjectRef self, ObjectRef other) { return applyBinary("__add__", self, other); }
+    virtual ObjectRef numericSub  (ObjectRef self, ObjectRef other) { return applyBinary("__sub__", self, other); }
+    virtual ObjectRef numericMul  (ObjectRef self, ObjectRef other) { return applyBinary("__mul__", self, other); }
+    virtual ObjectRef numericDiv  (ObjectRef self, ObjectRef other) { return applyBinary("__div__", self, other); }
+    virtual ObjectRef numericMod  (ObjectRef self, ObjectRef other) { return applyBinary("__mod__", self, other); }
     virtual ObjectRef numericPower(ObjectRef self, ObjectRef other) { return applyBinary("__pow__", self, other); }
 
 public:
@@ -144,11 +149,11 @@ public:
     virtual ObjectRef numericRShift(ObjectRef self, ObjectRef other) { return applyBinary("__rshift__", self, other); }
 
 public:
-    virtual ObjectRef numericIncAdd(ObjectRef self, ObjectRef other) { return applyBinary("__inc_add__", self, other, "__add__"); }
-    virtual ObjectRef numericIncSub(ObjectRef self, ObjectRef other) { return applyBinary("__inc_sub__", self, other, "__sub__"); }
-    virtual ObjectRef numericIncMul(ObjectRef self, ObjectRef other) { return applyBinary("__inc_mul__", self, other, "__mul__"); }
-    virtual ObjectRef numericIncDiv(ObjectRef self, ObjectRef other) { return applyBinary("__inc_div__", self, other, "__div__"); }
-    virtual ObjectRef numericIncMod(ObjectRef self, ObjectRef other) { return applyBinary("__inc_mod__", self, other, "__mod__"); }
+    virtual ObjectRef numericIncAdd  (ObjectRef self, ObjectRef other) { return applyBinary("__inc_add__", self, other, "__add__"); }
+    virtual ObjectRef numericIncSub  (ObjectRef self, ObjectRef other) { return applyBinary("__inc_sub__", self, other, "__sub__"); }
+    virtual ObjectRef numericIncMul  (ObjectRef self, ObjectRef other) { return applyBinary("__inc_mul__", self, other, "__mul__"); }
+    virtual ObjectRef numericIncDiv  (ObjectRef self, ObjectRef other) { return applyBinary("__inc_div__", self, other, "__div__"); }
+    virtual ObjectRef numericIncMod  (ObjectRef self, ObjectRef other) { return applyBinary("__inc_mod__", self, other, "__mod__"); }
     virtual ObjectRef numericIncPower(ObjectRef self, ObjectRef other) { return applyBinary("__inc_pow__", self, other, "__pow__"); }
 
 public:

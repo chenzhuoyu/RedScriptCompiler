@@ -14,6 +14,7 @@
 #include "runtime/StringObject.h"
 #include "runtime/DecimalObject.h"
 #include "runtime/FunctionObject.h"
+#include "runtime/ProxyObject.h"
 #include "runtime/NativeClassObject.h"
 #include "runtime/NativeFunctionObject.h"
 #include "runtime/ExceptionBlockObject.h"
@@ -40,9 +41,12 @@ void shutdown(void)
     Runtime::StringObject::shutdown();
     Runtime::IntObject::shutdown();
 
-    /* object sub-system */
+    /* singleton objects */
     Runtime::_NullObject::shutdown();
     Runtime::BoolObject::shutdown();
+
+    /* meta objects */
+    Runtime::ProxyObject::shutdown();
     Runtime::Object::shutdown();
 
     /* memory management and garbage collector */
@@ -54,8 +58,11 @@ void initialize(size_t young, size_t old, size_t perm)
     /* memory management and garbage collector */
     Engine::GarbageCollector::initialize(young, old, perm);
 
-    /* object sub-system */
+    /* meta objects */
     Runtime::Object::initialize();
+    Runtime::ProxyObject::initialize();
+
+    /* singleton objects */
     Runtime::BoolObject::initialize();
     Runtime::_NullObject::initialize();
 

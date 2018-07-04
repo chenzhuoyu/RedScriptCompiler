@@ -93,6 +93,11 @@ public:
     void enumerateCopy(EnumeratorFunc func);
 
 public:
+    static Reference<MapObject> newLRU(void)        { return Object::newObject<MapObject>(Mode::LRU); }
+    static Reference<MapObject> newOrdered(void)    { return Object::newObject<MapObject>(Mode::Ordered); }
+    static Reference<MapObject> newUnordered(void)  { return Object::newObject<MapObject>(Mode::Unordered); }
+
+public:
     static void shutdown(void) {}
     static void initialize(void);
 

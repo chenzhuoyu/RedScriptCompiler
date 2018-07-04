@@ -90,15 +90,9 @@ public:
     }
 
 public:
-    Reference(T *object = nullptr) : _object(object), _isBorrowed(false)
-    {
-        /* cannot reference static object using this constructor */
-        if (object && object->_isStatic)
-            throw std::invalid_argument("Static objects must be referenced by `refStatic()`");
-
-        /* add a reference */
-        ref();
-    }
+    /* default constructor and null-value constructor */
+    Reference() : Reference(nullptr) {}
+    Reference(std::nullptr_t) : _object(nullptr), _isBorrowed(false) {}
 
 public:
     /* move constructor and copy constuctor */
