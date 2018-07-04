@@ -1,5 +1,6 @@
 #include <iostream>
 
+#include "runtime/IntObject.h"
 #include "runtime/NullObject.h"
 #include "runtime/TupleObject.h"
 #include "runtime/StringObject.h"
@@ -24,6 +25,24 @@ Runtime::ObjectRef Builtins::dir(Runtime::ObjectRef obj)
 
     /* move to prevent copy */
     return std::move(tuple);
+}
+
+Runtime::ObjectRef Builtins::len(Runtime::ObjectRef obj)
+{
+    /* get it's length, and wrap with int object */
+    return Runtime::IntObject::fromInt(obj->type()->sequenceLen(obj));
+}
+
+Runtime::ObjectRef Builtins::hash(Runtime::ObjectRef obj)
+{
+    /* get it's hash, and wrap with int object */
+    return Runtime::IntObject::fromInt(obj->type()->objectHash(obj));
+}
+
+Runtime::ObjectRef Builtins::repr(Runtime::ObjectRef obj)
+{
+    /* get it's representation, and wrap with string object */
+    return Runtime::StringObject::fromString(obj->type()->objectRepr(obj));
 }
 
 Runtime::ObjectRef Builtins::print(Runtime::VariadicArgs args, Runtime::KeywordArgs kwargs)
@@ -67,6 +86,9 @@ void Builtins::initialize(void)
 {
     /* built-in functions */
     Globals.emplace("dir"   , Closure::ref(Runtime::NativeFunctionObject::newUnary(&dir)));
+    Globals.emplace("len"   , Closure::ref(Runtime::NativeFunctionObject::newUnary(&len)));
+    Globals.emplace("hash"  , Closure::ref(Runtime::NativeFunctionObject::newUnary(&hash)));
+    Globals.emplace("repr"  , Closure::ref(Runtime::NativeFunctionObject::newUnary(&repr)));
     Globals.emplace("print" , Closure::ref(Runtime::NativeFunctionObject::newVariadic(&print)));
 }
 }
