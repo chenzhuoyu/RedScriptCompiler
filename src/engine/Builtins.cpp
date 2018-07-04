@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "runtime/NullObject.h"
+#include "runtime/TupleObject.h"
 #include "runtime/StringObject.h"
 
 #include "engine/Builtins.h"
@@ -10,6 +11,20 @@ namespace RedScript::Engine
 {
 /* built-in globals */
 std::unordered_map<std::string, ClosureRef> Builtins::Globals;
+
+Runtime::ObjectRef Builtins::dir(Runtime::ObjectRef obj)
+{
+    /* get the attribute list */
+    auto attrs = obj->type()->objectDir(obj);
+    auto tuple = Runtime::TupleObject::fromSize(attrs.size());
+
+    /* convert each item into string object */
+    for (size_t i = 0; i < attrs.size(); i++)
+        tuple->items()[i] = Runtime::StringObject::fromString(attrs[i]);
+
+    /* move to prevent copy */
+    return std::move(tuple);
+}
 
 Runtime::ObjectRef Builtins::print(Runtime::VariadicArgs args, Runtime::KeywordArgs kwargs)
 {
@@ -51,6 +66,7 @@ void Builtins::shutdown(void)
 void Builtins::initialize(void)
 {
     /* built-in functions */
-    Globals.emplace("print", Closure::ref(Runtime::NativeFunctionObject::newVariadic(&print)));
+    Globals.emplace("dir"   , Closure::ref(Runtime::NativeFunctionObject::newUnary(&dir)));
+    Globals.emplace("print" , Closure::ref(Runtime::NativeFunctionObject::newVariadic(&print)));
 }
 }

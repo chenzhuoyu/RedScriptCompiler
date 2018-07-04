@@ -12,6 +12,7 @@ namespace RedScript::Engine
 {
 class Builtins
 {
+    static Runtime::ObjectRef dir(Runtime::ObjectRef obj);
     static Runtime::ObjectRef print(Runtime::VariadicArgs args, Runtime::KeywordArgs kwargs);
 
 public:

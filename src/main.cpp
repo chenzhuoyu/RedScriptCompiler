@@ -59,6 +59,7 @@ def test(a, b, c = 100, d = 200) {
     return 'hello, world'
 }
 
+print(dir(test))
 print('enter test')
 print(test(123, 456, d = 789))
 )source";
