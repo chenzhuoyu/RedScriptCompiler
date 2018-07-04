@@ -93,7 +93,37 @@ ObjectRef IntType::comparableCompare(ObjectRef self, ObjectRef other)
     );
 }
 
+bool IntObject::isSafeInt(void)
+{
+    // TODO: high precision integer
+    return _value <= INT32_MAX;
+}
+
+bool IntObject::isSafeUInt(void)
+{
+    // TODO: high precision integer
+    return _value >= 0;
+}
+
+int64_t IntObject::toInt(void)
+{
+    // TODO: high precision integer
+    return _value;
+}
+
+uint64_t IntObject::toUInt(void)
+{
+    // TODO: high precision integer
+    return static_cast<uint64_t>(_value);
+}
+
 ObjectRef IntObject::fromInt(int64_t value)
+{
+    // TODO: implement an integer pool
+    return Object::newObject<IntObject>(value);
+}
+
+ObjectRef IntObject::fromUInt(uint64_t value)
 {
     // TODO: implement an integer pool
     return Object::newObject<IntObject>(value);

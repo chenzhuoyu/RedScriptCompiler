@@ -54,15 +54,8 @@
 //)source";
 
 const char *source = R"source(
-def test(a, b, c = 100, d = 200) {
-    print(a, b, c, d)
-    return 'hello, world'
-}
-
-print(dir(test))
-print(hash(test))
-print('enter test')
-print(test(123, 456, d = 789))
+print(1.1)
+print(hash(1.0))
 )source";
 
 #include <iostream>

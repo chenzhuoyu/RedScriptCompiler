@@ -13,14 +13,16 @@ size_t MapObject::size(void)
 
 Runtime::ObjectRef MapObject::back(void)
 {
+    /* unordered maps have no particular order, so any element is acceptable as "back" */
     Utils::RWLock::Read _(_rwlock);
-    return _head.prev->value;
+    return (_mode == Mode::Unordered) ? _map.begin()->second->value : _head.prev->value;
 }
 
 Runtime::ObjectRef MapObject::front(void)
 {
+    /* unordered maps have no particular order, so any element is acceptable as "front" */
     Utils::RWLock::Read _(_rwlock);
-    return _head.next->value;
+    return (_mode == Mode::Unordered) ? _map.begin()->second->value : _head.next->value;
 }
 
 Runtime::ObjectRef MapObject::pop(Runtime::ObjectRef key)

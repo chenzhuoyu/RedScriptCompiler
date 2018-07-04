@@ -24,7 +24,15 @@ add_definitions(-DTCC_TARGET_X86_64)
 add_definitions(-DCONFIG_TRIPLET="x86_64-linux-gnu")
 
 link_directories(/usr/local/lib)
-include_directories(/usr/local/include ${CMAKE_SOURCE_DIR}/libtcc-mt ${CMAKE_SOURCE_DIR}/include)
+include_directories(
+        /usr/local/include
+        ${CMAKE_SOURCE_DIR}/libbid/include
+        ${CMAKE_SOURCE_DIR}/libtcc-mt
+        ${CMAKE_SOURCE_DIR}/include)
+
+set(LIBBID
+        libbid/include/bid_conf.h
+        libbid/include/bid_dfp.h)
 
 set(LIBTCC_MT
         libtcc-mt/tccelf.h
@@ -46,6 +54,7 @@ set(LIBTCC_MT
         libtcc-mt/x86_64-link.c)
 
 set(SOURCE_FILES
+        ${LIBBID}
         ${LIBTCC_MT}
         include/compiler/AST.h
         include/compiler/CodeGenerator.h
@@ -83,7 +92,6 @@ set(SOURCE_FILES
         include/runtime/ReferenceCounted.h
         include/runtime/StringObject.h
         include/runtime/TupleObject.h
-        include/utils/Arguments.h
         include/utils/Immovable.h
         include/utils/NonCopyable.h
         include/utils/Preprocessor.h
@@ -117,7 +125,7 @@ set(SOURCE_FILES
         src/runtime/TupleObject.cpp
         src/utils/Strings.cpp
         src/RedScript.cpp
-        src/main.cpp)
+        src/main.cpp src/utils/Decimal.cpp src/utils/Decimal.h)
 
 add_executable(rsc ${SOURCE_FILES})
-target_link_libraries(rsc -ldl -lfmt -ljemalloc)
+target_link_libraries(rsc -L${CMAKE_SOURCE_DIR}/libbid/lib dl fmt jemalloc bid_${CMAKE_SYSTEM_NAME})

@@ -360,18 +360,16 @@ Token::Ptr Tokenizer::readNumber(void)
         return Token::createValue(row, col, integer);
     }
 
-    double factor = 1.0;
-    double decimal = integer;
+    /* use string to preserve precision */
+    std::string decimal = std::to_string(integer);
+    decimal += ".";
 
     /* merge to final result */
-    do
-    {
-        factor *= 0.1;
-        decimal += toInt(nextChar()) * factor;
-    } while (in(peekChar(), '0', '9'));
+    do decimal += nextChar();
+    while (in(peekChar(), '0', '9'));
 
-    /* represent as "Float" token */
-    return Token::createValue(row, col, decimal);
+    /* represent as "Decimal" token */
+    return Token::createValue(row, col, Utils::Decimal(decimal));
 }
 
 Token::Ptr Tokenizer::readOperator(void)

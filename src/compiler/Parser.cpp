@@ -1018,8 +1018,8 @@ std::unique_ptr<AST::Literal> Parser::parseLiteral(void)
     /* check token type */
     switch (tokenType)
     {
-        case Token::Type::Float   : return std::make_unique<AST::Literal>(token, token->asFloat());
         case Token::Type::String  : return std::make_unique<AST::Literal>(token, token->asString());
+        case Token::Type::Decimal : return std::make_unique<AST::Literal>(token, token->asDecimal());
         case Token::Type::Integer : return std::make_unique<AST::Literal>(token, token->asInteger());
 
         case Token::Type::Eof:
@@ -1044,7 +1044,7 @@ std::unique_ptr<AST::Composite> Parser::parseComposite(CompositeSuggestion sugge
             throw Exceptions::SyntaxError(token);
 
         /* literal constants */
-        case Token::Type::Float:
+        case Token::Type::Decimal:
         case Token::Type::String:
         case Token::Type::Integer:
         {
@@ -1501,7 +1501,7 @@ std::unique_ptr<AST::Expression> Parser::parseFactor(void)
         case Token::Type::Keywords:
             throw Exceptions::SyntaxError(token);
 
-        case Token::Type::Float:
+        case Token::Type::Decimal:
         case Token::Type::String:
         case Token::Type::Integer:
         case Token::Type::Identifiers:

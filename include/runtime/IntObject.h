@@ -45,7 +45,16 @@ public:
     explicit IntObject(int64_t value) : Object(IntTypeObject), _value(value) {}
 
 public:
+    bool isSafeInt(void);
+    bool isSafeUInt(void);
+
+public:
+    int64_t toInt(void);
+    uint64_t toUInt(void);
+
+public:
     static ObjectRef fromInt(int64_t value);
+    static ObjectRef fromUInt(uint64_t value);
     static ObjectRef fromString(const std::string &value);
 
 public:

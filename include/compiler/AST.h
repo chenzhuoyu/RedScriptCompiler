@@ -6,6 +6,7 @@
 #include <vector>
 #include <cstdint>
 
+#include "utils/Decimal.h"
 #include "compiler/Tokenizer.h"
 
 namespace RedScript::Compiler::AST
@@ -374,14 +375,14 @@ struct Literal : public Node
 
 public:
     Type vtype;
-    double decimal = 0.0;
     int64_t integer = 0;
     std::string string = "";
+    Utils::Decimal decimal = {};
 
 public:
-    explicit Literal(const Token::Ptr &token, double value) : Node(Node::Type::Literal, token), vtype(Type::Decimal), decimal(value) {}
     explicit Literal(const Token::Ptr &token, int64_t value) : Node(Node::Type::Literal, token), vtype(Type::Integer), integer(value) {}
     explicit Literal(const Token::Ptr &token, std::string &&value) : Node(Node::Type::Literal, token), vtype(Type::String), string(std::move(value)) {}
+    explicit Literal(const Token::Ptr &token, Utils::Decimal &&value) : Node(Node::Type::Literal, token), vtype(Type::Decimal), decimal(std::move(value)) {}
 
 };
 

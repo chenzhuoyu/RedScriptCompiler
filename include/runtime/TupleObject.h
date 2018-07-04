@@ -53,7 +53,7 @@ public:
     template <typename ... Args>
     static Reference<TupleObject> fromObjects(Args && ... items)
     {
-        Reference<TupleObject> result = fromSize(sizeof ... (items));
+        Reference<TupleObject> result = fromSize(sizeof ... (Args));
         Details::fillObjects<0, ObjectRef>(result->_items, std::forward<Args>(items) ...);
         return std::move(result);
     }

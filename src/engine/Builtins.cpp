@@ -90,5 +90,10 @@ void Builtins::initialize(void)
     Globals.emplace("hash"  , Closure::ref(Runtime::NativeFunctionObject::newUnary(&hash)));
     Globals.emplace("repr"  , Closure::ref(Runtime::NativeFunctionObject::newUnary(&repr)));
     Globals.emplace("print" , Closure::ref(Runtime::NativeFunctionObject::newVariadic(&print)));
+
+    Globals.emplace("test", Closure::ref(Runtime::NativeFunctionObject::fromFunction([](std::string x)
+    {
+        printf("string is %s\n", x.c_str());
+    })));
 }
 }
