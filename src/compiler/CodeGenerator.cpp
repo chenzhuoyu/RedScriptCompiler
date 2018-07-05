@@ -876,9 +876,9 @@ void CodeGenerator::visitLiteral(const std::unique_ptr<AST::Literal> &node)
     /* construct corresponding type */
     switch (node->vtype)
     {
-        case AST::Literal::Type::Integer : val = Runtime::IntObject::fromInt(node->integer); break;
+        case AST::Literal::Type::Integer : val = Runtime::IntObject::fromInteger(node->integer); break;
         case AST::Literal::Type::String  : val = Runtime::StringObject::fromString(node->string); break;
-        case AST::Literal::Type::Decimal : val = Runtime::DecimalObject::fromPrecisionDecimal(node->decimal); break;
+        case AST::Literal::Type::Decimal : val = Runtime::DecimalObject::fromDecimal(node->decimal); break;
     }
 
     /* emit opcode with operand */

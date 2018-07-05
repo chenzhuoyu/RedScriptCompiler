@@ -375,14 +375,14 @@ struct Literal : public Node
 
 public:
     Type vtype;
-    int64_t integer = 0;
     std::string string = "";
     Utils::Decimal decimal = {};
+    Utils::Integer integer = {};
 
 public:
-    explicit Literal(const Token::Ptr &token, int64_t value) : Node(Node::Type::Literal, token), vtype(Type::Integer), integer(value) {}
     explicit Literal(const Token::Ptr &token, std::string &&value) : Node(Node::Type::Literal, token), vtype(Type::String), string(std::move(value)) {}
     explicit Literal(const Token::Ptr &token, Utils::Decimal &&value) : Node(Node::Type::Literal, token), vtype(Type::Decimal), decimal(std::move(value)) {}
+    explicit Literal(const Token::Ptr &token, Utils::Integer &&value) : Node(Node::Type::Literal, token), vtype(Type::Integer), integer(std::move(value)) {}
 
 };
 

@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "utils/Decimal.h"
+#include "utils/Integer.h"
 #include "utils/Strings.h"
 #include "exceptions/SyntaxError.h"
 
@@ -124,9 +125,9 @@ private:
     Type _type;
 
 private:
-    int64_t _integer = 0;
     std::string _string = "";
     Utils::Decimal _decimal = {};
+    Utils::Integer _integer = {};
 
 private:
     Keyword _keyword;
@@ -137,8 +138,8 @@ private:
     explicit Token(int row, int col, Type type, const std::string &value) : _row(row), _col(col), _type(type), _string(value) {}
 
 private:
-    explicit Token(int row, int col, int64_t value) : _row(row), _col(col), _type(Type::Integer), _integer(value) {}
     explicit Token(int row, int col, const Utils::Decimal &value) : _row(row), _col(col), _type(Type::Decimal), _decimal(value) {}
+    explicit Token(int row, int col, const Utils::Integer &value) : _row(row), _col(col), _type(Type::Integer), _integer(value) {}
 
 private:
     explicit Token(int row, int col, Keyword value) : _row(row), _col(col), _type(Type::Keywords), _keyword(value) {}
@@ -162,12 +163,12 @@ public:
     }
 
 public:
-    int64_t asInteger(void) const
+    std::string asString(void)
     {
-        if (_type == Type::Integer)
-            return _integer;
+        if (_type == Type::String)
+            return _string;
         else
-            throw Exceptions::SyntaxError(this, Utils::Strings::format("\"Integer\" expected, but got \"%s\"", toString()));
+            throw Exceptions::SyntaxError(this, Utils::Strings::format("\"String\" expected, but got \"%s\"", toString()));
     }
 
 public:
@@ -177,6 +178,15 @@ public:
             return _decimal;
         else
             throw Exceptions::SyntaxError(this, Utils::Strings::format("\"Decimal\" expected, but got \"%s\"", toString()));
+    }
+
+public:
+    Utils::Integer asInteger(void) const
+    {
+        if (_type == Type::Integer)
+            return _integer;
+        else
+            throw Exceptions::SyntaxError(this, Utils::Strings::format("\"Integer\" expected, but got \"%s\"", toString()));
     }
 
 public:
@@ -198,15 +208,6 @@ public:
     }
 
 public:
-    std::string asString(void)
-    {
-        if (_type == Type::String)
-            return _string;
-        else
-            throw Exceptions::SyntaxError(this, Utils::Strings::format("\"String\" expected, but got \"%s\"", toString()));
-    }
-
-public:
     std::string asIdentifier(void)
     {
         if (_type == Type::Identifiers)
@@ -223,7 +224,7 @@ public:
             case Type::Eof          : return "<Eof>";
             case Type::String       : return Utils::Strings::format("<String %s>"     , Utils::Strings::repr(_string.data(), _string.size()));
             case Type::Decimal      : return Utils::Strings::format("<Decimal %s>"    , _decimal.toString());
-            case Type::Integer      : return Utils::Strings::format("<Integer %ld>"   , _integer);
+            case Type::Integer      : return Utils::Strings::format("<Integer %s>"    , _integer.toString());
             case Type::Identifiers  : return Utils::Strings::format("<Identifier %s>" , _string);
 
             case Type::Keywords     : return Token::toString(_keyword);
@@ -331,8 +332,8 @@ public:
     static inline Ptr createEof(int row, int col) { return Ptr(new Token(row, col)); }
 
 public:
-    static inline Ptr createValue(int row, int col, int64_t value) { return Ptr(new Token(row, col, value)); }
     static inline Ptr createValue(int row, int col, Utils::Decimal value) { return Ptr(new Token(row, col, value)); }
+    static inline Ptr createValue(int row, int col, Utils::Integer value) { return Ptr(new Token(row, col, value)); }
 
 public:
     static inline Ptr createKeyword(int row, int col, Keyword value) { return Ptr(new Token(row, col, value)); }

@@ -54,8 +54,7 @@ public:
 
 public:
     static ObjectRef fromDouble(double value) { return Object::newObject<DecimalObject>(value); }
-    static ObjectRef fromString(const std::string &value) { return Object::newObject<DecimalObject>(value); }
-    static ObjectRef fromPrecisionDecimal(Utils::Decimal value) { return Object::newObject<DecimalObject>(value); }
+    static ObjectRef fromDecimal(Utils::Decimal value) { return Object::newObject<DecimalObject>(value); }
 
 public:
     static void shutdown(void) {}

@@ -92,7 +92,9 @@ set(SOURCE_FILES
         include/runtime/ReferenceCounted.h
         include/runtime/StringObject.h
         include/runtime/TupleObject.h
+        include/utils/Decimal.h
         include/utils/Immovable.h
+        include/utils/Integer.h
         include/utils/NonCopyable.h
         include/utils/Preprocessor.h
         include/utils/RWLock.h
@@ -123,9 +125,11 @@ set(SOURCE_FILES
         src/runtime/ReferenceCounted.cpp
         src/runtime/StringObject.cpp
         src/runtime/TupleObject.cpp
+        src/utils/Decimal.cpp
+        src/utils/Integer.cpp
         src/utils/Strings.cpp
         src/RedScript.cpp
-        src/main.cpp src/utils/Decimal.cpp src/utils/Decimal.h)
+        src/main.cpp)
 
 add_executable(rsc ${SOURCE_FILES})
-target_link_libraries(rsc -L${CMAKE_SOURCE_DIR}/libbid/lib dl fmt jemalloc bid_${CMAKE_SYSTEM_NAME})
+target_link_libraries(rsc -L${CMAKE_SOURCE_DIR}/libbid/lib dl fmt mpir jemalloc bid_${CMAKE_SYSTEM_NAME})

@@ -289,7 +289,7 @@ Token::Ptr Tokenizer::readNumber(void)
     int row = _state->row;
     int base = 10;
     char number = nextChar();
-    int64_t integer = toInt(number);
+    std::string value(1, number);
 
     if (number == '0')
     {
@@ -326,7 +326,7 @@ Token::Ptr Tokenizer::readNumber(void)
 
             /* simply integer zero */
             default:
-                return Token::createValue(row, col, (int64_t)0);
+                return Token::createValue(row, col, Utils::Integer(0ull));
         }
     }
 
@@ -338,16 +338,14 @@ Token::Ptr Tokenizer::readNumber(void)
     char follow = peekChar();
     while (follow && strchr(charset, tolower(follow)))
     {
-        integer *= base;
-        integer += toInt(follow);
-
         nextChar();
+        value += follow;
         follow = peekChar();
     }
 
     /* fraction part only makes sense when it's base 10 */
     if (base != 10 || follow != '.')
-        return Token::createValue(row, col, integer);
+        return Token::createValue(row, col, Utils::Integer(value, base));
 
     /* skip the decimal point */
     nextChar();
@@ -357,19 +355,19 @@ Token::Ptr Tokenizer::readNumber(void)
     {
         _state->col--;
         _state->pos--;
-        return Token::createValue(row, col, integer);
+        return Token::createValue(row, col, Utils::Integer(value, 10));
     }
 
-    /* use string to preserve precision */
-    std::string decimal = std::to_string(integer);
-    decimal += ".";
+    /* append a decimal point */
+    value += ".";
+    value += nextChar();
 
     /* merge to final result */
-    do decimal += nextChar();
-    while (in(peekChar(), '0', '9'));
+    while (in(peekChar(), '0', '9'))
+        value += nextChar();
 
     /* represent as "Decimal" token */
-    return Token::createValue(row, col, Utils::Decimal(decimal));
+    return Token::createValue(row, col, Utils::Decimal(value));
 }
 
 Token::Ptr Tokenizer::readOperator(void)

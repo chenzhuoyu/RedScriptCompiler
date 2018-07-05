@@ -3,7 +3,9 @@
 
 #include <string>
 #include <cstdint>
+#include <utils/Decimal.h>
 
+#include "utils/Integer.h"
 #include "runtime/Object.h"
 
 namespace RedScript::Runtime
@@ -36,26 +38,25 @@ extern TypeRef IntTypeObject;
 
 class IntObject : public Object
 {
-    // TODO use high precision arithmetic
-    int64_t _value;
+    Utils::Integer _value;
     friend class IntType;
 
 public:
     virtual ~IntObject() = default;
-    explicit IntObject(int64_t value) : Object(IntTypeObject), _value(value) {}
+    explicit IntObject(Utils::Integer value) : Object(IntTypeObject), _value(value) {}
 
 public:
-    bool isSafeInt(void);
-    bool isSafeUInt(void);
+    bool isSafeInt(void) { return _value.isSafeInt(); }
+    bool isSafeUInt(void) { return _value.isSafeUInt(); }
 
 public:
-    int64_t toInt(void);
-    uint64_t toUInt(void);
+    int64_t toInt(void) { return _value.toInt(); }
+    uint64_t toUInt(void) { return _value.toUInt(); }
 
 public:
     static ObjectRef fromInt(int64_t value);
     static ObjectRef fromUInt(uint64_t value);
-    static ObjectRef fromString(const std::string &value);
+    static ObjectRef fromInteger(Utils::Integer value) { return Object::newObject<IntObject>(value); }
 
 public:
     static void shutdown(void) {}

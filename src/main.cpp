@@ -54,7 +54,7 @@
 //)source";
 
 const char *source = R"source(
-print(hasattr(1, 'test'))
+print(1234599999999999999999999999999999999999999999999923445246354)
 )source";
 
 #include <iostream>
