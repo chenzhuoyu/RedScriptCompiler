@@ -7,6 +7,7 @@
 
 #include "engine/Builtins.h"
 #include "exceptions/TypeError.h"
+#include "exceptions/AttributeError.h"
 
 namespace RedScript::Engine
 {
@@ -76,6 +77,51 @@ Runtime::ObjectRef Builtins::print(Runtime::VariadicArgs args, Runtime::KeywordA
     return Runtime::NullObject;
 }
 
+bool Builtins::hasattr(Runtime::ObjectRef self, const std::string &name)
+{
+    try
+    {
+        /* try get the attributes from object */
+        self->type()->objectGetAttr(self, name);
+        return true;
+    }
+    catch (const Exceptions::AttributeError &)
+    {
+        /* attribute not found */
+        return false;
+    }
+}
+
+void Builtins::delattr(Runtime::ObjectRef self, const std::string &name)
+{
+    /* call the object's `__delattr__` */
+    self->type()->objectDelAttr(self, name);
+}
+
+void Builtins::setattr(Runtime::ObjectRef self, const std::string &name, Runtime::ObjectRef value)
+{
+    /* call the object's `__setattr__` */
+    self->type()->objectSetAttr(self, name, value);
+}
+
+Runtime::ObjectRef Builtins::getattr(Runtime::ObjectRef self, const std::string &name, Runtime::ObjectRef def)
+{
+    try
+    {
+        /* try get the attributes from object */
+        return self->type()->objectGetAttr(self, name);
+    }
+
+    /* attribute not found, return default value if any */
+    catch (const Exceptions::AttributeError &)
+    {
+        if (def.isNull())
+            throw;
+        else
+            return def;
+    }
+}
+
 void Builtins::shutdown(void)
 {
     /* clear before garbage collector shutdown */
@@ -84,16 +130,48 @@ void Builtins::shutdown(void)
 
 void Builtins::initialize(void)
 {
-    /* built-in functions */
+    /* built-in basic functions */
     Globals.emplace("dir"   , Closure::ref(Runtime::NativeFunctionObject::newUnary(&dir)));
     Globals.emplace("len"   , Closure::ref(Runtime::NativeFunctionObject::newUnary(&len)));
     Globals.emplace("hash"  , Closure::ref(Runtime::NativeFunctionObject::newUnary(&hash)));
     Globals.emplace("repr"  , Closure::ref(Runtime::NativeFunctionObject::newUnary(&repr)));
     Globals.emplace("print" , Closure::ref(Runtime::NativeFunctionObject::newVariadic(&print)));
 
-    Globals.emplace("test", Closure::ref(Runtime::NativeFunctionObject::fromFunction([](std::string x)
-    {
-        printf("string is %s\n", x.c_str());
-    })));
+    /* built-in `hasattr()` function */
+    Globals.emplace(
+        "hasattr",
+        Closure::ref(Runtime::NativeFunctionObject::fromFunction(
+            Runtime::KeywordNames({"obj", "attr"}),
+            &hasattr
+        ))
+    );
+
+    /* built-in `delattr()` function */
+    Globals.emplace(
+        "delattr",
+        Closure::ref(Runtime::NativeFunctionObject::fromFunction(
+            Runtime::KeywordNames({"obj", "attr"}),
+            &delattr
+        ))
+    );
+
+    /* built-in `setattr()` function */
+    Globals.emplace(
+        "setattr",
+        Closure::ref(Runtime::NativeFunctionObject::fromFunction(
+            Runtime::KeywordNames({"obj", "attr", "value"}),
+            &setattr
+        ))
+    );
+
+    /* built-in `getattr()` function */
+    Globals.emplace(
+        "getattr",
+        Closure::ref(Runtime::NativeFunctionObject::fromFunction(
+            Runtime::KeywordNames({"obj", "attr", "value"}),
+            Runtime::DefaultValues({nullptr}),
+            &getattr
+        ))
+    );
 }
 }

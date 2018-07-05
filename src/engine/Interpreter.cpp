@@ -1054,7 +1054,7 @@ Runtime::ObjectRef Interpreter::eval(void)
         }
 
         /* exceptions occured when executing, try exception recovery */
-        catch (const std::runtime_error &e)
+        catch (const std::logic_error &e)
         {
             // TODO: exception recovery
             throw;

@@ -54,8 +54,7 @@
 //)source";
 
 const char *source = R"source(
-print(1.1)
-print(hash(1.0))
+print(hasattr(1, 'test'))
 )source";
 
 #include <iostream>

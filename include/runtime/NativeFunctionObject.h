@@ -43,6 +43,7 @@ extern TypeRef NativeFunctionTypeObject;
 /* native function types */
 typedef Reference<MapObject> KeywordArgs;
 typedef Reference<TupleObject> VariadicArgs;
+typedef std::vector<ObjectRef> DefaultValues;
 typedef std::vector<std::string> KeywordNames;
 typedef std::function<ObjectRef(VariadicArgs, KeywordArgs)> NativeFunction;
 
@@ -658,11 +659,15 @@ struct ArgumentPackUnboxerImpl;
 template <size_t I, typename T, typename ... Args>
 struct ArgumentPackUnboxerImpl<I, T, Args ...>
 {
-    static std::tuple<T, Args ...> unbox(VariadicArgs &args, KeywordArgs &kwargs, const KeywordNames &names)
+    static std::tuple<T, Args ...> unbox(
+        VariadicArgs        &args,
+        KeywordArgs         &kwargs,
+        const KeywordNames  &keywords,
+        const DefaultValues &defaults)
     {
         /* find keyword arguments */
         ObjectRef value = nullptr;
-        const std::string &name = names[I];
+        const std::string &name = keywords[I];
 
         /* pop from for keyword arguments if any */
         if (name.size())
@@ -672,7 +677,15 @@ struct ArgumentPackUnboxerImpl<I, T, Args ...>
         if (value.isNull())
         {
             /* check for positional arguments */
-            if (I >= args->size())
+            if (I < args->size())
+                value = args->items()[I];
+
+            /* check for default values */
+            else if (I >= keywords.size() - defaults.size())
+                value = defaults[I + defaults.size() - keywords.size()];
+
+            /* oterwise it's an error */
+            else
             {
                 throw Exceptions::TypeError(Utils::Strings::format(
                     "Missing required argument at position %zu%s",
@@ -680,15 +693,12 @@ struct ArgumentPackUnboxerImpl<I, T, Args ...>
                     name.empty() ? "" : Utils::Strings::format("(%s)", name)
                 ));
             }
-
-            /* copy this positional argument */
-            value = args->items()[I];
         }
 
         /* build the rest of arguments */
         return std::tuple_cat(
             std::forward_as_tuple(Unboxer<I, T>::unbox(std::move(value), name)),
-            ArgumentPackUnboxerImpl<I + 1, Args ...>::unbox(args, kwargs, names)
+            ArgumentPackUnboxerImpl<I + 1, Args ...>::unbox(args, kwargs, keywords, defaults)
         );
     }
 };
@@ -696,7 +706,11 @@ struct ArgumentPackUnboxerImpl<I, T, Args ...>
 template <size_t I>
 struct ArgumentPackUnboxerImpl<I>
 {
-    static std::tuple<> unbox(VariadicArgs &args, KeywordArgs &kwargs, const KeywordNames &names)
+    static std::tuple<> unbox(
+        VariadicArgs        &args,
+        KeywordArgs         &kwargs,
+        const KeywordNames  &keywords,
+        const DefaultValues &defaults)
     {
         /* should have no keyword arguments left */
         if (kwargs->size())
@@ -708,11 +722,12 @@ struct ArgumentPackUnboxerImpl<I>
         }
 
         /* also should have no positional arguments left */
-        if (I != names.size())
+        if (I < args->size())
         {
             throw Exceptions::TypeError(Utils::Strings::format(
-                "Function takes exact %zu argument(s), but %zu given",
-                names.size(),
+                "Function takes %s %zu argument(s), but %zu given",
+                defaults.empty() ? "exact" : "at most",
+                keywords.size(),
                 args->size()
             ));
         }
@@ -723,7 +738,7 @@ struct ArgumentPackUnboxerImpl<I>
 };
 
 template <typename ... Args>
-using ArgsUnboxer = ArgumentPackUnboxerImpl<0, Args ...>;
+using ArgsUnboxer = ArgumentPackUnboxerImpl<0, std::decay_t<Args> ...>;
 
 template <typename Ret, typename ... Args>
 struct MetaFunction
@@ -732,10 +747,11 @@ struct MetaFunction
         const std::function<Ret(Args ...)>  &func,
         VariadicArgs                        &args,
         KeywordArgs                         &kwargs,
-        const KeywordNames                  &keywords)
+        const KeywordNames                  &keywords,
+        const DefaultValues                 &defaults)
     {
-        /* unbox the parameter pack, invoke the function, and box again */
-        return Boxer<Ret>::box(std::apply(func, ArgsUnboxer<Args ...>::unbox(args, kwargs, keywords)));
+        /* unbox the parameter pack, invoke the function, and box the result */
+        return Boxer<Ret>::box(std::apply(func, ArgsUnboxer<Args ...>::unbox(args, kwargs, keywords, defaults)));
     };
 };
 
@@ -746,10 +762,11 @@ struct MetaFunction<void, Args ...>
         const std::function<void(Args ...)> &func,
         VariadicArgs                        &args,
         KeywordArgs                         &kwargs,
-        const KeywordNames                  &keywords)
+        const KeywordNames                  &keywords,
+        const DefaultValues                 &defaults)
     {
         /* void function, return a null object */
-        std::apply(func, ArgsUnboxer<Args ...>::unbox(args, kwargs, keywords));
+        std::apply(func, ArgsUnboxer<Args ...>::unbox(args, kwargs, keywords, defaults));
         return NullObject;
     };
 };
@@ -768,6 +785,13 @@ constexpr auto forwardAsFunction(Function &&f)
     typedef std::decay_t<Function> FunctionType;
     return makeFunction(std::forward<Function>(f), &FunctionType::operator());
 }
+
+template <typename R, typename ... Args>
+constexpr auto forwardAsFunction(R (*f)(Args ...))
+{
+    /* wrap the object by `std::function` directly */
+    return std::function<R(Args ...)>(f);
+};
 }
 
 class NativeFunctionObject : public Object
@@ -801,14 +825,6 @@ public:
     }
 
 public:
-    template <typename Ret, typename ... Args>
-    static ObjectRef fromFunction(std::function<Ret(Args ...)> func)
-    {
-        KeywordNames names(sizeof ... (Args));
-        return fromFunction(std::move(names), std::move(func));
-    }
-
-public:
     template <typename Function>
     static ObjectRef fromFunction(KeywordNames keywords, Function &&func)
     {
@@ -817,9 +833,59 @@ public:
     }
 
 public:
+    template <typename Function>
+    static ObjectRef fromFunction(DefaultValues defaults, Function &&func)
+    {
+        /* wrap the function-like object as `std::function` */
+        return fromFunction(std::move(defaults), NFI::forwardAsFunction(std::forward<Function>(func)));
+    }
+
+public:
+    template <typename Function>
+    static ObjectRef fromFunction(KeywordNames keywords, DefaultValues defaults, Function &&func)
+    {
+        /* wrap the function-like object as `std::function` */
+        return fromFunction(
+            std::move(keywords),
+            std::move(defaults),
+            NFI::forwardAsFunction(std::forward<Function>(func))
+        );
+    }
+
+public:
+    template <typename Ret, typename ... Args>
+    static ObjectRef fromFunction(std::function<Ret(Args ...)> func)
+    {
+        /* without both keywords and default values */
+        KeywordNames names(sizeof ... (Args));
+        return fromFunction(std::move(names), DefaultValues(), std::move(func));
+    }
+
+public:
     template <typename Ret, typename ... Args>
     static ObjectRef fromFunction(KeywordNames keywords, std::function<Ret(Args ...)> func)
     {
+        /* with keywords, without default values */
+        return fromFunction(std::move(keywords), DefaultValues(), std::move(func));
+    }
+
+public:
+    template <typename Ret, typename ... Args>
+    static ObjectRef fromFunction(DefaultValues defaults, std::function<Ret(Args ...)> func)
+    {
+        /* with defaults, without keywords */
+        KeywordNames names(sizeof ... (Args));
+        return fromFunction(std::move(names), std::move(defaults), std::move(func));
+    }
+
+public:
+    template <typename Ret, typename ... Args>
+    static ObjectRef fromFunction(KeywordNames keywords, DefaultValues defaults, std::function<Ret(Args ...)> func)
+    {
+        /* check for default count */
+        if (keywords.size() < defaults.size())
+            throw std::invalid_argument("default count error");
+
         /* check for keyword count */
         if (keywords.size() != sizeof ... (Args))
             throw std::invalid_argument("keyword count mismatch");
@@ -828,7 +894,7 @@ public:
         return newVariadic([=](VariadicArgs args, KeywordArgs kwargs)
         {
             /* result type might be `void`, so need a template SFINAE here */
-            return NFI::MetaFunction<Ret, Args ...>::invoke(func, args, kwargs, keywords);
+            return NFI::MetaFunction<Ret, Args ...>::invoke(func, args, kwargs, keywords, defaults);
         });
     }
 };
