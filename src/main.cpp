@@ -54,8 +54,7 @@
 //)source";
 
 const char *source = R"source(
-print(94911150.0 / 94911151.0)
-print(94911151.0 / 94911152.0)
+print(1.0 / 0.0)
 )source";
 
 #include <iostream>

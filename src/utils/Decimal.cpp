@@ -5,6 +5,12 @@
 #include "utils/Decimal.h"
 #include "utils/Strings.h"
 
+static inline std::string repeat(char ch, ssize_t times)
+{
+    /* construct a string which contains `times` times repeats of `ch` */
+    return std::string(static_cast<size_t>(times), ch);
+}
+
 namespace RedScript::Utils
 {
 thread_local _IDEC_flags Decimal::_flags = 0;
@@ -85,28 +91,35 @@ std::string Decimal::toString(void) const
     /* convert to internal string representation */
     bid128_to_string(s, _value, &_flags);
 
-    /* find the delimiter */
+    /* find the delimiter, maybe special values */
     if (!(delim = strchr(s, 'E')))
-        throw std::logic_error("invalid float representation");
+        return std::string(s);
 
     /* extract three parts */
-    char sign = *start++;
+    char *pos = delim;
     ssize_t exp = std::atoll(delim + 1);
-    std::string base(start, delim - start);
 
-    /* positive exponent */
+    /* remove trailing zeros */
+    while ((pos > start) && (pos[-1] == '0'))
+    {
+        exp++;
+        pos--;
+    }
+
+    /* base part and sign string */
+    std::string base(start + 1, pos - start - 1);
+    std::string sign(start[0] == '+' ? "" : "-");
+
+    /* floating point number with nopn-negative exponent */
     if (exp >= 0)
-        base += std::string(static_cast<size_t>(exp), '0');
+        return sign + base + repeat('0', exp) + ".0";
 
-    /* floating point number with absolute value less than one */
-    else if (base.size() == -exp)
-        base = "0." + base;
+    /* floating point number which absolute value smaller than one */
+    if (base.size() <= -exp)
+        return sign + "0." + repeat('0', -exp - base.size()) + base;
 
-    /* other floating point values */
-    else
-        base.insert(static_cast<size_t>(base.size() + exp), ".");
-
-    /* add sign as needed */
-    return (sign == '+' ? "" : "-") + base;
+    /* other "normal" sized floating point numbers */
+    base.insert(static_cast<size_t>(base.size() + exp), ".");
+    return sign + base;
 }
 }

@@ -70,8 +70,8 @@ public:
     void assign(const Decimal &other) { _value = bid128_copy(other._value); }
 
 public:
-    int     cmp(const Decimal &other) const { return bid128_quiet_ordered(_value, other._value,         &_flags); }
-    Decimal pow(const Decimal &other) const { return bid128_pow          (_value, other._value, _round, &_flags); }
+    int     cmp(const Decimal &other) const { return (*this) == other ? 0 : (*this) > other ? 1 : -1;   }
+    Decimal pow(const Decimal &other) const { return bid128_pow(_value, other._value, _round, &_flags); }
 
 /** Assignment Operators **/
 
