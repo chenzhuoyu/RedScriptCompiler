@@ -926,6 +926,23 @@ void CodeGenerator::visitExpression(const std::unique_ptr<AST::Expression> &node
         case AST::Expression::Operand::Type::Expression : visitExpression(node->first.expression); break;
     }
 
+    /* unary operators */
+    if (node->hasOp)
+    {
+        /* emit opcode for each unary operator */
+        switch (node->first.op->asOperator())
+        {
+            case Token::Operator::Plus    : emit(node->first.op, Engine::OpCode::POS     ); return;
+            case Token::Operator::Minus   : emit(node->first.op, Engine::OpCode::NEG     ); return;
+            case Token::Operator::BitNot  : emit(node->first.op, Engine::OpCode::BIT_NOT ); return;
+            case Token::Operator::BoolNot : emit(node->first.op, Engine::OpCode::BOOL_NOT); return;
+
+            /* other operators, should not happen */
+            default:
+                throw Exceptions::InternalError(Utils::Strings::format("Impossible operator %s", node->first.op->toString()));
+        }
+    }
+
     /* remaining expression parts */
     for (const auto &item : node->follows)
     {
@@ -992,23 +1009,6 @@ void CodeGenerator::visitExpression(const std::unique_ptr<AST::Expression> &node
             /* bit shifting operators */
             case Token::Operator::ShiftLeft         : emit(item.op, Engine::OpCode::LSHIFT);      break;
             case Token::Operator::ShiftRight        : emit(item.op, Engine::OpCode::RSHIFT);      break;
-
-            /* inplace basic arithmetic operators */
-            case Token::Operator::InplaceAdd        : emit(item.op, Engine::OpCode::INP_ADD);     break;
-            case Token::Operator::InplaceSub        : emit(item.op, Engine::OpCode::INP_SUB);     break;
-            case Token::Operator::InplaceMul        : emit(item.op, Engine::OpCode::INP_MUL);     break;
-            case Token::Operator::InplaceDiv        : emit(item.op, Engine::OpCode::INP_DIV);     break;
-            case Token::Operator::InplaceMod        : emit(item.op, Engine::OpCode::INP_MOD);     break;
-            case Token::Operator::InplacePower      : emit(item.op, Engine::OpCode::INP_POWER);   break;
-
-            /* inplace bit manipulation operators */
-            case Token::Operator::InplaceBitAnd     : emit(item.op, Engine::OpCode::INP_BIT_AND); break;
-            case Token::Operator::InplaceBitOr      : emit(item.op, Engine::OpCode::INP_BIT_OR);  break;
-            case Token::Operator::InplaceBitXor     : emit(item.op, Engine::OpCode::INP_BIT_XOR); break;
-
-            /* inplace bit shifting operators */
-            case Token::Operator::InplaceShiftLeft  : emit(item.op, Engine::OpCode::INP_LSHIFT);  break;
-            case Token::Operator::InplaceShiftRight : emit(item.op, Engine::OpCode::INP_RSHIFT);  break;
 
             /* other operators, should not happen */
             default:

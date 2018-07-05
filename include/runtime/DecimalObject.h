@@ -14,12 +14,42 @@ class DecimalType : public Type
 public:
     explicit DecimalType() : Type("decimal") {}
 
+private:
+    static bool compare(ObjectRef self, ObjectRef other, bool (*ret)(int));
+    static Utils::Decimal toDecimal(ObjectRef other);
+
+/*** Object Protocol ***/
+
 public:
     virtual uint64_t    objectHash(ObjectRef self) override;
     virtual std::string objectRepr(ObjectRef self) override;
 
 public:
     virtual bool objectIsTrue(ObjectRef self) override;
+
+/*** Numeric Protocol ***/
+
+public:
+    virtual ObjectRef numericPos(ObjectRef self) override;
+    virtual ObjectRef numericNeg(ObjectRef self) override;
+
+public:
+    virtual ObjectRef numericAdd  (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef numericSub  (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef numericMul  (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef numericDiv  (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef numericMod  (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef numericPower(ObjectRef self, ObjectRef other) override;
+
+public:
+    virtual ObjectRef numericIncAdd  (ObjectRef self, ObjectRef other) override { return numericAdd  (self, other); }
+    virtual ObjectRef numericIncSub  (ObjectRef self, ObjectRef other) override { return numericSub  (self, other); }
+    virtual ObjectRef numericIncMul  (ObjectRef self, ObjectRef other) override { return numericMul  (self, other); }
+    virtual ObjectRef numericIncDiv  (ObjectRef self, ObjectRef other) override { return numericDiv  (self, other); }
+    virtual ObjectRef numericIncMod  (ObjectRef self, ObjectRef other) override { return numericMod  (self, other); }
+    virtual ObjectRef numericIncPower(ObjectRef self, ObjectRef other) override { return numericPower(self, other); }
+
+/*** Comparable Protocol ***/
 
 public:
     virtual ObjectRef comparableEq(ObjectRef self, ObjectRef other) override;

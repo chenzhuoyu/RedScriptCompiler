@@ -119,10 +119,9 @@ public:
 /*** Boolean Protocol ***/
 
 public:
-    virtual ObjectRef boolOr (ObjectRef self, ObjectRef other) { return applyBinary("__bool_or__" , self, other); }
-    virtual ObjectRef boolAnd(ObjectRef self, ObjectRef other) { return applyBinary("__bool_and__", self, other); }
-    virtual ObjectRef boolXor(ObjectRef self, ObjectRef other) { return applyBinary("__bool_xor__", self, other); }
-    virtual ObjectRef boolNot(ObjectRef self)                  { return applyUnary ("__bool_not__", self       ); }
+    virtual ObjectRef boolOr (ObjectRef self, ObjectRef other);
+    virtual ObjectRef boolAnd(ObjectRef self, ObjectRef other);
+    virtual ObjectRef boolNot(ObjectRef self);
 
 /*** Numeric Protocol ***/
 

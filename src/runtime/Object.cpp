@@ -352,15 +352,44 @@ ObjectRef Type::objectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs)
     throw Exceptions::InternalError("not implemented yet");
 }
 
+ObjectRef Type::boolOr(ObjectRef self, ObjectRef other)
+{
+    // TODO: apply binary operator if any
+    // return applyBinary("__bool_or__", self, other);
+    return BoolObject::fromBool(
+        self->type()->objectIsTrue(self) ||
+        other->type()->objectIsTrue(other)
+    );
+}
+
+ObjectRef Type::boolAnd(ObjectRef self, ObjectRef other)
+{
+    // TODO: apply binary operator if any
+    // return applyBinary("__bool_and__", self, other);
+    return BoolObject::fromBool(
+        self->type()->objectIsTrue(self) &&
+        other->type()->objectIsTrue(other)
+    );
+}
+
+ObjectRef Type::boolNot(ObjectRef self)
+{
+    // TODO: apply binary operator if any
+    // return applyUnary("__bool_not__", self);
+    return BoolObject::fromBool(!(self->type()->objectIsTrue(self)));
+}
+
 ObjectRef Type::comparableEq(ObjectRef self, ObjectRef other)
 {
     // TODO: apply binary operator if any
+    // return applyBinary("__eq__", self, other);
     return BoolObject::fromBool(self.get() == other.get());
 }
 
 ObjectRef Type::comparableNeq(ObjectRef self, ObjectRef other)
 {
     // TODO: apply binary operator if any
+    // return applyBinary("__neq__", self, other);
     return BoolObject::fromBool(self.get() == other.get());
 }
 }
