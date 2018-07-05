@@ -1,3 +1,5 @@
+#include <array>
+
 #include "runtime/IntObject.h"
 #include "runtime/BoolObject.h"
 
@@ -9,6 +11,13 @@ namespace RedScript::Runtime
 {
 /* type object for integer */
 TypeRef IntTypeObject;
+
+/* global integer pool, -32 ~ 255
+ * read-only during the life time of the interpreter
+ * so no need to make it thread-local or protect by a lock */
+static const ssize_t POOL_LOWER = -32;
+static const ssize_t POOL_UPPER = 255;
+static std::array<ObjectRef, POOL_UPPER - POOL_LOWER + 1> _pool;
 
 /*** Object Protocol ***/
 
@@ -116,14 +125,27 @@ ObjectRef IntType::comparableCompare(ObjectRef self, ObjectRef other)
 
 ObjectRef IntObject::fromInt(int64_t value)
 {
-    // TODO: implement an integer pool
-    return Object::newObject<IntObject>(value);
+    /* read from integer pool if within range */
+    if (value >= POOL_LOWER && value <= POOL_UPPER)
+        return _pool[value - POOL_LOWER];
+    else
+        return Object::newObject<IntObject>(value);
 }
 
 ObjectRef IntObject::fromUInt(uint64_t value)
 {
-    // TODO: implement an integer pool
-    return Object::newObject<IntObject>(value);
+    /* read from integer pool if within range */
+    if (value <= POOL_UPPER)
+        return _pool[value - POOL_LOWER];
+    else
+        return Object::newObject<IntObject>(value);
+}
+
+void IntObject::shutdown(void)
+{
+    /* clear all integers in pool */
+    for (auto &item : _pool)
+        item = nullptr;
 }
 
 void IntObject::initialize(void)
@@ -131,5 +153,9 @@ void IntObject::initialize(void)
     /* integer type object */
     static IntType intType;
     IntTypeObject = Reference<IntType>::refStatic(intType);
+
+    /* initialize integer pool */
+    for (ssize_t i = POOL_LOWER; i <= POOL_UPPER; i++)
+        _pool[i - POOL_LOWER] = fromInt(i);
 }
 }

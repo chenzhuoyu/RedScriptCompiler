@@ -105,7 +105,7 @@ public:
     static ObjectRef fromInteger(Utils::Integer value) { return Object::newObject<IntObject>(value); }
 
 public:
-    static void shutdown(void) {}
+    static void shutdown(void);
     static void initialize(void);
 
 };
