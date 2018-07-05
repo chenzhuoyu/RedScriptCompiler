@@ -116,7 +116,7 @@
 // variable _IDEC_glbround, otherwise it is passed as a parameter when needed
 
 #ifndef DECIMAL_GLOBAL_ROUNDING
-#define DECIMAL_GLOBAL_ROUNDING 0
+#define DECIMAL_GLOBAL_ROUNDING 1
 #endif
 
 #ifndef DECIMAL_GLOBAL_ROUNDING_ACCESS_FUNCTIONS
