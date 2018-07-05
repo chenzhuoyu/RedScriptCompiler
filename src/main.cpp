@@ -64,6 +64,8 @@ def run_test() {
 }
 
 run_test()
+print(hash(123))
+print(hash(-2))
 )source";
 
 #include <iostream>

@@ -15,8 +15,8 @@ TypeRef IntTypeObject;
 /* global integer pool, -32 ~ 255
  * read-only during the life time of the interpreter
  * so no need to make it thread-local or protect by a lock */
-static const ssize_t POOL_LOWER = -32;
-static const ssize_t POOL_UPPER = 255;
+static const int64_t POOL_LOWER = -32;
+static const int64_t POOL_UPPER = 255;
 static std::array<ObjectRef, POOL_UPPER - POOL_LOWER + 1> _pool;
 
 /*** Object Protocol ***/
@@ -141,6 +141,15 @@ ObjectRef IntObject::fromUInt(uint64_t value)
         return Object::newObject<IntObject>(value);
 }
 
+ObjectRef IntObject::fromInteger(Utils::Integer value)
+{
+    /* read from integer pool if within range */
+    if (value.isSafeInt())
+        return fromInt(value.toInt());
+    else
+        return Object::newObject<IntObject>(value);
+}
+
 void IntObject::shutdown(void)
 {
     /* clear all integers in pool */
@@ -155,7 +164,7 @@ void IntObject::initialize(void)
     IntTypeObject = Reference<IntType>::refStatic(intType);
 
     /* initialize integer pool */
-    for (ssize_t i = POOL_LOWER; i <= POOL_UPPER; i++)
-        _pool[i - POOL_LOWER] = fromInt(i);
+    for (int64_t i = POOL_LOWER; i <= POOL_UPPER; i++)
+        _pool[i - POOL_LOWER] = Object::newObject<IntObject>(i);
 }
 }
