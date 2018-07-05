@@ -50,6 +50,7 @@ public:
     bool isSafeUInt(void) { return _value.isSafeUInt(); }
 
 public:
+    auto value(void) { return _value; }
     int64_t toInt(void) { return _value.toInt(); }
     uint64_t toUInt(void) { return _value.toUInt(); }
 

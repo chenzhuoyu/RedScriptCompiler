@@ -49,6 +49,7 @@ public:
     bool isSafeDouble(void) { return _value.isSafeDouble(); }
 
 public:
+    auto value(void) { return _value; }
     float toFloat(void) { return _value.toFloat(); }
     double toDouble(void) { return _value.toDouble(); }
 

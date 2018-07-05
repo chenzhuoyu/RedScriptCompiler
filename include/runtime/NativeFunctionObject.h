@@ -19,6 +19,8 @@
 #include "runtime/StringObject.h"
 #include "runtime/DecimalObject.h"
 
+#include "utils/Decimal.h"
+#include "utils/Integer.h"
 #include "utils/Strings.h"
 #include "exceptions/TypeError.h"
 #include "exceptions/ValueError.h"
@@ -158,11 +160,13 @@ struct Boxer<const T &>
 };
 
 /* simple types */
-template <> struct Boxer<bool>        { static ObjectRef box(bool value)               { return BoolObject::fromBool(value);      }};
-template <> struct Boxer<float>       { static ObjectRef box(float value)              { return DecimalObject::fromDouble(value); }};
-template <> struct Boxer<double>      { static ObjectRef box(double value)             { return DecimalObject::fromDouble(value); }};
-template <> struct Boxer<ObjectRef>   { static ObjectRef box(ObjectRef value)          { return value;                            }};
-template <> struct Boxer<std::string> { static ObjectRef box(const std::string &value) { return StringObject::fromString(value);  }};
+template <> struct Boxer<bool>           { static ObjectRef box(bool value)                  { return BoolObject::fromBool(value);       }};
+template <> struct Boxer<float>          { static ObjectRef box(float value)                 { return DecimalObject::fromDouble(value);  }};
+template <> struct Boxer<double>         { static ObjectRef box(double value)                { return DecimalObject::fromDouble(value);  }};
+template <> struct Boxer<ObjectRef>      { static ObjectRef box(ObjectRef value)             { return value;                             }};
+template <> struct Boxer<std::string>    { static ObjectRef box(const std::string &value)    { return StringObject::fromString(value);   }};
+template <> struct Boxer<Utils::Decimal> { static ObjectRef box(const Utils::Decimal &value) { return DecimalObject::fromDecimal(value); }};
+template <> struct Boxer<Utils::Integer> { static ObjectRef box(const Utils::Integer &value) { return IntObject::fromInteger(value);     }};
 
 /* STL vector (arrays) */
 template <typename Item>
@@ -473,6 +477,34 @@ struct Unboxer<I, std::string>
             throw TypeCheckFailed<I>(StringTypeObject, name);
         else
             return value.as<StringObject>()->value();
+    }
+};
+
+/* high-precision decimal */
+template <size_t I>
+struct Unboxer<I, Utils::Decimal>
+{
+    static Utils::Decimal unbox(ObjectRef value, const std::string &name)
+    {
+        /* object type checking */
+        if (value->isNotInstanceOf(DecimalTypeObject))
+            throw TypeCheckFailed<I>(DecimalTypeObject, name);
+        else
+            return value.as<DecimalObject>()->value();
+    }
+};
+
+/* high-precision integer */
+template <size_t I>
+struct Unboxer<I, Utils::Integer>
+{
+    static Utils::Integer unbox(ObjectRef value, const std::string &name)
+    {
+        /* object type checking */
+        if (value->isNotInstanceOf(IntTypeObject))
+            throw TypeCheckFailed<I>(IntTypeObject, name);
+        else
+            return value.as<IntObject>()->value();
     }
 };
 
