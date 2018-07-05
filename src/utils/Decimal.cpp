@@ -94,11 +94,17 @@ std::string Decimal::toString(void) const
     ssize_t exp = std::atoll(delim + 1);
     std::string base(start, delim - start);
 
-    /* check for exponent signess */
+    /* positive exponent */
     if (exp >= 0)
         base += std::string(static_cast<size_t>(exp), '0');
+
+    /* floating point number with absolute value less than one */
+    else if (base.size() == -exp)
+        base = "0." + base;
+
+    /* other floating point values */
     else
-        base.insert(static_cast<size_t>(base.length() + exp), ".");
+        base.insert(static_cast<size_t>(base.size() + exp), ".");
 
     /* add sign as needed */
     return (sign == '+' ? "" : "-") + base;
