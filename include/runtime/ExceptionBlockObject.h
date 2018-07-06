@@ -13,9 +13,6 @@ class ExceptionBlockType : public Type
 public:
     explicit ExceptionBlockType() : Type("_ExceptionBlock") {}
 
-public:
-    virtual std::string objectRepr(ObjectRef self) override;
-
 };
 
 /* type object for exception block */
