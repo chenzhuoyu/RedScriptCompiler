@@ -46,7 +46,7 @@ public:
     static inline void destroy(Object *self) noexcept
     {
         /* call the destructor directly */
-        if (self) self->~T();
+        if (self) self->~Object();
     }
 
 public:
