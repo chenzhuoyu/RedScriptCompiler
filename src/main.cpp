@@ -54,18 +54,14 @@
 //)source";
 
 const char *source = R"source(
-def run_test() {
-    print(1.0001 / 1000000000.0)
-    print(21.00000000000000000001 * 2 - 0.10000000001)
-    print(949111501.0 / 949111502.0)
-    print(949111502.0 / 949111503.0)
-    print(949111501.0 / 949111502.0 == 949111502.0 / 949111503.0)
-    print(94911152.1 * 94911151.2)
+def fac(n) {
+    if (n <= 1)
+        return 1
+    else
+        return n * fac(n - 1)
 }
 
-run_test()
-print(hash(123))
-print(hash(-2))
+print(fac(20))
 )source";
 
 #include <iostream>
@@ -152,9 +148,15 @@ static void run(void)
     RedScript::Compiler::CodeGenerator codegen(parser.parse());
     RedScript::Runtime::Reference<RedScript::Runtime::CodeObject> code = codegen.build().as<RedScript::Runtime::CodeObject>();
     std::cout << "--------------------- MEM ---------------------" << std::endl;
-    std::cout << "raw usage: " << RedScript::Engine::Memory::rawUsage() << std::endl;
-    std::cout << "array usage: " << RedScript::Engine::Memory::arrayUsage() << std::endl;
-    std::cout << "object usage: " << RedScript::Engine::Memory::objectUsage() << std::endl;
+    std::cout << "raw usage: "
+              << RedScript::Engine::Memory::rawUsage() << " bytes, "
+              << RedScript::Engine::Memory::rawCount() << " blocks" << std::endl;
+    std::cout << "array usage: "
+              << RedScript::Engine::Memory::arrayUsage() << " bytes, "
+              << RedScript::Engine::Memory::arrayCount() << " blocks" << std::endl;
+    std::cout << "object usage: "
+              << RedScript::Engine::Memory::objectUsage() << " bytes, "
+              << RedScript::Engine::Memory::objectCount() << " objects" << std::endl;
     dis(code);
 
     RedScript::Engine::Interpreter intp(code, RedScript::Engine::Builtins::Globals);
@@ -167,17 +169,24 @@ static void run(void)
 
 int main()
 {
+    size_t stack =       16 * 1024 * 1024;     /* Stack,  16M */
     size_t young = 1 * 1024 * 1024 * 1024;     /* Young,   1G */
     size_t old   =      512 * 1024 * 1024;     /* Old  , 512M */
     size_t perm  =      128 * 1024 * 1024;     /* Perm , 128M */
 
-    RedScript::initialize(young, old, perm);
+    RedScript::initialize(stack, young, old, perm);
     run();
     RedScript::shutdown();
 
     std::cout << "--------------------- MEM ---------------------" << std::endl;
-    std::cout << "raw usage: " << RedScript::Engine::Memory::rawUsage() << std::endl;
-    std::cout << "array usage: " << RedScript::Engine::Memory::arrayUsage() << std::endl;
-    std::cout << "object usage: " << RedScript::Engine::Memory::objectUsage() << std::endl;
+    std::cout << "raw usage: "
+              << RedScript::Engine::Memory::rawUsage() << " bytes, "
+              << RedScript::Engine::Memory::rawCount() << " blocks" << std::endl;
+    std::cout << "array usage: "
+              << RedScript::Engine::Memory::arrayUsage() << " bytes, "
+              << RedScript::Engine::Memory::arrayCount() << " blocks" << std::endl;
+    std::cout << "object usage: "
+              << RedScript::Engine::Memory::objectUsage() << " bytes, "
+              << RedScript::Engine::Memory::objectCount() << " objects" << std::endl;
     return 0;
 }

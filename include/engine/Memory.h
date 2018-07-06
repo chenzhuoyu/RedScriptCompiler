@@ -22,6 +22,11 @@ public:
     static constexpr int MEM_OBJECT = 3;
 
 public:
+    static size_t rawCount(void);
+    static size_t arrayCount(void);
+    static size_t objectCount(void);
+
+public:
     static size_t rawUsage(void);
     static size_t arrayUsage(void);
     static size_t objectUsage(void);

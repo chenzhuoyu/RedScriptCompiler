@@ -23,6 +23,17 @@
     *reinterpret_cast<const uint32_t *>(v);                                     \
 })
 
+namespace
+{
+template <typename T>
+struct CounterScope
+{
+    T &val;
+   ~CounterScope() { val--; }
+    CounterScope(T &val) : val(val) { val++; }
+};
+}
+
 namespace RedScript::Engine
 {
 Runtime::ObjectRef Interpreter::tupleConcat(Runtime::ObjectRef a, Runtime::ObjectRef b)
@@ -93,6 +104,14 @@ Runtime::ObjectRef Interpreter::hashmapConcat(Runtime::ObjectRef a, Runtime::Obj
 
 Runtime::ObjectRef Interpreter::eval(void)
 {
+    /* recursion counter */
+    static thread_local ssize_t depth = 0;
+    CounterScope<ssize_t> recursion(depth);
+
+    /* check for recursion depth */
+    if (recursion.val >= 2048)
+        throw Exceptions::RuntimeError("Maximum recursion depth exceeded");
+
     /* bytecode pointers */
     const char *s = _code->buffer().data();
     const char *p = _code->buffer().data();

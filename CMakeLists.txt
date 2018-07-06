@@ -1,10 +1,6 @@
 cmake_minimum_required(VERSION 3.8)
 project(RedScriptCompiler C CXX)
 
-if (${CMAKE_BUILD_TYPE} MATCHES "Debug")
-    add_definitions(-D_GLIBCXX_DEBUG)
-endif()
-
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     set(CMAKE_C_COMPILER /usr/bin/clang-5.0)
     set(CMAKE_ASM_COMPILER /usr/bin/clang-5.0)
@@ -15,7 +11,13 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 
+if (${CMAKE_BUILD_TYPE} MATCHES "Debug")
+    add_definitions(-Og)
+    add_definitions(-D_GLIBCXX_DEBUG)
+endif()
+
 add_compile_options(-g3)
+add_compile_options(-fPIC)
 add_compile_options(-pthread)
 
 add_definitions(-D_BSD_SOURCE)

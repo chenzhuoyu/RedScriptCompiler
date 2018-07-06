@@ -1,3 +1,6 @@
+#include <cstdint>
+#include <sys/resource.h>
+
 #include "RedScript.h"
 
 #include "engine/Builtins.h"
@@ -19,10 +22,40 @@
 #include "runtime/NativeFunctionObject.h"
 #include "runtime/ExceptionBlockObject.h"
 
+static void setStackSize(size_t stack)
+{
+    struct rlimit rl;
+
+    /* get current resource limit */
+    if (getrlimit(RLIMIT_STACK, &rl) < 0)
+    {
+        fprintf(stderr, "*** ERROR :: cannot get stack size : [%d] %s", errno, strerror(errno));
+        exit(-1);
+    }
+
+    /* update as needed */
+    if (rl.rlim_cur < stack)
+        rl.rlim_cur = stack;
+
+    /* don't exceed the maximum limit */
+    if (rl.rlim_cur >rl.rlim_max)
+        rl.rlim_cur = rl.rlim_max;
+
+    /* set current resource limit */
+    if (setrlimit(RLIMIT_STACK, &rl) < 0)
+    {
+        fprintf(stderr, "*** ERROR :: cannot set stack size : [%d] %s", errno, strerror(errno));
+        exit(-1);
+    }
+}
+
 namespace RedScript
 {
 void shutdown(void)
 {
+    /* perform a garbage collection */
+    Engine::GarbageCollector::gc();
+
     /* built-in globals */
     Engine::Builtins::shutdown();
 
@@ -53,9 +86,10 @@ void shutdown(void)
     Engine::GarbageCollector::shutdown();
 }
 
-void initialize(size_t young, size_t old, size_t perm)
+void initialize(size_t stack, size_t young, size_t old, size_t perm)
 {
     /* memory management and garbage collector */
+    setStackSize(stack);
     Engine::GarbageCollector::initialize(young, old, perm);
 
     /* meta objects */

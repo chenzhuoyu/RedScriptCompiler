@@ -79,31 +79,43 @@ static MemoryTag *allocTag(uint64_t type, size_t size)
 /* wrap counters in static functions to prevent initializing order problem
  * compilers would optimize them away, thus it's not really a problem */
 
+static inline std::atomic_size_t &_rawCount(void)    { static std::atomic_size_t value(0); return value; }
+static inline std::atomic_size_t &_arrayCount(void)  { static std::atomic_size_t value(0); return value; }
+static inline std::atomic_size_t &_objectCount(void) { static std::atomic_size_t value(0); return value; }
+
 static inline std::atomic_size_t &_rawUsage(void)    { static std::atomic_size_t value(0); return value; }
 static inline std::atomic_size_t &_arrayUsage(void)  { static std::atomic_size_t value(0); return value; }
 static inline std::atomic_size_t &_objectUsage(void) { static std::atomic_size_t value(0); return value; }
 
 namespace RedScript::Engine
 {
-size_t Memory::rawUsage(void) { return _rawUsage().load(); }
-size_t Memory::arrayUsage(void) { return _arrayUsage().load(); }
+size_t Memory::rawCount(void)    { return _rawCount().load();    }
+size_t Memory::arrayCount(void)  { return _arrayCount().load();  }
+size_t Memory::objectCount(void) { return _objectCount().load(); }
+
+size_t Memory::rawUsage(void)    { return _rawUsage().load();    }
+size_t Memory::arrayUsage(void)  { return _arrayUsage().load();  }
 size_t Memory::objectUsage(void) { return _objectUsage().load(); }
 
 void Memory::free(void *ptr)
 {
     if (ptr != nullptr)
     {
-        _objectUsage() -= freeTag(
-            MEM_OBJECT,
-            reinterpret_cast<MemoryTag *>(ptr) - 1
-        );
+        _objectCount() --;
+        _objectUsage() -= freeTag(MEM_OBJECT, reinterpret_cast<MemoryTag *>(ptr) - 1);
     }
 }
 
 void *Memory::alloc(size_t size)
 {
+    /* allocate memory with tag */
     MemoryTag *tag = allocTag(MEM_OBJECT, size);
+
+    /* update object counter and usage */
+    _objectCount() ++;
     _objectUsage() += tag->size;
+
+    /* skip tag header */
     return reinterpret_cast<void *>(tag + 1);
 }
 
@@ -124,15 +136,27 @@ size_t Memory::sizeOf(void *ptr)
 
 void *operator new(size_t size)
 {
+    /* allocate memory with tag */
     MemoryTag *tag = allocTag(RedScript::Engine::Memory::MEM_RAW, size);
+
+    /* update object counter and usage */
+    _rawCount() ++;
     _rawUsage() += tag->size;
+
+    /* skip tag header */
     return reinterpret_cast<void *>(tag + 1);
 }
 
 void *operator new[](size_t size)
 {
+    /* allocate memory with tag */
     MemoryTag *tag = allocTag(RedScript::Engine::Memory::MEM_ARRAY, size);
+
+    /* update object counter and usage */
+    _arrayCount() ++;
     _arrayUsage() += tag->size;
+
+    /* skip tag header */
     return reinterpret_cast<void *>(tag + 1);
 }
 
@@ -140,10 +164,8 @@ void operator delete(void *ptr) noexcept
 {
     if (ptr != nullptr)
     {
-        _rawUsage() -= freeTag(
-            RedScript::Engine::Memory::MEM_RAW,
-            reinterpret_cast<MemoryTag *>(ptr) - 1
-        );
+        _rawCount() --;
+        _rawUsage() -= freeTag(RedScript::Engine::Memory::MEM_RAW, reinterpret_cast<MemoryTag *>(ptr) - 1);
     }
 }
 
@@ -151,9 +173,7 @@ void operator delete[](void *ptr) noexcept
 {
     if (ptr != nullptr)
     {
-        _arrayUsage() -= freeTag(
-            RedScript::Engine::Memory::MEM_ARRAY,
-            reinterpret_cast<MemoryTag *>(ptr) - 1
-        );
+        _arrayCount() --;
+        _arrayUsage() -= freeTag(RedScript::Engine::Memory::MEM_ARRAY, reinterpret_cast<MemoryTag *>(ptr) - 1);
     }
 }

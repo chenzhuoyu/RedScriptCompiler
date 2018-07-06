@@ -77,6 +77,10 @@ public:
     uint64_t toHash(void) const;
     std::string toString(void) const;
 
+public:
+    int32_t cmp(const Integer &other) const { return mpz_cmp(_value, other._value); }
+    Integer pow(uint64_t exp)         const { return Integer([&](mpz_t &result){ mpz_pow_ui(result, _value, exp); }); }
+
 /** Assignment Operators **/
 
 public:

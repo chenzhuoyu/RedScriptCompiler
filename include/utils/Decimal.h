@@ -4,6 +4,7 @@
 #include <string>
 #include <bid_dfp.h>
 
+#include "utils/Integer.h"
 #include "exceptions/ValueError.h"
 
 namespace RedScript::Utils
@@ -32,7 +33,12 @@ private:
         return std::move(result);
     }
 
-public:
+private:
+    static const BID_UINT128 &maxInt64(void);
+    static const BID_UINT128 &minInt64(void);
+    static const BID_UINT128 &maxUInt64(void);
+
+private:
     static const BID_UINT128 &maxFloat(void);
     static const BID_UINT128 &minFloat(void);
     static const BID_UINT128 &maxDouble(void);
@@ -49,6 +55,7 @@ public:
     Decimal(const std::string &value) : Decimal(withFlagsChecked(bid128_from_string, value.c_str())) {}
 
 public:
+    Decimal(Integer other);
     Decimal(Decimal &&other)      : _value(bid128_from_int32(0)) { swap(other);   }
     Decimal(const Decimal &other) : _value(bid128_from_int32(0)) { assign(other); }
 
@@ -69,6 +76,7 @@ public:
     long double toLongDouble(void) const { return withFlagsChecked(bid128_to_binary80, _value); }
 
 public:
+    Integer toInt(void) const;
     uint64_t toHash(void) const;
     std::string toString(void) const;
 
