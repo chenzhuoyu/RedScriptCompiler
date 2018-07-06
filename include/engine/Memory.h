@@ -39,40 +39,22 @@ public:
     static int typeOf(void *ptr);
     static size_t sizeOf(void *ptr);
 
-/*** Manual Object Construction and Destruction ***/
+/*** Object Construction and Destruction ***/
 
 public:
-    template <typename T>
-    static inline void destroy(T *self) noexcept
+    template <typename Object>
+    static inline void destroy(Object *self) noexcept
     {
         /* call the destructor directly */
         if (self) self->~T();
     }
 
 public:
-    template <typename T, typename ... Args>
-    static inline T *construct(void *self, Args &&... args)
+    template <typename Object, typename ... Args>
+    static inline Object *construct(void *self, Args &&... args)
     {
         /* use placement-new to construct the object */
-        return new (self) T(std::forward<Args>(args) ...);
-    }
-
-/*** Convient Functions ***/
-
-public:
-    template <typename T>
-    static inline void freeObject(T *self)
-    {
-        destroy(self);
-        free(self);
-    }
-
-public:
-    template <typename T, typename ... Args>
-    static inline T *allocObject(Args &&... args)
-    {
-        void *mem = alloc(sizeof(T));
-        return construct<T>(mem, std::forward<Args>(args) ...);
+        return new (self) Object(std::forward<Args>(args) ...);
     }
 };
 }
