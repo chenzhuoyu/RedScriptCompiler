@@ -4,6 +4,7 @@
 #include <memory>
 #include <vector>
 
+#include "utils/RWLock.h"
 #include "runtime/Object.h"
 
 namespace RedScript::Engine
@@ -17,6 +18,7 @@ class Closure final
 
 private:
     size_t _id;
+    Utils::RWLock _lock;
     Runtime::ObjectRef _object;
     std::vector<Runtime::ObjectRef> *_locals;
 
@@ -43,17 +45,16 @@ public:
 public:
     void freeze(void)
     {
+        Utils::RWLock::Write _(_lock);
         _object = _locals->at(_id);
         _locals = nullptr;
     }
 
 public:
-    Runtime::ObjectRef get(void) const
+    Runtime::ObjectRef get(void)
     {
-        if (!_locals)
-            return _object;
-        else
-            return _locals->at(_id);
+        Utils::RWLock::Read _(_lock);
+        return _locals ? _locals->at(_id) : _object;
     }
 };
 }
