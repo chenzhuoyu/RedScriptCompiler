@@ -43,11 +43,8 @@ public:
 public:
     void freeze(void)
     {
-        if (_locals)
-        {
-            _object = _locals->at(_id);
-            _locals = nullptr;
-        }
+        _object = _locals->at(_id);
+        _locals = nullptr;
     }
 
 public:
