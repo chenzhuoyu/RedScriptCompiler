@@ -67,7 +67,7 @@ static size_t freeTag(uint64_t type, MemoryTag *tag)
 static MemoryTag *allocTag(uint64_t type, size_t size)
 {
     /* allocate memory */
-    size_t alloc = size + MEM_ALIGN;
+    size_t alloc = size + sizeof(MemoryTag);
     MemoryTag *tag = reinterpret_cast<MemoryTag *>(allocAligned(alloc));
 
     /* initialize memory tag */
