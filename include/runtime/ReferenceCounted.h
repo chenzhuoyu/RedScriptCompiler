@@ -8,6 +8,7 @@
 #include <climits>
 #include <typeinfo>
 #include <stdexcept>
+#include <functional>
 #include <type_traits>
 
 #include "utils/Immovable.h"
@@ -264,9 +265,19 @@ public:
     }
 
 public:
+    template <typename U>
+    static inline Reference<T> retain(U *object)
+    {
+        if (object && object->_isStatic)
+            throw std::invalid_argument("Object cannot be static");
+        else
+            return Reference<T>(object, TagChecked());
+    }
+
+public:
     static inline Reference<T> refStatic(T &object)
     {
-        if (!object._isStatic)
+        if (!(object._isStatic))
             throw std::invalid_argument("Object must be static");
         else
             return Reference<T>(&object, TagChecked());
@@ -295,13 +306,20 @@ protected:
     explicit ReferenceCounted();
 
 public:
+    typedef std::function<void(ReferenceCounted *)> VisitFunction;
+
+public:
     bool isStatic(void) const { return _isStatic; }
-    int32_t refCount(void) const { return _refCount.load(); }
+    int32_t refCount(void) const { return _refCount; }
 
 public:
     void track(void) const;
     void untrack(void) const;
     bool isTracked(void) const;
+
+public:
+    virtual void referenceClear(void) {}
+    virtual void referenceTraverse(VisitFunction visit) {}
 
 protected:
     /* override `new` and `delete` operators to identify static

@@ -42,7 +42,11 @@ public:
     ) : Object(FunctionTypeObject),
         _code(std::move(code)),
         _closure(std::move(closure)),
-        _defaults(std::move(defaults)) {}
+        _defaults(std::move(defaults)) { track(); }
+
+public:
+    virtual void referenceClear(void) override;
+    virtual void referenceTraverse(VisitFunction visit) override;
 
 public:
     ObjectRef invoke(Reference<TupleObject> args, Reference<MapObject> kwargs);

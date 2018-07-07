@@ -180,6 +180,28 @@ ObjectRef FunctionObject::invoke(Reference<TupleObject> args, Reference<MapObjec
     return intp.eval();
 }
 
+void FunctionObject::referenceClear(void)
+{
+    /* clear every closure */
+    for (auto &item : _closure)
+        item.second = nullptr;
+
+    /* clear code object and default map */
+    _code = nullptr;
+    _defaults = nullptr;
+}
+
+void FunctionObject::referenceTraverse(VisitFunction visit)
+{
+    /* closure objects */
+    for (const auto &item : _closure)
+        visit(item.second->get());
+
+    /* code object and default map */
+    visit(_code);
+    visit(_defaults);
+}
+
 void FunctionObject::initialize(void)
 {
     /* function type object */

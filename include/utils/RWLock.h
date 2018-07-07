@@ -33,27 +33,27 @@ public:
     RWLock() : _all(0), _owner(nullptr), _rlocks(0) {}
 
 public:
-    size_t reads(void) const { return _rlocks.load(); }
+    size_t reads(void) const { return _rlocks; }
     Engine::Thread *owner(void) const { return _owner; }
 
 public:
     void readLock(void)
     {
-        uint16_t tk = _tickets.fetch_add(1);
-        while (tk != _reads.load());
+        uint16_t tk = _tickets++;
+        while (tk != _reads);
         _reads++;
     }
 
 public:
     void writeLock(void)
     {
-        uint16_t tk = _tickets.fetch_add(1);
-        while (tk != _writes.load());
+        uint16_t tk = _tickets++;
+        while (tk != _writes);
     }
 
 public:
     void readUnlock(void) { _writes++; }
-    void writeUnlock(void) { _rw = (_reads.load() + 1) | ((_writes.load() + 1) << 16); }
+    void writeUnlock(void) { _rw = (_reads + 1) | ((_writes + 1) << 16); }
 
 public:
     class Read

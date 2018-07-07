@@ -38,8 +38,8 @@ class TupleObject : public Object
     ObjectRef *_items;
 
 public:
-    virtual ~TupleObject() { delete [] _items; }
-    explicit TupleObject(size_t size) : Object(TupleTypeObject), _size(size), _items(new ObjectRef[size]) {}
+    virtual ~TupleObject() { delete[] _items; }
+    explicit TupleObject(size_t size);
 
 public:
     size_t size(void) const { return _size; }
@@ -57,6 +57,10 @@ public:
         Details::fillObjects<0, ObjectRef>(result->_items, std::forward<Args>(items) ...);
         return std::move(result);
     }
+
+public:
+    virtual void referenceClear(void) override;
+    virtual void referenceTraverse(VisitFunction visit) override;
 
 public:
     static void shutdown(void) {}

@@ -4,7 +4,6 @@
 #include <string>
 #include <vector>
 #include <cstdint>
-#include <functional>
 #include <unordered_map>
 
 #include "runtime/ReferenceCounted.h"
@@ -84,13 +83,6 @@ private:
     ObjectRef applyTernary(const char *name, ObjectRef self, ObjectRef second, ObjectRef third);
 
 /*** Object Protocol ***/
-
-public:
-    typedef std::function<void(ObjectRef)> VisitFunction;
-
-public:
-    virtual void objectClear   (ObjectRef self) {}
-    virtual void objectTraverse(ObjectRef self, VisitFunction visit) {}
 
 public:
     virtual uint64_t    objectHash(ObjectRef self);

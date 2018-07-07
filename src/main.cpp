@@ -169,12 +169,7 @@ static void run(void)
 
 int main()
 {
-    size_t stack =       16 * 1024 * 1024;     /* Stack,  16M */
-    size_t young = 1 * 1024 * 1024 * 1024;     /* Young,   1G */
-    size_t old   =      512 * 1024 * 1024;     /* Old  , 512M */
-    size_t perm  =      128 * 1024 * 1024;     /* Perm , 128M */
-
-    RedScript::initialize(stack, young, old, perm);
+    RedScript::initialize(16 * 1024 * 1024);
     run();
     RedScript::shutdown();
 

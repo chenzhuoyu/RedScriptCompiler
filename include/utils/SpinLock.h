@@ -16,7 +16,7 @@ class SpinLock final : public Immovable, public NonCopyable
     std::atomic_flag _flags;
 
 public:
-    SpinLock() : _owner(nullptr) {}
+    SpinLock() : _owner(nullptr), _flags(false) {}
 
 public:
     Engine::Thread *owner(void) const { return _owner; }

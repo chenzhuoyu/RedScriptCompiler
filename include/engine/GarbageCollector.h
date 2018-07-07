@@ -5,11 +5,13 @@
 #include <cstdio>
 #include <cstdint>
 
+#include "runtime/ReferenceCounted.h"
+
 namespace RedScript::Engine
 {
-class GCObject final
+struct __attribute__((aligned(16))) GCNode
 {
-    static constexpr int GC_UNTRACK     = -1;
+    static constexpr int GC_UNTRACKED   = -1;
     static constexpr int GC_REACHABLE   = -2;
     static constexpr int GC_UNREACHABLE = -3;
 
@@ -18,42 +20,50 @@ public:
     static constexpr int GC_OLD         = 1;
     static constexpr int GC_PERM        = 2;
 
-protected:
-    GCObject *_prev;
-    GCObject *_next;
+public:
+    GCNode *prev;
+    GCNode *next;
 
-protected:
-    int32_t _gen;
-    int32_t _ref;
+public:
+    int32_t gen = GC_UNTRACKED;
+    int32_t ref = GC_UNTRACKED;
 
-private:
-    /* make sure object aligns with 16-bytes */
-    uint64_t __not_used_just_for_alignment__ [[gnu::unused]];
+public:
+    GCNode() : prev(this), next(this) {}
 
-private:
+};
+
+class GCObject final : protected GCNode
+{
     friend class Generation;
     friend class GarbageCollector;
 
 public:
+    GCObject() = default;
    ~GCObject() { untrack(); }
-    GCObject() : _gen(GC_UNTRACK), _ref(GC_UNTRACK) {}
 
 public:
     void track(void);
     void untrack(void);
-    bool isTracked(void) const { return _ref != GC_UNTRACK; }
+    bool isTracked(void) const { return ref != GC_UNTRACKED; }
 
 };
 
-struct GarbageCollector
+class GarbageCollector final
 {
-    static void shutdown(void);
-    static void initialize(size_t young, size_t old, size_t perm);
+    static void free(void *obj);
+    static void *alloc(size_t size);
+    friend class Runtime::ReferenceCounted;
 
 public:
-    static int gc(void);
-    static void freeObject(void *obj);
-    static void *allocObject(size_t size);
+    enum class CollectionMode
+    {
+        Fast,
+        Full,
+    };
+
+public:
+    static size_t collect(CollectionMode mode);
 
 };
 }

@@ -89,13 +89,13 @@ static inline std::atomic_size_t &_objectUsage(void) { static std::atomic_size_t
 
 namespace RedScript::Engine
 {
-size_t Memory::rawCount(void)    { return _rawCount().load();    }
-size_t Memory::arrayCount(void)  { return _arrayCount().load();  }
-size_t Memory::objectCount(void) { return _objectCount().load(); }
+size_t Memory::rawCount(void)    { return _rawCount();    }
+size_t Memory::arrayCount(void)  { return _arrayCount();  }
+size_t Memory::objectCount(void) { return _objectCount(); }
 
-size_t Memory::rawUsage(void)    { return _rawUsage().load();    }
-size_t Memory::arrayUsage(void)  { return _arrayUsage().load();  }
-size_t Memory::objectUsage(void) { return _objectUsage().load(); }
+size_t Memory::rawUsage(void)    { return _rawUsage();    }
+size_t Memory::arrayUsage(void)  { return _arrayUsage();  }
+size_t Memory::objectUsage(void) { return _objectUsage(); }
 
 void Memory::free(void *ptr)
 {

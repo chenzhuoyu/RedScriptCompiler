@@ -53,11 +53,9 @@ namespace RedScript
 {
 void shutdown(void)
 {
-    /* perform a garbage collection */
-    Engine::GarbageCollector::gc();
-
-    /* built-in globals */
+    /* shutdown built-in globals, and perform a full garbage collection */
     Engine::Builtins::shutdown();
+    Engine::GarbageCollector::collect(Engine::GarbageCollector::CollectionMode::Full);
 
     /* generic objects */
     Runtime::ExceptionBlockObject::shutdown();
@@ -81,16 +79,12 @@ void shutdown(void)
     /* meta objects */
     Runtime::ProxyObject::shutdown();
     Runtime::Object::shutdown();
-
-    /* memory management and garbage collector */
-    Engine::GarbageCollector::shutdown();
 }
 
-void initialize(size_t stack, size_t young, size_t old, size_t perm)
+void initialize(size_t stack)
 {
-    /* memory management and garbage collector */
+    /* main program stack size */
     setStackSize(stack);
-    Engine::GarbageCollector::initialize(young, old, perm);
 
     /* meta objects */
     Runtime::Object::initialize();

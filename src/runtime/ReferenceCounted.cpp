@@ -40,7 +40,7 @@ void *ReferenceCounted::operator new(size_t size)
 
     /* mark as dynamic created object, and allocate new object from GC */
     _isStaticObject = false;
-    return Engine::GarbageCollector::allocObject(size);
+    return Engine::GarbageCollector::alloc(size);
 }
 
 void ReferenceCounted::operator delete(void *self)
@@ -56,7 +56,7 @@ void ReferenceCounted::operator delete(void *self)
         }
 
         /* just throw the object into GC */
-        Engine::GarbageCollector::freeObject(self);
+        Engine::GarbageCollector::free(self);
     }
 }
 }
