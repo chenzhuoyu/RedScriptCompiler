@@ -1023,15 +1023,12 @@ void CodeGenerator::visitExpression(const std::unique_ptr<AST::Expression> &node
 
 void CodeGenerator::visitStatement(const std::unique_ptr<AST::Statement> &node)
 {
-    /* non-expression statements, generate as normal */
-    if (node->stype != AST::Statement::StatementType::Expression)
-    {
-        AST::Visitor::visitStatement(node);
-        return;
-    }
+    /* generate the statement */
+    auto type = node->stype;
+    AST::Visitor::visitStatement(node);
 
     /* expression statements, discard result afterwards */
-    visitExpression(node->expression);
-    emit(node->expression, Engine::OpCode::DROP);
+    if (type == AST::Statement::StatementType::Expression)
+        emit(node->expression, Engine::OpCode::DROP);
 }
 }
