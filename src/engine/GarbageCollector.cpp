@@ -295,8 +295,8 @@ size_t GarbageCollector::collect(CollectionMode mode)
 
         case CollectionMode::Fast:
         {
-            /* find the oldest generation that exceeds the threshold, objects
-             * in that generation and generations younger than will be collected */
+            /* find the oldest generation that exceeds the threshold, objects in
+             * that generation and generations younger than that will be collected */
             for (size_t i = count, j = 0; i > 0; i--)
             {
                 /* "j > 0" means collection already been triggered by an older generation,
