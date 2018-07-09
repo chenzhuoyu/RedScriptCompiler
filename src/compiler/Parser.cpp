@@ -165,7 +165,7 @@ std::unique_ptr<AST::Native> Parser::parseNative(void)
     if (!(_lexer->next()->isKeyword<Token::Keyword::Native>()))
         throw Exceptions::SyntaxError(token, "Keyword \"native\" expected");
 
-    /* must be an identifier */
+    /* must be a string */
     std::string lang = _lexer->next()->asString();
     Utils::Strings::lower(lang);
 
