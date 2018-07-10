@@ -33,7 +33,7 @@ private:
     template <typename, typename, bool> friend struct _ReferenceComparatorImpl;
 
 public:
-    virtual ~Object() { untrack(); }
+    virtual ~Object() = default;
     explicit Object(TypeRef type) : _type(type) {}
 
 private:
