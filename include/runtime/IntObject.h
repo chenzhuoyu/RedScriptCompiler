@@ -65,7 +65,7 @@ public:
     virtual ObjectRef numericIncLShift(ObjectRef self, ObjectRef other) override { return numericLShift(self, other); }
     virtual ObjectRef numericIncRShift(ObjectRef self, ObjectRef other) override { return numericRShift(self, other); }
 
-/*** Comparable Protocol ***/
+/*** Comparator Protocol ***/
 
 public:
     virtual ObjectRef comparableEq(ObjectRef self, ObjectRef other) override;

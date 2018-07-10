@@ -11,7 +11,7 @@ namespace RedScript::Runtime
 class ExceptionBlockType : public Type
 {
 public:
-    explicit ExceptionBlockType() : Type("_ExceptionBlock") {}
+    explicit ExceptionBlockType() : Type("exception_block") {}
 
 };
 

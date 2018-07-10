@@ -26,11 +26,15 @@ class ArrayObject : public Object
 public:
     virtual ~ArrayObject() = default;
     explicit ArrayObject() : ArrayObject(0) {}
-    explicit ArrayObject(size_t size) : Object(ArrayTypeObject), _items(size) {}
+    explicit ArrayObject(size_t size) : Object(ArrayTypeObject), _items(size) { track(); }
 
 public:
     size_t size(void) const { return _items.size(); }
     std::vector<ObjectRef> &items(void) { return _items; }
+
+public:
+    virtual void referenceClear(void) override { _items.clear(); }
+    virtual void referenceTraverse(VisitFunction visit) override { for (auto &x : _items) if (x) visit(x); }
 
 public:
     static void shutdown(void) {}

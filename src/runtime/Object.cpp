@@ -1,11 +1,14 @@
-#include "utils/Strings.h"
 #include "runtime/Object.h"
+#include "runtime/IntObject.h"
 #include "runtime/MapObject.h"
 #include "runtime/BoolObject.h"
 #include "runtime/NullObject.h"
 #include "runtime/ProxyObject.h"
 #include "runtime/TupleObject.h"
 #include "runtime/StringObject.h"
+
+#include "utils/Strings.h"
+#include "exceptions/TypeError.h"
 #include "exceptions/InternalError.h"
 #include "exceptions/AttributeError.h"
 
@@ -54,18 +57,23 @@ void Object::initialize(void)
 
 ObjectRef Type::applyUnary(const char *name, ObjectRef self)
 {
+    // TODO: implement this
     throw Exceptions::InternalError("not implemented yet");
 }
 
 ObjectRef Type::applyBinary(const char *name, ObjectRef self, ObjectRef other, const char *alternative)
 {
+    // TODO: implement this
     throw Exceptions::InternalError("not implemented yet");
 }
 
 ObjectRef Type::applyTernary(const char *name, ObjectRef self, ObjectRef second, ObjectRef third)
 {
+    // TODO: implement this
     throw Exceptions::InternalError("not implemented yet");
 }
+
+/*** Object Protocol ***/
 
 uint64_t Type::objectHash(ObjectRef self)
 {
@@ -75,7 +83,9 @@ uint64_t Type::objectHash(ObjectRef self)
 
 StringList Type::objectDir(ObjectRef self)
 {
-    return StringList();
+    StringList result;
+    for (const auto &x : self->dict()) result.emplace_back(x.first);
+    return std::move(result);
 }
 
 std::string Type::objectRepr(ObjectRef self)
@@ -135,6 +145,21 @@ Type::DescriptorType Type::resolveDescriptor(ObjectRef obj, ObjectRef &getter, O
 
         /* either one is not null, it's a object descriptor */
         return ret ? DescriptorType::Object : DescriptorType::NotADescriptor;
+    }
+}
+
+bool Type::objectHasAttr(ObjectRef self, const std::string &name)
+{
+    try
+    {
+        /* try getting the attributes from object */
+        objectGetAttr(self, name);
+        return true;
+    }
+    catch (const Exceptions::AttributeError &)
+    {
+        /* attribute not found */
+        return false;
     }
 }
 
@@ -349,8 +374,13 @@ void Type::objectDefineAttr(ObjectRef self, const std::string &name, ObjectRef v
 
 ObjectRef Type::objectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs)
 {
-    throw Exceptions::InternalError("not implemented yet");
+    throw Exceptions::TypeError(Utils::Strings::format(
+        "\"%s\" object is not callable",
+        self->type()->name()
+    ));
 }
+
+/*** Boolean Protocol ***/
 
 ObjectRef Type::boolOr(ObjectRef self, ObjectRef other)
 {
@@ -379,6 +409,8 @@ ObjectRef Type::boolNot(ObjectRef self)
     return BoolObject::fromBool(!(self->type()->objectIsTrue(self)));
 }
 
+/*** Comparator Protocol ***/
+
 ObjectRef Type::comparableEq(ObjectRef self, ObjectRef other)
 {
     // TODO: apply binary operator if any
@@ -391,5 +423,44 @@ ObjectRef Type::comparableNeq(ObjectRef self, ObjectRef other)
     // TODO: apply binary operator if any
     // return applyBinary("__neq__", self, other);
     return BoolObject::fromBool(self.get() == other.get());
+}
+
+ObjectRef Type::comparableCompare(ObjectRef self, ObjectRef other)
+{
+    // TODO: apply binary operator if any
+    // return applyBinary("__compare__", self, other);
+
+    /* check for equality */
+    if (self == other)
+        return IntObject::fromInt(0);
+
+    /* compare "greater than" */
+    ObjectRef gt = self->type()->comparableGt(self, other);
+
+    /* must not be null */
+    if (gt.isNull())
+        throw Exceptions::InternalError("\"__gt__\" gives null");
+
+    /* check for truth value */
+    if (gt->type()->objectIsTrue(gt))
+        return IntObject::fromInt(1);
+
+    /* compare "less than" */
+    ObjectRef lt = self->type()->comparableLt(self, other);
+
+    /* must not be null */
+    if (lt.isNull())
+        throw Exceptions::InternalError("\"__lt__\" gives null");
+
+    /* check for truth value */
+    if (lt->type()->objectIsTrue(lt))
+        return IntObject::fromInt(-1);
+
+    /* obejcts are unordered */
+    throw Exceptions::TypeError(Utils::Strings::format(
+        "\"%s\" and \"%s\" objects are unordered",
+        self->type()->name(),
+        other->type()->name()
+    ));
 }
 }

@@ -53,7 +53,7 @@ ObjectRef DecimalType::numericDiv  (ObjectRef self, ObjectRef other) { return De
 ObjectRef DecimalType::numericMod  (ObjectRef self, ObjectRef other) { return DecimalObject::fromDecimal(self.as<DecimalObject>()->_value  %  toDecimal(other));  }
 ObjectRef DecimalType::numericPower(ObjectRef self, ObjectRef other) { return DecimalObject::fromDecimal(self.as<DecimalObject>()->_value.pow(toDecimal(other))); }
 
-/*** Comparable Protocol ***/
+/*** Comparator Protocol ***/
 
 ObjectRef DecimalType::comparableEq     (ObjectRef self, ObjectRef other) { return BoolObject::fromBool(compare(self, other, [](int ret){ return ret == 0; })); }
 ObjectRef DecimalType::comparableLt     (ObjectRef self, ObjectRef other) { return BoolObject::fromBool(compare(self, other, [](int ret){ return ret <  0; })); }

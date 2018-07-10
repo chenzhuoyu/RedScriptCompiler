@@ -15,7 +15,7 @@ namespace RedScript::Runtime
 class NativeClassType : public Type
 {
 public:
-    explicit NativeClassType() : Type("_NativeClass") {}
+    explicit NativeClassType() : Type("native_class") {}
 
 };
 

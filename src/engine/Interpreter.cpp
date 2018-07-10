@@ -826,55 +826,91 @@ Runtime::ObjectRef Interpreter::eval(void)
                 case OpCode::EXPAND_SEQ:
                 {
                     /* expected sequence size */
-                    size_t i = 0;
                     uint32_t count = OPERAND();
-                    std::vector<Runtime::ObjectRef> items(count);
 
                     /* check stack */
                     if (_stack.empty())
                         throw Exceptions::InternalError("Stack is empty");
 
-                    /* pop the stack top, convert to iterator */
-                    auto top = std::move(_stack.back());
-                    auto iter = top->type()->iterableIter(top);
+                    /* pop the stack top */
+                    Runtime::ObjectRef top = std::move(_stack.back());
                     _stack.pop_back();
 
-                    /* get all items from iterator */
-                    try
+                    /* shortcut for arrays and tuples */
+                    if (top->isInstanceOf(Runtime::ArrayTypeObject) ||
+                        top->isInstanceOf(Runtime::TupleTypeObject))
                     {
-                        while (i < count)
+                        size_t size;
+                        Runtime::ObjectRef *data;
+
+                        /* extract items and count */
+                        if (top->isInstanceOf(Runtime::TupleTypeObject))
                         {
-                            items[i] = iter->type()->iterableNext(iter);
-                            i++;
+                            size = top.as<Runtime::TupleObject>()->size();
+                            data = top.as<Runtime::TupleObject>()->items();
                         }
-                    }
+                        else
+                        {
+                            size = top.as<Runtime::ArrayObject>()->size();
+                            data = top.as<Runtime::ArrayObject>()->items().data();
+                        }
 
-                    /* iterator drained in the middle of expanding */
-                    catch (const Exceptions::StopIteration &)
+                        /* check item count */
+                        if (size != count)
+                        {
+                            throw Exceptions::ValueError(Utils::Strings::format(
+                                "Needs exact %zu items to unpack, but got %zu",
+                                count - size
+                            ));
+                        }
+
+                        /* push back to the stack in reverse order */
+                        for (size_t i = size; i > 0; i--)
+                            _stack.emplace_back(data[i - 1]);
+                    }
+                    else
                     {
-                        throw Exceptions::ValueError(Utils::Strings::format(
-                            "Needs %lu more items to unpack",
-                            count - i
-                        ));
-                    }
+                        /* convert to iterator */
+                        size_t i = 0;
+                        Runtime::ObjectRef iter = top->type()->iterableIter(top);
+                        std::vector<Runtime::ObjectRef> items(count);
 
-                    /* and the iterator should have exact `count` items */
-                    try
-                    {
-                        iter->type()->iterableNext(iter);
-                        throw Exceptions::ValueError("Too many items to unpack");
-                    }
+                        /* get all items from iterator */
+                        try
+                        {
+                            while (i < count)
+                            {
+                                items[i] = iter->type()->iterableNext(iter);
+                                i++;
+                            }
+                        }
 
-                    /* `StopIteration` is expected */
-                    catch (const Exceptions::StopIteration &)
-                    {
-                        /* should have no more items */
-                        /* this is expected, so ignore this exception */
-                    }
+                        /* iterator drained in the middle of expanding */
+                        catch (const Exceptions::StopIteration &)
+                        {
+                            throw Exceptions::ValueError(Utils::Strings::format(
+                                "Needs %zu more items to unpack",
+                                count - i
+                            ));
+                        }
 
-                    /* push back to the stack in reverse order */
-                    for (auto it = items.rbegin(); it != items.rend(); it++)
-                        _stack.emplace_back(*it);
+                        /* and the iterator should have exact `count` items */
+                        try
+                        {
+                            iter->type()->iterableNext(iter);
+                            throw Exceptions::ValueError("Too many items to unpack");
+                        }
+
+                        /* `StopIteration` is expected */
+                        catch (const Exceptions::StopIteration &)
+                        {
+                            /* should have no more items */
+                            /* this is expected, so ignore this exception */
+                        }
+
+                        /* push back to the stack in reverse order */
+                        _stack.insert(_stack.end(), items.rbegin(), items.rend());
+                    }
 
                     break;
                 }

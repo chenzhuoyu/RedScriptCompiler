@@ -11,7 +11,7 @@ namespace RedScript::Runtime
 class ProxyType : public Type
 {
 public:
-    explicit ProxyType() : Type("_Proxy") {}
+    explicit ProxyType() : Type("proxy") {}
 
 };
 

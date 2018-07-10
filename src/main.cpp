@@ -60,6 +60,8 @@ def fac(n) {
 }
 
 print(fac(20))
+a = ('one', 'two', 'three', 'four', 'five')
+print(a * 3)
 )source";
 
 #include <iostream>

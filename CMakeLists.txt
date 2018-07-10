@@ -70,6 +70,7 @@ set(SOURCE_FILES
         include/engine/Memory.h
         include/engine/Thread.h
         include/exceptions/AttributeError.h
+        include/exceptions/IndexError.h
         include/exceptions/InternalError.h
         include/exceptions/NameError.h
         include/exceptions/NativeSyntaxError.h

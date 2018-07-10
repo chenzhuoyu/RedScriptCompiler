@@ -100,6 +100,7 @@ private:
     DescriptorType resolveDescriptor(ObjectRef obj, ObjectRef &getter, ObjectRef &setter, ObjectRef &deleter);
 
 public:
+    virtual bool      objectHasAttr(ObjectRef self, const std::string &name);
     virtual void      objectDelAttr(ObjectRef self, const std::string &name);
     virtual ObjectRef objectGetAttr(ObjectRef self, const std::string &name);
     virtual void      objectSetAttr(ObjectRef self, const std::string &name, ObjectRef value);
@@ -156,7 +157,7 @@ public:
     virtual ObjectRef numericIncLShift(ObjectRef self, ObjectRef other) { return applyBinary("__inc_lshift__", self, other, "__lshift__"); }
     virtual ObjectRef numericIncRShift(ObjectRef self, ObjectRef other) { return applyBinary("__inc_rshift__", self, other, "__rshift__"); }
 
-/*** Iterable Protocol ***/
+/*** Iterator Protocol ***/
 
 public:
     virtual ObjectRef iterableIter(ObjectRef self) { return applyUnary("__iter__", self); }
@@ -170,7 +171,7 @@ public:
     virtual ObjectRef sequenceGetItem(ObjectRef self, ObjectRef other)                   { return applyBinary ("__getitem__", self, other        ); }
     virtual void      sequenceSetItem(ObjectRef self, ObjectRef second, ObjectRef third) {        applyTernary("__setitem__", self, second, third); }
 
-/*** Comparable Protocol ***/
+/*** Comparator Protocol ***/
 
 public:
     virtual ObjectRef comparableEq(ObjectRef self, ObjectRef other);
@@ -183,7 +184,7 @@ public:
     virtual ObjectRef comparableGeq(ObjectRef self, ObjectRef other) { return applyBinary("__geq__", self, other); }
 
 public:
-    virtual ObjectRef comparableCompare(ObjectRef self, ObjectRef other) { return applyBinary("__compare__", self, other); }
+    virtual ObjectRef comparableCompare(ObjectRef self, ObjectRef other);
     virtual ObjectRef comparableContains(ObjectRef self, ObjectRef other) { return applyBinary("__contains__", self, other); }
 
 };
@@ -199,7 +200,7 @@ struct hash<RedScript::Runtime::ObjectRef>
     size_t operator()(RedScript::Runtime::ObjectRef other) const
     {
         /* use object system hash function */
-        std::hash<uint64_t> hash;
+        static std::hash<uint64_t> hash;
         return hash(other->type()->objectHash(other));
     }
 };

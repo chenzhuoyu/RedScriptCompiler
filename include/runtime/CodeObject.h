@@ -14,7 +14,7 @@ namespace RedScript::Runtime
 class CodeType : public Type
 {
 public:
-    explicit CodeType() : Type("_CodeObject") {}
+    explicit CodeType() : Type("code") {}
 
 };
 

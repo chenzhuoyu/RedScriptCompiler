@@ -49,7 +49,7 @@ public:
     virtual ObjectRef numericIncMod  (ObjectRef self, ObjectRef other) override { return numericMod  (self, other); }
     virtual ObjectRef numericIncPower(ObjectRef self, ObjectRef other) override { return numericPower(self, other); }
 
-/*** Comparable Protocol ***/
+/*** Comparator Protocol ***/
 
 public:
     virtual ObjectRef comparableEq(ObjectRef self, ObjectRef other) override;

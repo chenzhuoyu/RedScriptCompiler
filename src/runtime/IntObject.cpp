@@ -54,7 +54,7 @@ ObjectRef IntType::numericNot(ObjectRef self) { return IntObject::fromInteger(~(
     else if (other->isInstanceOf(DecimalTypeObject))                                                                        \
         return BoolObject::fromBool(Utils::Decimal(self.as<IntObject>()->_value) op other.as<DecimalObject>()->value());    \
     else                                                                                                                    \
-        throw Exceptions::TypeError("Operand must be `int` or `decimal` object");                                           \
+        return FalseObject;                                                                                                 \
 }
 
 ObjectRef IntType::numericAdd(ObjectRef self, ObjectRef other) NUM_OP_F(+)
@@ -90,7 +90,7 @@ ObjectRef IntType::numericXor   (ObjectRef self, ObjectRef other) NUM_OP_I(^)
 ObjectRef IntType::numericLShift(ObjectRef self, ObjectRef other) NUM_OP_I(<<)
 ObjectRef IntType::numericRShift(ObjectRef self, ObjectRef other) NUM_OP_I(>>)
 
-/*** Comparable Protocol ***/
+/*** Comparator Protocol ***/
 
 ObjectRef IntType::comparableEq (ObjectRef self, ObjectRef other) BOOL_OP_F(==)
 ObjectRef IntType::comparableLt (ObjectRef self, ObjectRef other) BOOL_OP_F(<)

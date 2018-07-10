@@ -12,16 +12,7 @@ namespace RedScript::Engine
 {
 class Builtins
 {
-    static Runtime::ObjectRef dir(Runtime::ObjectRef obj);
-    static Runtime::ObjectRef len(Runtime::ObjectRef obj);
-    static Runtime::ObjectRef hash(Runtime::ObjectRef obj);
-    static Runtime::ObjectRef repr(Runtime::ObjectRef obj);
     static Runtime::ObjectRef print(Runtime::VariadicArgs args, Runtime::KeywordArgs kwargs);
-
-private:
-    static bool hasattr(Runtime::ObjectRef self, const std::string &name);
-    static void delattr(Runtime::ObjectRef self, const std::string &name);
-    static void setattr(Runtime::ObjectRef self, const std::string &name, Runtime::ObjectRef value);
     static Runtime::ObjectRef getattr(Runtime::ObjectRef self, const std::string &name, Runtime::ObjectRef def);
 
 public:
