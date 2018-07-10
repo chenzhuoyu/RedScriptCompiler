@@ -36,9 +36,14 @@ uint64_t TupleType::objectHash(ObjectRef self)
 
 std::string TupleType::objectRepr(ObjectRef self)
 {
-    /* convert to tuple object */
+    /* scope control */
+    Object::Repr repr(self);
     Reference<TupleObject> tuple = self.as<TupleObject>();
     std::vector<std::string> items;
+
+    /* recursion detected */
+    if (repr.isExists())
+        return "(...)";
 
     /* hash each item */
     for (size_t i = 0; i < tuple->size(); i++)

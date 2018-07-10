@@ -1,3 +1,5 @@
+#include <unordered_set>
+
 #include "runtime/Object.h"
 #include "runtime/IntObject.h"
 #include "runtime/MapObject.h"
@@ -16,6 +18,9 @@ namespace RedScript::Runtime
 {
 /* the very first class */
 TypeRef TypeObject;
+
+/* per-thread scope object to control infinite recursion in repr */
+static thread_local std::unordered_set<Object *> _reprScope;
 
 /*** Object Implementations ***/
 
@@ -45,6 +50,24 @@ bool Object::isNotEquals(Object *other)
 
     /* check it's truth value */
     return result->type()->objectIsTrue(result);
+}
+
+void Object::exitReprScope(void)
+{
+    /* remove from repr scope */
+    if (!(_reprScope.erase(this)))
+        throw std::logic_error("object not found in repr scope");
+}
+
+bool Object::enterReprScope(void)
+{
+    /* already exists */
+    if (_reprScope.find(this) != _reprScope.end())
+        return false;
+
+    /* add to object list */
+    _reprScope.emplace(this);
+    return true;
 }
 
 void Object::initialize(void)

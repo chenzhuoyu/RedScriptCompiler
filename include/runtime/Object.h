@@ -33,6 +33,21 @@ private:
     template <typename, typename, bool> friend struct _ReferenceComparatorImpl;
 
 public:
+    class Repr final
+    {
+        bool _inScope;
+        Object *_object;
+
+    public:
+       ~Repr() { if (_inScope) _object->exitReprScope(); }
+        Repr(ObjectRef object) : _object(object), _inScope(object->enterReprScope()) {}
+
+    public:
+        bool isExists(void) const { return !_inScope; }
+
+    };
+
+public:
     virtual ~Object() = default;
     explicit Object(TypeRef type) : _type(type) {}
 
@@ -40,6 +55,11 @@ private:
     /* used by `_HasComparator<T>` and `_ReferenceComparator<T, U>` to perform equality test */
     bool isEquals(Object *other);
     bool isNotEquals(Object *other);
+
+private:
+    /* used by `Object::Repr` to control infinite recursion in `repr` */
+    void exitReprScope(void);
+    bool enterReprScope(void);
 
 public:
     Dict &dict(void) { return _dict; }
