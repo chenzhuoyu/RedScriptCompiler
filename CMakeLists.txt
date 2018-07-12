@@ -98,6 +98,8 @@ set(SOURCE_FILES
         include/utils/Decimal.h
         include/utils/Immovable.h
         include/utils/Integer.h
+        include/utils/Lists.h
+        include/utils/NFI.h
         include/utils/NonCopyable.h
         include/utils/Preprocessor.h
         include/utils/RWLock.h

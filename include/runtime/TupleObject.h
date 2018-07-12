@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <initializer_list>
 
+#include "utils/Lists.h"
 #include "runtime/Object.h"
 #include "exceptions/StopIteration.h"
 
@@ -77,19 +78,6 @@ public:
 extern TypeRef TupleTypeObject;
 extern TypeRef TupleIteratorTypeObject;
 
-namespace Details
-{
-template <size_t, typename T>
-static void fillObjects(T *items) {}
-
-template <size_t I, typename T, typename ... Args>
-static void fillObjects(T *items, T item, Args && ... remains)
-{
-    items[I] = item;
-    fillObjects<I + 1, T>(items, std::forward<Args>(remains) ...);
-}
-}
-
 class TupleObject : public Object
 {
     size_t _size;
@@ -112,7 +100,7 @@ public:
     static Reference<TupleObject> fromObjects(Args && ... items)
     {
         Reference<TupleObject> result = fromSize(sizeof ... (Args));
-        Details::fillObjects<0, ObjectRef>(result->_items, std::forward<Args>(items) ...);
+        Utils::Lists::fill(result->_items, std::forward<Args>(items) ...);
         return std::move(result);
     }
 

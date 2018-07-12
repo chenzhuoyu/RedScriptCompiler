@@ -31,9 +31,9 @@ ObjectRef NativeFunctionType::objectInvoke(ObjectRef self, ObjectRef args, Objec
     return function(args.as<TupleObject>(), kwargs.as<MapObject>());
 }
 
-ObjectRef NativeFunctionObject::newNullary(NullaryFunction func)
+ObjectRef NativeFunctionObject::newNullary(NullaryFunction function)
 {
-    return newVariadic([=](VariadicArgs args, KeywordArgs kwargs)
+    return newVariadic([=](Utils::NFI::VariadicArgs args, Utils::NFI::KeywordArgs kwargs)
     {
         /* no variadic arguments acceptable */
         if (args->size())
@@ -44,13 +44,13 @@ ObjectRef NativeFunctionObject::newNullary(NullaryFunction func)
             throw Exceptions::TypeError(Utils::Strings::format("Function takes no keyword arguments, but %zu given", kwargs->size()));
 
         /* invoke the function */
-        return func();
+        return function();
     });
 }
 
-ObjectRef NativeFunctionObject::newUnary(UnaryFunction func)
+ObjectRef NativeFunctionObject::newUnary(UnaryFunction function)
 {
-    return newVariadic([=](VariadicArgs args, KeywordArgs kwargs)
+    return newVariadic([=](Utils::NFI::VariadicArgs args, Utils::NFI::KeywordArgs kwargs)
     {
         /* only 1 argument acceptable */
         if (args->size() != 1)
@@ -61,13 +61,13 @@ ObjectRef NativeFunctionObject::newUnary(UnaryFunction func)
             throw Exceptions::TypeError(Utils::Strings::format("Function takes no keyword arguments, but %zu given", kwargs->size()));
 
         /* invoke the function */
-        return func(args->items()[0]);
+        return function(args->items()[0]);
     });
 }
 
-ObjectRef NativeFunctionObject::newBinary(BinaryFunction func)
+ObjectRef NativeFunctionObject::newBinary(BinaryFunction function)
 {
-    return newVariadic([=](VariadicArgs args, KeywordArgs kwargs)
+    return newVariadic([=](Utils::NFI::VariadicArgs args, Utils::NFI::KeywordArgs kwargs)
     {
         /* only 2 arguments acceptable */
         if (args->size() != 2)
@@ -78,13 +78,13 @@ ObjectRef NativeFunctionObject::newBinary(BinaryFunction func)
             throw Exceptions::TypeError(Utils::Strings::format("Function takes no keyword arguments, but %zu given", kwargs->size()));
 
         /* invoke the function */
-        return func(args->items()[0], args->items()[1]);
+        return function(args->items()[0], args->items()[1]);
     });
 }
 
-ObjectRef NativeFunctionObject::newTernary(TernaryFunction func)
+ObjectRef NativeFunctionObject::newTernary(TernaryFunction function)
 {
-    return newVariadic([=](VariadicArgs args, KeywordArgs kwargs)
+    return newVariadic([=](Utils::NFI::VariadicArgs args, Utils::NFI::KeywordArgs kwargs)
     {
         /* only 3 arguments acceptable */
         if (args->size() != 3)
@@ -95,7 +95,7 @@ ObjectRef NativeFunctionObject::newTernary(TernaryFunction func)
             throw Exceptions::TypeError(Utils::Strings::format("Function takes no keyword arguments, but %zu given", kwargs->size()));
 
         /* invoke the function */
-        return func(args->items()[0], args->items()[1], args->items()[2]);
+        return function(args->items()[0], args->items()[1], args->items()[2]);
     });
 }
 

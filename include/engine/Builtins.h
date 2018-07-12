@@ -4,6 +4,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "utils/NFI.h"
 #include "engine/Closure.h"
 #include "runtime/Object.h"
 #include "runtime/NativeFunctionObject.h"
@@ -12,7 +13,7 @@ namespace RedScript::Engine
 {
 class Builtins
 {
-    static Runtime::ObjectRef print(Runtime::VariadicArgs args, Runtime::KeywordArgs kwargs);
+    static Runtime::ObjectRef print(Utils::NFI::VariadicArgs args, Utils::NFI::KeywordArgs kwargs);
     static Runtime::ObjectRef getattr(Runtime::ObjectRef self, const std::string &name, Runtime::ObjectRef def);
 
 public:

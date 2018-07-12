@@ -14,7 +14,7 @@ namespace RedScript::Engine
 /* built-in globals */
 std::unordered_map<std::string, ClosureRef> Builtins::Globals;
 
-Runtime::ObjectRef Builtins::print(Runtime::VariadicArgs args, Runtime::KeywordArgs kwargs)
+Runtime::ObjectRef Builtins::print(Utils::NFI::VariadicArgs args, Utils::NFI::KeywordArgs kwargs)
 {
     /* check for "end" and "delim" arguments */
     Runtime::ObjectRef end = kwargs->find(Runtime::StringObject::fromString("end"));
@@ -71,7 +71,7 @@ void Builtins::initialize(void)
     Globals.emplace(
         "id",
         Closure::ref(Runtime::NativeFunctionObject::fromFunction(
-            Runtime::KeywordNames({"obj"}),
+            Utils::NFI::KeywordNames({"obj"}),
             [](Runtime::ObjectRef self){ return reinterpret_cast<uintptr_t>(self.get()); }
         ))
     );
@@ -80,7 +80,7 @@ void Builtins::initialize(void)
     Globals.emplace(
         "dir",
         Closure::ref(Runtime::NativeFunctionObject::fromFunction(
-            Runtime::KeywordNames({"obj"}),
+            Utils::NFI::KeywordNames({"obj"}),
             [](Runtime::ObjectRef self){ return self->type()->objectDir(self); }
         ))
     );
@@ -89,7 +89,7 @@ void Builtins::initialize(void)
     Globals.emplace(
         "len",
         Closure::ref(Runtime::NativeFunctionObject::fromFunction(
-            Runtime::KeywordNames({"obj"}),
+            Utils::NFI::KeywordNames({"obj"}),
             [](Runtime::ObjectRef self){ return self->type()->sequenceLen(self); }
         ))
     );
@@ -98,7 +98,7 @@ void Builtins::initialize(void)
     Globals.emplace(
         "hash",
         Closure::ref(Runtime::NativeFunctionObject::fromFunction(
-            Runtime::KeywordNames({"obj"}),
+            Utils::NFI::KeywordNames({"obj"}),
             [](Runtime::ObjectRef self){ return self->type()->objectHash(self); }
         ))
     );
@@ -107,7 +107,7 @@ void Builtins::initialize(void)
     Globals.emplace(
         "iter",
         Closure::ref(Runtime::NativeFunctionObject::fromFunction(
-            Runtime::KeywordNames({"obj"}),
+            Utils::NFI::KeywordNames({"obj"}),
             [](Runtime::ObjectRef self){ return self->type()->iterableIter(self); }
         ))
     );
@@ -116,7 +116,7 @@ void Builtins::initialize(void)
     Globals.emplace(
         "next",
         Closure::ref(Runtime::NativeFunctionObject::fromFunction(
-            Runtime::KeywordNames({"iter"}),
+            Utils::NFI::KeywordNames({"iter"}),
             [](Runtime::ObjectRef self){ return self->type()->iterableNext(self); }
         ))
     );
@@ -125,7 +125,7 @@ void Builtins::initialize(void)
     Globals.emplace(
         "repr",
         Closure::ref(Runtime::NativeFunctionObject::fromFunction(
-            Runtime::KeywordNames({"obj"}),
+            Utils::NFI::KeywordNames({"obj"}),
             [](Runtime::ObjectRef self){ return self->type()->objectRepr(self); }
         ))
     );
@@ -134,7 +134,7 @@ void Builtins::initialize(void)
     Globals.emplace(
         "hasattr",
         Closure::ref(Runtime::NativeFunctionObject::fromFunction(
-            Runtime::KeywordNames({"obj", "attr"}),
+            Utils::NFI::KeywordNames({"obj", "attr"}),
             [](Runtime::ObjectRef self, const std::string &name){ return self->type()->objectHasAttr(self, name); }
         ))
     );
@@ -143,7 +143,7 @@ void Builtins::initialize(void)
     Globals.emplace(
         "delattr",
         Closure::ref(Runtime::NativeFunctionObject::fromFunction(
-            Runtime::KeywordNames({"obj", "attr"}),
+            Utils::NFI::KeywordNames({"obj", "attr"}),
             [](Runtime::ObjectRef self, const std::string &name){ self->type()->objectDelAttr(self, name); }
         ))
     );
@@ -152,7 +152,7 @@ void Builtins::initialize(void)
     Globals.emplace(
         "setattr",
         Closure::ref(Runtime::NativeFunctionObject::fromFunction(
-            Runtime::KeywordNames({"obj", "attr", "value"}),
+            Utils::NFI::KeywordNames({"obj", "attr", "value"}),
             [](Runtime::ObjectRef self, const std::string &name, Runtime::ObjectRef value){ self->type()->objectSetAttr(self, name, value); }
         ))
     );
@@ -161,8 +161,8 @@ void Builtins::initialize(void)
     Globals.emplace(
         "getattr",
         Closure::ref(Runtime::NativeFunctionObject::fromFunction(
-            Runtime::KeywordNames({"obj", "attr", "value"}),
-            Runtime::DefaultValues({nullptr}),
+            Utils::NFI::KeywordNames({"obj", "attr", "value"}),
+            Utils::NFI::DefaultValues({nullptr}),
             &getattr
         ))
     );

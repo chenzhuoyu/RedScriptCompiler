@@ -47,7 +47,10 @@ std::string TupleType::objectRepr(ObjectRef self)
 
     /* hash each item */
     for (size_t i = 0; i < tuple->size(); i++)
-        items.emplace_back(tuple->items()[i]->type()->objectRepr(tuple->items()[i]));
+    {
+        auto item = tuple->items()[i];
+        items.emplace_back(item->type()->objectRepr(item));
+    }
 
     /* special case when tuple contains only 1 item */
     if (items.size() == 1)
