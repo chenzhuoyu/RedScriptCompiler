@@ -13,6 +13,10 @@ class Integer
 {
     mpz_t _value;
 
+private:
+    static const mpz_t &maxNegativeUInt(void);
+    static const mpz_t &minNegativeUInt(void);
+
 public:
     Integer() { mpz_init(_value);  }
    ~Integer() { mpz_clear(_value); }
@@ -68,10 +72,12 @@ public:
     bool isZero(void) const { return mpz_cmp_ui(_value, 0u) != 0; }
     bool isSafeInt(void) const;
     bool isSafeUInt(void) const;
+    bool isSafeNegativeUInt(void) const;
 
 public:
     int64_t toInt(void) const { return mpz_get_sx(_value); }
     uint64_t toUInt(void) const { return mpz_get_ux(_value); }
+    uint64_t toNegativeUInt(void) const { return (-(*this)).toUInt(); }
 
 public:
     uint64_t toHash(void) const;

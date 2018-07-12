@@ -173,42 +173,17 @@ ObjectRef TupleType::sequenceGetItem(ObjectRef self, ObjectRef other)
         ));
     }
 
-    /* convert to correct types */
-    Reference<IntObject> val = other.as<IntObject>();
-    Reference<TupleObject> tuple = self.as<TupleObject>();
-
-    /* check index type */
-    if (!(val->isSafeUInt()))
-    {
-        throw Exceptions::IndexError(Utils::Strings::format(
-            "Tuple index out of range [0, %lu): %s",
-            tuple->size(),
-            val->value().toString()
-        ));
-    }
-
-    /* extract the index as unsigned integer */
-    uint64_t index = val->toUInt();
-
-    /* check index range */
-    if (index >= tuple->size())
-    {
-        throw Exceptions::IndexError(Utils::Strings::format(
-            "Tuple index out of range [0, %lu): %lu",
-            tuple->size(),
-            index
-        ));
-    }
-
     /* extract the item */
-    ObjectRef item = tuple->items()[index];
+    auto pos = other.as<IntObject>();
+    auto tuple = self.as<TupleObject>();
+    auto result = tuple->items()[Utils::Lists::indexConstraint(tuple, pos)];
 
     /* must not be null */
-    if (item.isNull())
+    if (result.isNull())
         throw Exceptions::InternalError("Tuple contains null value");
 
     /* move to prevent copy */
-    return std::move(item);
+    return std::move(result);
 }
 
 /*** Comparator Protocol ***/

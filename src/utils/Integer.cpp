@@ -1,6 +1,9 @@
 #include "utils/Integer.h"
 #include "exceptions/ValueError.h"
 
+#define STRINGIZE_(val) #val
+#define STRINGIZE(val)  STRINGIZE_(val)
+
 static void mpfree(void *ptr, size_t size)
 {
     void (*freefunc)(void *, size_t);
@@ -15,6 +18,18 @@ Integer::Integer(const std::string &value, int radix)
     /* try converting to integer */
     if (mpz_init_set_str(_value, value.c_str(), radix) < 0)
         throw Exceptions::ValueError(Utils::Strings::format("\"%s\" cannot be converted to int with base %d", value, radix));
+}
+
+const mpz_t &Integer::maxNegativeUInt(void)
+{
+    static thread_local Integer value([](mpz_t &result){ mpz_init_set_si(result, 0); });
+    return value._value;
+}
+
+const mpz_t &Integer::minNegativeUInt(void)
+{
+    static thread_local Integer value([](mpz_t &result){ mpz_init_set_str(result, "-18446744073709551615", 10); });
+    return value._value;
 }
 
 void Integer::swap(Integer &other)
@@ -43,6 +58,13 @@ bool Integer::isSafeUInt(void) const
     /* 0 <= _value <= UINT64_MAX */
     return (mpz_cmp_ui(_value, 0u) >= 0) &&
            (mpz_cmp_ui(_value, UINT64_MAX) <= 0);
+}
+
+bool Integer::isSafeNegativeUInt(void) const
+{
+    /* -UINT64_MAX <= _value <= 0 */
+    return (mpz_cmp(_value, maxNegativeUInt()) <= 0) &&
+           (mpz_cmp(_value, minNegativeUInt()) >= 0);
 }
 
 uint64_t Integer::toHash(void) const

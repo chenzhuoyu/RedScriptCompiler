@@ -5,9 +5,11 @@
 #include <cstdint>
 #include <utility>
 
+#include "utils/Strings.h"
 #include "runtime/Object.h"
 #include "runtime/IntObject.h"
 #include "exceptions/TypeError.h"
+#include "exceptions/IndexError.h"
 #include "exceptions/InternalError.h"
 
 namespace RedScript::Utils::Lists
@@ -69,6 +71,46 @@ static inline bool contains(Runtime::Reference<T> list, Runtime::ObjectRef value
 }
 
 template <typename T>
+static inline size_t indexConstraint(Runtime::Reference<T> list, Runtime::Reference<Runtime::IntObject> index)
+{
+    /* positive 64-bit integer */
+    if (index->isSafeUInt())
+    {
+        /* counting from front */
+        size_t n = list->size();
+        size_t v = index->toUInt();
+
+        /* extract the index as unsigned integer */
+        if (v >= n)
+            throw Exceptions::IndexError(Strings::format("Index out of range [-%lu, %lu): %zu", n, n, v));
+        else
+            return v;
+    }
+
+    /* negative 64-bit integer */
+    else if (index->isSafeNegativeUInt())
+    {
+        /* counting from back */
+        size_t n = list->size();
+        size_t v = index->toNegativeUInt();
+
+        /* check the index */
+        if (n < v)
+            throw Exceptions::IndexError(Strings::format("Index out of range [-%lu, %lu): -%zu", n, n, v));
+        else
+            return n - v;
+    }
+
+    /* other number, definately out of range */
+    else
+    {
+        size_t n = list->size();
+        std::string v = index->value().toString();
+        throw Exceptions::IndexError(Strings::format("Index out of range [-%lu, %lu): %s", n, n, v));
+    }
+}
+
+template <typename T>
 static inline int64_t totalOrderCompare(Runtime::Reference<T> a, Runtime::Reference<T> b)
 {
     /* tuple lengths */
@@ -97,7 +139,7 @@ static inline int64_t totalOrderCompare(Runtime::Reference<T> a, Runtime::Refere
     /* must be integers */
     if (ret->isNotInstanceOf(Runtime::IntTypeObject))
     {
-        throw Exceptions::TypeError(Utils::Strings::format(
+        throw Exceptions::TypeError(Strings::format(
             "\"__compare__\" must returns an integer, not \"%s\"",
             ret->type()->name()
         ));

@@ -169,12 +169,8 @@ void ArrayType::sequenceDelItem(ObjectRef self, ObjectRef other)
     Reference<IntObject> val = other.as<IntObject>();
     Reference<ArrayObject> array = self.as<ArrayObject>();
 
-    /* must be an unsigned integer */
-    if (!(val->isSafeUInt()))
-        throw Exceptions::ValueError("Array index must be an unsigned integer");
-
     /* remove item from array */
-    array->removeItemAt(val->toUInt());
+    array->removeItemAt(Utils::Lists::indexConstraint(array, val));
 }
 
 ObjectRef ArrayType::sequenceGetItem(ObjectRef self, ObjectRef other)
@@ -192,12 +188,8 @@ ObjectRef ArrayType::sequenceGetItem(ObjectRef self, ObjectRef other)
     Reference<IntObject> val = other.as<IntObject>();
     Reference<ArrayObject> array = self.as<ArrayObject>();
 
-    /* must be an unsigned integer */
-    if (!(val->isSafeUInt()))
-        throw Exceptions::ValueError("Array index must be an unsigned integer");
-
     /* get item from array */
-    return array->itemAt(val->toUInt());
+    return array->itemAt(Utils::Lists::indexConstraint(array, val));
 }
 
 void ArrayType::sequenceSetItem(ObjectRef self, ObjectRef second, ObjectRef third)
@@ -215,12 +207,8 @@ void ArrayType::sequenceSetItem(ObjectRef self, ObjectRef second, ObjectRef thir
     Reference<IntObject> val = second.as<IntObject>();
     Reference<ArrayObject> array = self.as<ArrayObject>();
 
-    /* must be an unsigned integer */
-    if (!(val->isSafeUInt()))
-        throw Exceptions::ValueError("Array index must be an unsigned integer");
-
     /* set item in array */
-    array->setItemAt(val->toUInt(), std::move(third));
+    array->setItemAt(Utils::Lists::indexConstraint(array, val), std::move(third));
 }
 
 /*** Comparator Protocol ***/

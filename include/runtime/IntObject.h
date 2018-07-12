@@ -93,11 +93,13 @@ public:
 public:
     bool isSafeInt(void) { return _value.isSafeInt(); }
     bool isSafeUInt(void) { return _value.isSafeUInt(); }
+    bool isSafeNegativeUInt(void) { return _value.isSafeNegativeUInt(); }
 
 public:
     auto value(void) { return _value; }
     int64_t toInt(void) { return _value.toInt(); }
     uint64_t toUInt(void) { return _value.toUInt(); }
+    uint64_t toNegativeUInt(void) { return _value.toNegativeUInt(); }
 
 public:
     static ObjectRef fromInt(int64_t value);

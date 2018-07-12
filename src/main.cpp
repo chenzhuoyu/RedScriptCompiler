@@ -61,7 +61,8 @@ def fac(n) {
 
 print(fac(20))
 a = ['one', 'two', 'three', 'four', 'five']
-a[2] = 'hahaha'
+print(a[-1])
+a[-6] = 'hahaah'
 print(a)
 )source";
 
