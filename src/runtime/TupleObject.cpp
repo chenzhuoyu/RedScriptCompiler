@@ -7,6 +7,7 @@
 
 #include "exceptions/TypeError.h"
 #include "exceptions/IndexError.h"
+#include "exceptions/ValueError.h"
 #include "exceptions/InternalError.h"
 
 namespace RedScript::Runtime
@@ -212,56 +213,16 @@ ObjectRef TupleType::sequenceGetItem(ObjectRef self, ObjectRef other)
 
 /*** Comparator Protocol ***/
 
-static int64_t tupleCompare(Reference<TupleObject> a, Reference<TupleObject> b)
-{
-    /* tuple lengths */
-    size_t i = 0;
-    size_t alen = a->size();
-    size_t blen = b->size();
-
-    /* find the first item that not equals */
-    for (; (i < alen) && (i < blen); i++)
-        if (!(a->items()[i] == b->items()[i]))
-            break;
-
-    /* all items are equal, compare sizes */
-    if ((i >= alen) || (i >= blen))
-        return (alen == blen) ? 0 : (alen > blen) ? 1 : -1;
-
-    /* use total order comparison to determain the last item */
-    ObjectRef v = a->items()[i];
-    ObjectRef w = b->items()[i];
-    ObjectRef ret = v->type()->comparableCompare(v, w);
-
-    /* cannot be null */
-    if (ret.isNull())
-        throw Exceptions::InternalError("\"__compare__\" gives null");
-
-    /* must be integers */
-    if (ret->isNotInstanceOf(IntTypeObject))
-        throw Exceptions::TypeError(Utils::Strings::format("\"__compare__\" must returns an integer, not \"%s\"", ret->type()->name()));
-
-    /* convert to integer */
-    Reference<IntObject> val = ret.as<IntObject>();
-
-    /* must be a signed integer */
-    if (!(val->isSafeInt()))
-        throw Exceptions::ValueError("\"__compare__\" must returns a valid signed integer");
-
-    /* convert to integer */
-    return val->toInt();
-}
-
-#define BOOL_CMP(op) {                              \
-    /* object type checking */                      \
-    if (other->isNotInstanceOf(TupleTypeObject))    \
-        return FalseObject;                         \
-                                                    \
-    /* perform comparison */                        \
-    return BoolObject::fromBool(tupleCompare(       \
-        self.as<TupleObject>(),                     \
-        other.as<TupleObject>()                     \
-    ) op 0);                                        \
+#define BOOL_CMP(op) {                                              \
+    /* object type checking */                                      \
+    if (other->isNotInstanceOf(TupleTypeObject))                    \
+        return FalseObject;                                         \
+                                                                    \
+    /* perform comparison */                                        \
+    return BoolObject::fromBool(Utils::Lists::totalOrderCompare(    \
+        self.as<TupleObject>(),                                     \
+        other.as<TupleObject>()                                     \
+    ) op 0);                                                        \
 }
 
 ObjectRef TupleType::comparableEq (ObjectRef self, ObjectRef other) BOOL_CMP(==)
@@ -284,32 +245,14 @@ ObjectRef TupleType::comparableCompare(ObjectRef self, ObjectRef other)
         ));
     }
 
-    /* call the comparing function */
-    return IntObject::fromInt(tupleCompare(self.as<TupleObject>(), other.as<TupleObject>()));
+    /* call the total-order comparing function */
+    return IntObject::fromInt(Utils::Lists::totalOrderCompare(self.as<TupleObject>(), other.as<TupleObject>()));
 }
 
 ObjectRef TupleType::comparableContains(ObjectRef self, ObjectRef other)
 {
-    /* convert to tuple */
     Reference<TupleObject> tuple = self.as<TupleObject>();
-
-    /* check for each item */
-    for (size_t i = 0; i < tuple->size(); i++)
-    {
-        /* extract the item */
-        ObjectRef item = tuple->items()[i];
-
-        /* must not be null */
-        if (item.isNull())
-            throw Exceptions::InternalError("Tuple contains null value");
-
-        /* check for equality */
-        if (item == other)
-            return TrueObject;
-    }
-
-    /* not found */
-    return FalseObject;
+    return BoolObject::fromBool(Utils::Lists::contains(std::move(tuple), std::move(other)));
 }
 
 TupleObject::TupleObject(size_t size) :

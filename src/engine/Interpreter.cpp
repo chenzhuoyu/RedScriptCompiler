@@ -441,10 +441,17 @@ Runtime::ObjectRef Interpreter::eval(void)
                     if (_stack.empty())
                         throw Exceptions::InternalError("Stack is empty");
 
-                    /* return the stack top */
                     // TODO: check exception handling blocks
+
+                    /* pop the stack top, that's the return value */
                     Runtime::ObjectRef ret = std::move(_stack.back());
                     _stack.pop_back();
+
+                    /* should have no items left */
+                    if (!(_stack.empty()))
+                        throw Exceptions::InternalError("Stack not empty when return");
+
+                    /* move to prevent copy */
                     return std::move(ret);
                 }
 

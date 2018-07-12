@@ -60,8 +60,9 @@ def fac(n) {
 }
 
 print(fac(20))
-a = ('one', 'two', 'three', 'four', 'five')
-print(a * 3)
+a = ['one', 'two', 'three', 'four', 'five']
+a[2] = 'hahaha'
+print(a)
 )source";
 
 #include <iostream>
