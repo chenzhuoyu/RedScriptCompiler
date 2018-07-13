@@ -476,14 +476,14 @@ void CodeGenerator::buildCompositeTarget(const std::unique_ptr<AST::Composite> &
                 }
 
                 /* have ending expression */
-                if (node->mods.back().slice->end)
+                if (mod.slice->end)
                 {
                     flags |= Engine::SL_END;
                     visitExpression(mod.slice->end);
                 }
 
                 /* have stepping expression */
-                if (node->mods.back().slice->end)
+                if (mod.slice->step)
                 {
                     flags |= Engine::SL_STEP;
                     visitExpression(mod.slice->step);
@@ -711,7 +711,7 @@ void CodeGenerator::visitDelete(const std::unique_ptr<AST::Delete> &node)
                 }
 
                 /* have stepping expression */
-                if (mod.slice->end)
+                if (mod.slice->step)
                 {
                     flags |= Engine::SL_STEP;
                     visitExpression(mod.slice->step);
