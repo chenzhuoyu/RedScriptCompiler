@@ -191,6 +191,11 @@ public:
     virtual ObjectRef sequenceGetItem(ObjectRef self, ObjectRef other)                   { return applyBinary ("__getitem__", self, other        ); }
     virtual void      sequenceSetItem(ObjectRef self, ObjectRef second, ObjectRef third) {        applyTernary("__setitem__", self, second, third); }
 
+public:
+    virtual void      sequenceDelSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step);
+    virtual ObjectRef sequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step);
+    virtual void      sequenceSetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step, ObjectRef value);
+
 /*** Comparator Protocol ***/
 
 public:

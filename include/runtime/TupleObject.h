@@ -41,8 +41,9 @@ public:
 /*** Sequence Protocol ***/
 
 public:
-    virtual ObjectRef sequenceLen    (ObjectRef self) override;
-    virtual ObjectRef sequenceGetItem(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef sequenceLen     (ObjectRef self) override;
+    virtual ObjectRef sequenceGetItem (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef sequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step) override;
 
 /*** Comparator Protocol ***/
 

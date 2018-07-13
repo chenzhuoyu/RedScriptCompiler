@@ -434,6 +434,94 @@ Runtime::ObjectRef Interpreter::eval(void)
                     break;
                 }
 
+                /* sequence slicing */
+                case OpCode::GET_SLICE:
+                case OpCode::SET_SLICE:
+                case OpCode::DEL_SLICE:
+                {
+                    /* slicing flags */
+                    uint32_t flags = OPERAND();
+                    Runtime::ObjectRef end = nullptr;
+                    Runtime::ObjectRef step = nullptr;
+                    Runtime::ObjectRef begin = nullptr;
+
+                    /* read stepping if any */
+                    if (flags & Engine::SL_STEP)
+                    {
+                        /* check stack */
+                        if (_stack.empty())
+                            throw Exceptions::InternalError("Stack is empty");
+
+                        /* pop from stack */
+                        step = std::move(_stack.back());
+                        _stack.pop_back();
+                    }
+
+                    /* read ending if any */
+                    if (flags & Engine::SL_END)
+                    {
+                        /* check stack */
+                        if (_stack.empty())
+                            throw Exceptions::InternalError("Stack is empty");
+
+                        /* pop from stack */
+                        end = std::move(_stack.back());
+                        _stack.pop_back();
+                    }
+
+                    /* read beginning if any */
+                    if (flags & Engine::SL_BEGIN)
+                    {
+                        /* check stack */
+                        if (_stack.empty())
+                            throw Exceptions::InternalError("Stack is empty");
+
+                        /* pop from stack */
+                        begin = std::move(_stack.back());
+                        _stack.pop_back();
+                    }
+
+                    /* check stack */
+                    if (_stack.empty())
+                        throw Exceptions::InternalError("Stack is empty");
+
+                    /* pop slicing target object from stack */
+                    Runtime::ObjectRef obj = std::move(_stack.back());
+                    _stack.pop_back();
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wswitch"
+
+                    switch (opcode)
+                    {
+                        /* get by slicing */
+                        case OpCode::GET_SLICE:
+                        {
+                            _stack.emplace_back(obj->type()->sequenceGetSlice(obj, begin, end, step));
+                            break;
+                        }
+
+                        /* set by slicing */
+                        case OpCode::SET_SLICE:
+                        {
+                            obj->type()->sequenceSetSlice(obj, begin, end, step, std::move(_stack.back()));
+                            _stack.pop_back();
+                            break;
+                        }
+
+                        /* delete by slicing */
+                        case OpCode::DEL_SLICE:
+                        {
+                            obj->type()->sequenceDelSlice(obj, begin, end, step);
+                            break;
+                        }
+                    }
+
+#pragma clang diagnostic pop
+
+                    break;
+                }
+
                 /* return stack top */
                 case OpCode::POP_RETURN:
                 {

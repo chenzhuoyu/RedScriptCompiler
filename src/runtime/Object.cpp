@@ -6,6 +6,7 @@
 #include "runtime/BoolObject.h"
 #include "runtime/NullObject.h"
 #include "runtime/ProxyObject.h"
+#include "runtime/SliceObject.h"
 #include "runtime/TupleObject.h"
 #include "runtime/StringObject.h"
 
@@ -430,6 +431,26 @@ ObjectRef Type::boolNot(ObjectRef self)
     // TODO: apply binary operator if any
     // return applyUnary("__bool_not__", self);
     return BoolObject::fromBool(!(self->type()->objectIsTrue(self)));
+}
+
+/*** Sequence Protocol ***/
+
+void Type::sequenceDelSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step)
+{
+    /* wrap as delete slicing item */
+    self->type()->sequenceDelItem(self, Object::newObject<SliceObject>(begin, end, step));
+}
+
+ObjectRef Type::sequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step)
+{
+    /* wrap as get slicing item */
+    return self->type()->sequenceGetItem(self, Object::newObject<SliceObject>(begin, end, step));
+}
+
+void Type::sequenceSetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step, ObjectRef value)
+{
+    /* wrap as set slicing item */
+    self->type()->sequenceSetItem(self, Object::newObject<SliceObject>(begin, end, step), value);
 }
 
 /*** Comparator Protocol ***/

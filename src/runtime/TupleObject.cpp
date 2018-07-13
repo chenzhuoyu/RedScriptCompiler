@@ -186,6 +186,18 @@ ObjectRef TupleType::sequenceGetItem(ObjectRef self, ObjectRef other)
     return std::move(result);
 }
 
+ObjectRef TupleType::sequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step)
+{
+    printf(
+        "%s %s %s\n",
+        begin.isNull() ? nullptr : begin->type()->objectRepr(begin).c_str(),
+        end  .isNull() ? nullptr : end->type()->objectRepr(end).c_str(),
+        step .isNull() ? nullptr : step->type()->objectRepr(step).c_str()
+    );
+
+    return IntObject::fromInt(0);
+}
+
 /*** Comparator Protocol ***/
 
 #define BOOL_CMP(op) {                                              \

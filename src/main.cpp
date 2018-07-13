@@ -52,18 +52,19 @@ const char *source = R"source(#!/usr/bin/env redscript
 #}
 #}
 
-def fac(n) {
-    if (n <= 1)
-        return 1
-    else
-        return n * fac(n - 1)
-}
-
-print(fac(20))
-a = ['one', 'two', 'three', 'four', 'five']
-print(a[-1])
-a[-6] = 'hahaah'
-print(a)
+a = ('one', 'two', 'three', 'four', 'five')
+a[:]
+a[0:]
+a[:1]
+a[0:1]
+a[::]
+a[0::]
+a[:1:]
+a[::2]
+a[0:1:]
+a[0::2]
+a[:1:2]
+a[0:1:2]
 )source";
 
 #include <iostream>

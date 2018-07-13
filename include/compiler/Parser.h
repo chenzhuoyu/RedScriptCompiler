@@ -82,7 +82,7 @@ public:
 /*** Object Modifiers ***/
 
 public:
-    std::unique_ptr<AST::Index>         parseIndex(void);
+    std::unique_ptr<AST::Slice>         parseSlice(void);
     std::unique_ptr<AST::Invoke>        parseInvoke(void);
     std::unique_ptr<AST::Attribute>     parseAttribute(void);
 
@@ -131,7 +131,7 @@ public:
 
 public:
     std::unique_ptr<AST::Statement>         parseStatement(void);
-    std::unique_ptr<AST::CompoundStatement>  parseCompondStatement(void);
+    std::unique_ptr<AST::CompoundStatement> parseCompondStatement(void);
 
 };
 }

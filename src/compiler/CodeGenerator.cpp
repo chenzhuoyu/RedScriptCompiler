@@ -406,7 +406,7 @@ bool CodeGenerator::isInConstructor(void)
 void CodeGenerator::buildCompositeTarget(const std::unique_ptr<AST::Composite> &node)
 {
     /* should be mutable */
-    if (!node->isSyntacticallyMutable())
+    if (!(node->isSyntacticallyMutable(true)))
         throw Exceptions::InternalError("Immutable assign targets");
 
     /* a single name, set as local variable */
@@ -442,6 +442,7 @@ void CodeGenerator::buildCompositeTarget(const std::unique_ptr<AST::Composite> &
             switch (node->mods[i].type)
             {
                 case AST::Composite::ModType::Index     : visitIndex(node->mods[i].index); break;
+                case AST::Composite::ModType::Slice     : visitSlice(node->mods[i].slice); break;
                 case AST::Composite::ModType::Invoke    : visitInvoke(node->mods[i].invoke); break;
                 case AST::Composite::ModType::Attribute : visitAttribute(node->mods[i].attribute); break;
             }
@@ -455,6 +456,38 @@ void CodeGenerator::buildCompositeTarget(const std::unique_ptr<AST::Composite> &
             {
                 visitExpression(node->mods.back().index->index);
                 emit(node, Engine::OpCode::SET_ITEM);
+                break;
+            }
+
+            /* whatever[a:b:c] = value */
+            case AST::Composite::ModType::Slice:
+            {
+                /* slicing flags */
+                uint32_t flags = 0;
+
+                /* have beginning expression */
+                if (node->mods.back().slice->begin)
+                {
+                    flags |= Engine::SL_BEGIN;
+                    visitExpression(node->mods.back().slice->begin);
+                }
+
+                /* have ending expression */
+                if (node->mods.back().slice->end)
+                {
+                    flags |= Engine::SL_END;
+                    visitExpression(node->mods.back().slice->end);
+                }
+
+                /* have stepping expression */
+                if (node->mods.back().slice->end)
+                {
+                    flags |= Engine::SL_STEP;
+                    visitExpression(node->mods.back().slice->step);
+                }
+
+                /* generate SET_SLICE instruction */
+                emitOperand(node->mods.back().slice, Engine::OpCode::SET_SLICE, flags);
                 break;
             }
 
@@ -499,7 +532,7 @@ void CodeGenerator::visitAssign(const std::unique_ptr<AST::Assign> &node)
 void CodeGenerator::visitIncremental(const std::unique_ptr<AST::Incremental> &node)
 {
     /* must be mutable */
-    if (!(node->dest->isSyntacticallyMutable()))
+    if (!(node->dest->isSyntacticallyMutable(false)))
         throw Exceptions::InternalError("Immutable assigning target");
 
     /* generate incremental expression */
@@ -544,6 +577,7 @@ void CodeGenerator::visitIncremental(const std::unique_ptr<AST::Incremental> &no
             switch (node->dest->mods[i].type)
             {
                 case AST::Composite::ModType::Index     : visitIndex(node->dest->mods[i].index); break;
+                case AST::Composite::ModType::Slice     : visitSlice(node->dest->mods[i].slice); break;
                 case AST::Composite::ModType::Invoke    : visitInvoke(node->dest->mods[i].invoke); break;
                 case AST::Composite::ModType::Attribute : visitAttribute(node->dest->mods[i].attribute); break;
             }
@@ -563,11 +597,15 @@ void CodeGenerator::visitIncremental(const std::unique_ptr<AST::Incremental> &no
                 break;
             }
 
+            /* a[x:y:z] += ..., impossible */
+            case AST::Composite::ModType::Slice:
+                throw Exceptions::InternalError("Slice assigning target");
+
             /* a(...) = ..., impossible */
             case AST::Composite::ModType::Invoke:
                 throw Exceptions::InternalError("Immutable assigning target");
 
-            /* a.b = ... */
+            /* a.b += ... */
             case AST::Composite::ModType::Attribute:
             {
                 /* add target attribute to string list */
@@ -596,7 +634,7 @@ void CodeGenerator::visitRaise(const std::unique_ptr<AST::Raise> &node)
 void CodeGenerator::visitDelete(const std::unique_ptr<AST::Delete> &node)
 {
     /* must be mutable */
-    if (!(node->comp->isSyntacticallyMutable()))
+    if (!(node->comp->isSyntacticallyMutable(true)))
         throw Exceptions::InternalError("Immutable deleting target");
 
     /* no modifiers, it's a pure name */
@@ -620,6 +658,7 @@ void CodeGenerator::visitDelete(const std::unique_ptr<AST::Delete> &node)
             switch (node->comp->mods[i].type)
             {
                 case AST::Composite::ModType::Index     : visitIndex(node->comp->mods[i].index); break;
+                case AST::Composite::ModType::Slice     : visitSlice(node->comp->mods[i].slice); break;
                 case AST::Composite::ModType::Invoke    : visitInvoke(node->comp->mods[i].invoke); break;
                 case AST::Composite::ModType::Attribute : visitAttribute(node->comp->mods[i].attribute); break;
             }
@@ -633,6 +672,38 @@ void CodeGenerator::visitDelete(const std::unique_ptr<AST::Delete> &node)
             {
                 visitExpression(mod.index->index);
                 emit(mod.index->index, Engine::OpCode::DEL_ITEM);
+                break;
+            }
+
+            /* delete a[x:y:z] */
+            case AST::Composite::ModType::Slice:
+            {
+                /* slicing flags */
+                uint32_t flags = 0;
+
+                /* have beginning expression */
+                if (mod.slice->begin)
+                {
+                    flags |= Engine::SL_BEGIN;
+                    visitExpression(mod.slice->begin);
+                }
+
+                /* have ending expression */
+                if (mod.slice->end)
+                {
+                    flags |= Engine::SL_END;
+                    visitExpression(mod.slice->end);
+                }
+
+                /* have stepping expression */
+                if (mod.slice->end)
+                {
+                    flags |= Engine::SL_STEP;
+                    visitExpression(mod.slice->step);
+                }
+
+                /* generate DEL_SLICE instruction */
+                emitOperand(mod.slice, Engine::OpCode::DEL_SLICE, flags);
                 break;
             }
 
@@ -714,6 +785,36 @@ void CodeGenerator::visitIndex(const std::unique_ptr<AST::Index> &node)
 {
     visitExpression(node->index);
     emit(node, Engine::OpCode::GET_ITEM);
+}
+
+void CodeGenerator::visitSlice(const std::unique_ptr<AST::Slice> &node)
+{
+    /* slicing flags */
+    uint32_t flags = 0;
+
+    /* have beginning expression */
+    if (node->begin)
+    {
+        flags |= Engine::SL_BEGIN;
+        visitExpression(node->begin);
+    }
+
+    /* have ending expression */
+    if (node->end)
+    {
+        flags |= Engine::SL_END;
+        visitExpression(node->end);
+    }
+
+    /* have stepping expression */
+    if (node->step)
+    {
+        flags |= Engine::SL_STEP;
+        visitExpression(node->step);
+    }
+
+    /* generate GET_SLICE instruction */
+    emitOperand(node, Engine::OpCode::GET_SLICE, flags);
 }
 
 void CodeGenerator::visitInvoke(const std::unique_ptr<AST::Invoke> &node)

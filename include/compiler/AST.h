@@ -40,6 +40,7 @@ public:
         Continue,
 
         Index,
+        Slice,
         Invoke,
         Attribute,
 
@@ -294,6 +295,14 @@ struct Index : public Node
     std::unique_ptr<Expression> index;
 };
 
+struct Slice : public Node
+{
+    AST_NODE(Slice);
+    std::unique_ptr<Expression> begin = nullptr;
+    std::unique_ptr<Expression> end   = nullptr;
+    std::unique_ptr<Expression> step  = nullptr;
+};
+
 struct Invoke : public Node
 {
     AST_NODE(Invoke)
@@ -394,6 +403,7 @@ public:
     enum class ModType : int
     {
         Index,
+        Slice,
         Invoke,
         Attribute,
     };
@@ -415,11 +425,13 @@ public:
     {
         ModType type;
         std::unique_ptr<AST::Index> index;
+        std::unique_ptr<AST::Slice> slice;
         std::unique_ptr<AST::Invoke> invoke;
         std::unique_ptr<AST::Attribute> attribute;
 
     public:
         Modifier(std::unique_ptr<AST::Index> &&value) : type(ModType::Index), index(std::move(value)) {}
+        Modifier(std::unique_ptr<AST::Slice> &&value) : type(ModType::Slice), slice(std::move(value)) {}
         Modifier(std::unique_ptr<AST::Invoke> &&value) : type(ModType::Invoke), invoke(std::move(value)) {}
         Modifier(std::unique_ptr<AST::Attribute> &&value) : type(ModType::Attribute), attribute(std::move(value)) {}
 
@@ -448,12 +460,15 @@ public:
     explicit Composite(const Token::Ptr &token, std::unique_ptr<AST::Expression> &&value) : Node(Node::Type::Composite, token), vtype(ValueType::Expression), expression(std::move(value)) {}
 
 public:
-    bool isSyntacticallyMutable(void) const
+    bool isSyntacticallyMutable(bool allowSlicing) const
     {
+        /* no modifiers */
         if (mods.empty())
             return vtype == ValueType::Name;
-        else
-            return mods.back().type != ModType::Invoke;
+
+        /* check the last modifier */
+        auto mtype = mods.back().type;
+        return (mtype != ModType::Invoke) && (allowSlicing || (mtype != ModType::Slice));
     }
 };
 
@@ -664,6 +679,7 @@ public:
 
 public:
     virtual void visitIndex(const std::unique_ptr<Index> &node);
+    virtual void visitSlice(const std::unique_ptr<Slice> &node);
     virtual void visitInvoke(const std::unique_ptr<Invoke> &node);
     virtual void visitAttribute(const std::unique_ptr<Attribute> &node);
 

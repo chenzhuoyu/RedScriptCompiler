@@ -246,6 +246,7 @@ private:
 
 private:
     virtual void visitIndex(const std::unique_ptr<AST::Index> &node) override;
+    virtual void visitSlice(const std::unique_ptr<AST::Slice> &node) override;
     virtual void visitInvoke(const std::unique_ptr<AST::Invoke> &node) override;
     virtual void visitAttribute(const std::unique_ptr<AST::Attribute> &node) override;
 

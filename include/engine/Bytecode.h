@@ -25,12 +25,16 @@ enum class OpCode : uint8_t
     SET_ITEM        = 0x0d,         // SET_ITEM                     <stack_top + 1>[<stack_top>] = <stack_top + 2>
     DEL_ITEM        = 0x0e,         // DEL_ITEM                     delete <stack_top + 1>[<stack_top>]
 
-    POP_RETURN      = 0x0f,         // POP_RETURN                   Pop and return <stack_top>
-    CALL_FUNCTION   = 0x10,         // CALL_FUNCTION    <flags>     Call function at stack top
+    GET_SLICE       = 0x0f,         // GET_SLICE        <flags>     <stack_top> = <stack_top + 3>[<stack_top + 2>:<stack_top + 1>:<stack_top>]
+    SET_SLICE       = 0x10,         // SET_SLICE        <flags>     <stack_top + 3>[<stack_top + 2>:<stack_top + 1>:<stack_top>] = <stack_top + 4>
+    DEL_SLICE       = 0x11,         // DEL_SLICE        <flags>     delete <stack_top + 3>[<stack_top + 2>:<stack_top + 1>:<stack_top>]
 
-    DUP             = 0x11,         // DUP                          Duplicate <stack_top>
-    DUP2            = 0x12,         // DUP2                         Duplicate <stack_top> and <stack_top - 1>
-    DROP            = 0x13,         // DROP                         Drop <stack_top>
+    POP_RETURN      = 0x1a,         // POP_RETURN                   Pop and return <stack_top>
+    CALL_FUNCTION   = 0x1b,         // CALL_FUNCTION    <flags>     Call function at stack top
+
+    DUP             = 0x1d,         // DUP                          Duplicate <stack_top>
+    DUP2            = 0x1e,         // DUP2                         Duplicate <stack_top> and <stack_top - 1>
+    DROP            = 0x1f,         // DROP                         Drop <stack_top>
 
     ADD             = 0x20,         // ADD                          <stack_top> = <stack_top + 1> + <stack_top>
     SUB             = 0x21,         // ...
@@ -99,6 +103,11 @@ enum class OpCode : uint8_t
 static const uint32_t OP_V          = 0x00000001;    /* has operand */
 static const uint32_t OP_REL        = 0x00000002;    /* relative to PC */
 
+/* slicing flags */
+static const uint32_t SL_BEGIN      = 0x00000001;    /* have beginning expression */
+static const uint32_t SL_END        = 0x00000002;    /* have ending expression */
+static const uint32_t SL_STEP       = 0x00000004;    /* have stepping expression */
+
 /* function invocation flags */
 static const uint32_t FI_ARGS       = 0x00000001;    /* have arguments */
 static const uint32_t FI_NAMED      = 0x00000002;    /* have named arguments */
@@ -126,12 +135,9 @@ static uint32_t OpCodeFlags[256] = {
     0,                  /* 0x0d :: SET_ITEM      */
     0,                  /* 0x0e :: DEL_ITEM      */
 
-    0,                  /* 0x0f :: POP_RETURN    */
-    OP_V,               /* 0x10 :: CALL_FUNCTION */
-
-    0,                  /* 0x11 :: DUP           */
-    0,                  /* 0x12 :: DUP2          */
-    0,                  /* 0x13 :: DROP          */
+    OP_V,               /* 0x0f :: GET_SLICE     */
+    OP_V,               /* 0x10 :: SET_SLICE     */
+    OP_V,               /* 0x11 :: DEL_SLICE     */
 
     0,
     0,
@@ -141,10 +147,15 @@ static uint32_t OpCodeFlags[256] = {
     0,
     0,
     0,
+
+    0,                  /* 0x1a :: POP_RETURN    */
+    OP_V,               /* 0x1b :: CALL_FUNCTION */
+
     0,
-    0,
-    0,
-    0,
+
+    0,                  /* 0x1d :: DUP           */
+    0,                  /* 0x1e :: DUP2          */
+    0,                  /* 0x1f :: DROP          */
 
     0,                  /* 0x20 :: ADD           */
     0,                  /* 0x21 :: SUB           */
@@ -253,12 +264,9 @@ static const char *OpCodeNames[256] = {
     "SET_ITEM",             /* 0x0d */
     "DEL_ITEM",             /* 0x0e */
 
-    "POP_RETURN",           /* 0x0f */
-    "CALL_FUNCTION",        /* 0x10 */
-
-    "DUP",                  /* 0x11 */
-    "DUP2",                 /* 0x12 */
-    "DROP",                 /* 0x13 */
+    "GET_SLICE",            /* 0x0f */
+    "SET_SLICE",            /* 0x10 */
+    "DEL_SLICE",            /* 0x11 */
 
     nullptr,
     nullptr,
@@ -268,10 +276,15 @@ static const char *OpCodeNames[256] = {
     nullptr,
     nullptr,
     nullptr,
+
+    "POP_RETURN",           /* 0x1a */
+    "CALL_FUNCTION",        /* 0x1b */
+
     nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
+
+    "DUP",                  /* 0x1d */
+    "DUP2",                 /* 0x1e */
+    "DROP",                 /* 0x1f */
 
     "ADD",                  /* 0x20 */
     "SUB",                  /* 0x21 */

@@ -93,6 +93,7 @@ set(SOURCE_FILES
         include/runtime/Object.h
         include/runtime/ProxyObject.h
         include/runtime/ReferenceCounted.h
+        include/runtime/SliceObject.h
         include/runtime/StringObject.h
         include/runtime/TupleObject.h
         include/utils/Decimal.h
@@ -128,6 +129,7 @@ set(SOURCE_FILES
         src/runtime/Object.cpp
         src/runtime/ProxyObject.cpp
         src/runtime/ReferenceCounted.cpp
+        src/runtime/SliceObject.cpp
         src/runtime/StringObject.cpp
         src/runtime/TupleObject.cpp
         src/utils/Decimal.cpp

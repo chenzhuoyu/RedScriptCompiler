@@ -572,7 +572,7 @@ std::unique_ptr<AST::Delete> Parser::parseDelete(void)
     }
 
     /* and if it's mutable, take it directly */
-    if (!(comp->isSyntacticallyMutable()))
+    if (!(comp->isSyntacticallyMutable(true)))
         throw Exceptions::SyntaxError(token, "Expressions are not deletable");
 
     /* compiler is not smart enough to use move constructor */
@@ -776,12 +776,59 @@ std::unique_ptr<AST::Continue> Parser::parseContinue(void)
 
 /*** Object Modifiers ***/
 
-std::unique_ptr<AST::Index> Parser::parseIndex(void)
+std::unique_ptr<AST::Slice> Parser::parseSlice(void)
 {
     Token::Ptr token = _lexer->next();
-    std::unique_ptr<AST::Index> result(new AST::Index(token));
+    std::unique_ptr<AST::Slice> result(new AST::Slice(token));
 
-    result->index = parseExpression();
+    /* parse beginning expression if any */
+    if (!(_lexer->peek()->isOperator<Token::Operator::Colon>()))
+        result->begin = parseExpression();
+
+    /* must be a colon here */
+    _lexer->operatorExpected<Token::Operator::Colon>();
+    token = _lexer->peek();
+
+    /* meet "]", no ending and stepping expressions */
+    if (token->isOperator<Token::Operator::IndexRight>())
+    {
+        _lexer->next();
+        return result;
+    }
+
+    /* meet ":", no ending expression */
+    if (!(token->isOperator<Token::Operator::Colon>()))
+    {
+        result->end = parseExpression();
+        token = _lexer->peek();
+
+        /* meet "]", no stepping expression */
+        if (token->isOperator<Token::Operator::IndexRight>())
+        {
+            _lexer->next();
+            return result;
+        }
+    }
+
+    /* meet ":" again, may have stepping expression */
+    if (token->isOperator<Token::Operator::Colon>())
+    {
+        /* skip the ":" */
+        _lexer->next();
+        token = _lexer->peek();
+
+        /* meet "]", no stepping expression */
+        if (token->isOperator<Token::Operator::IndexRight>())
+        {
+            _lexer->next();
+            return result;
+        }
+
+        /* parse stepping expression */
+        result->step = parseExpression();
+    }
+
+    /* must ends with "]" */
     _lexer->operatorExpected<Token::Operator::IndexRight>();
     return result;
 }
@@ -934,7 +981,7 @@ std::unique_ptr<AST::Unpack> Parser::parseUnpack(Token::Operator terminator)
         }
 
         /* and if it's mutable, take it directly */
-        if (comp->isSyntacticallyMutable())
+        if (comp->isSyntacticallyMutable(true))
         {
             token = _lexer->peek();
             _lexer->preserveState();
@@ -1224,9 +1271,60 @@ std::unique_ptr<AST::Composite> Parser::parseComposite(CompositeSuggestion sugge
     {
         switch (token->asOperator())
         {
-            case Token::Operator::Point       : result->mods.emplace_back(parseAttribute()); break;
-            case Token::Operator::IndexLeft   : result->mods.emplace_back(parseIndex()); break;
-            case Token::Operator::BracketLeft : result->mods.emplace_back(parseInvoke()); break;
+            /* attribute accessing */
+            case Token::Operator::Point:
+            {
+                result->mods.emplace_back(parseAttribute());
+                break;
+            }
+
+            /* function invoking */
+            case Token::Operator::BracketLeft:
+            {
+                result->mods.emplace_back(parseInvoke());
+                break;
+            }
+
+            /* indexing or slicing */
+            case Token::Operator::IndexLeft:
+            {
+                /* save the state, and skip the "[" token */
+                _lexer->pushState();
+                _lexer->next();
+
+                /* followed by a ":" operator, definately a slice */
+                if (_lexer->peek()->isOperator<Token::Operator::Colon>())
+                {
+                    _lexer->popState();
+                    result->mods.emplace_back(parseSlice());
+                    break;
+                }
+
+                /* otherwise must followed by an expression */
+                Token::Ptr next;
+                std::unique_ptr<AST::Expression> expr = parseExpression();
+
+                /* if the next operator is ":", definately a slice */
+                if (_lexer->peek()->isOperator<Token::Operator::Colon>())
+                {
+                    _lexer->popState();
+                    result->mods.emplace_back(parseSlice());
+                    break;
+                }
+
+                /* otherwise it must be an index */
+                if (!((next = _lexer->next())->isOperator<Token::Operator::IndexRight>()))
+                    throw Exceptions::SyntaxError(next, "\"]\" or \":\" expected");
+
+                /* preserve the state */
+                _lexer->preserveState();
+                std::unique_ptr<AST::Index> index(new AST::Index(token));
+
+                /* and build the index */
+                index->index = std::move(expr);
+                result->mods.emplace_back(std::move(index));
+                break;
+            }
 
             /* unknown operator, should terminate the modifier chain */
             default:
@@ -1399,7 +1497,7 @@ void Parser::parseAssignTarget(std::unique_ptr<AST::Composite> &comp, std::uniqu
         }
 
         /* it's a mutable composite, preserve the current tokenizer state and take it directly */
-        if (comp->isSyntacticallyMutable())
+        if (comp->isSyntacticallyMutable(true))
         {
             _lexer->preserveState();
             return;
@@ -1768,8 +1866,8 @@ std::unique_ptr<AST::Statement> Parser::parseStatement(void)
                         incr->dest = std::move(expr->first.composite);
                 }
 
-                /* must be mutable */
-                if (!(incr->dest->isSyntacticallyMutable()))
+                /* must be mutable, and not slicing */
+                if (!(incr->dest->isSyntacticallyMutable(false)))
                     throw Exceptions::SyntaxError(token, "Expressions are not assignable");
 
                 /* parse the expression */

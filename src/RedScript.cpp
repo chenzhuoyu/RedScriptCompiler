@@ -13,11 +13,12 @@
 #include "runtime/CodeObject.h"
 #include "runtime/NullObject.h"
 #include "runtime/ArrayObject.h"
+#include "runtime/ProxyObject.h"
+#include "runtime/SliceObject.h"
 #include "runtime/TupleObject.h"
 #include "runtime/StringObject.h"
 #include "runtime/DecimalObject.h"
 #include "runtime/FunctionObject.h"
-#include "runtime/ProxyObject.h"
 #include "runtime/NativeClassObject.h"
 #include "runtime/NativeFunctionObject.h"
 #include "runtime/ExceptionBlockObject.h"
@@ -77,6 +78,7 @@ void shutdown(void)
     Runtime::BoolObject::shutdown();
 
     /* meta objects */
+    Runtime::SliceObject::shutdown();
     Runtime::ProxyObject::shutdown();
     Runtime::Object::shutdown();
 }
@@ -89,6 +91,7 @@ void initialize(size_t stack)
     /* meta objects */
     Runtime::Object::initialize();
     Runtime::ProxyObject::initialize();
+    Runtime::SliceObject::initialize();
 
     /* singleton objects */
     Runtime::BoolObject::initialize();

@@ -157,6 +157,18 @@ void Visitor::visitIndex(const std::unique_ptr<Index> &node)
     visitExpression(node->index);
 }
 
+void Visitor::visitSlice(const std::unique_ptr<Slice> &node)
+{
+    if (node->begin)
+        visitExpression(node->begin);
+
+    if (node->end)
+        visitExpression(node->end);
+
+    if (node->step)
+        visitExpression(node->step);
+}
+
 void Visitor::visitInvoke(const std::unique_ptr<Invoke> &node)
 {
     for (const auto &arg : node->args)
@@ -235,6 +247,7 @@ void Visitor::visitComposite(const std::unique_ptr<Composite> &node)
         switch (mod.type)
         {
             case Composite::ModType::Index     : visitIndex(mod.index); break;
+            case Composite::ModType::Slice     : visitSlice(mod.slice); break;
             case Composite::ModType::Invoke    : visitInvoke(mod.invoke); break;
             case Composite::ModType::Attribute : visitAttribute(mod.attribute); break;
         }
