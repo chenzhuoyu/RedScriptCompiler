@@ -424,6 +424,9 @@ void CodeGenerator::buildCompositeTarget(const std::unique_ptr<AST::Composite> &
     }
     else
     {
+        /* last modifier */
+        AST::Composite::Modifier &mod = node->mods.back();
+
         /* composite base term */
         switch (node->vtype)
         {
@@ -449,12 +452,12 @@ void CodeGenerator::buildCompositeTarget(const std::unique_ptr<AST::Composite> &
         }
 
         /* and generate the last modifier */
-        switch (node->mods.back().type)
+        switch (mod.type)
         {
             /* whatever[expr] = value */
             case AST::Composite::ModType::Index:
             {
-                visitExpression(node->mods.back().index->index);
+                visitExpression(mod.index->index);
                 emit(node, Engine::OpCode::SET_ITEM);
                 break;
             }
@@ -466,28 +469,28 @@ void CodeGenerator::buildCompositeTarget(const std::unique_ptr<AST::Composite> &
                 uint32_t flags = 0;
 
                 /* have beginning expression */
-                if (node->mods.back().slice->begin)
+                if (mod.slice->begin)
                 {
                     flags |= Engine::SL_BEGIN;
-                    visitExpression(node->mods.back().slice->begin);
+                    visitExpression(mod.slice->begin);
                 }
 
                 /* have ending expression */
                 if (node->mods.back().slice->end)
                 {
                     flags |= Engine::SL_END;
-                    visitExpression(node->mods.back().slice->end);
+                    visitExpression(mod.slice->end);
                 }
 
                 /* have stepping expression */
                 if (node->mods.back().slice->end)
                 {
                     flags |= Engine::SL_STEP;
-                    visitExpression(node->mods.back().slice->step);
+                    visitExpression(mod.slice->step);
                 }
 
                 /* generate SET_SLICE instruction */
-                emitOperand(node->mods.back().slice, Engine::OpCode::SET_SLICE, flags);
+                emitOperand(mod.slice, Engine::OpCode::SET_SLICE, flags);
                 break;
             }
 
@@ -499,7 +502,7 @@ void CodeGenerator::buildCompositeTarget(const std::unique_ptr<AST::Composite> &
             case AST::Composite::ModType::Attribute:
             {
                 /* add the identifier into string table */
-                auto &attr = node->mods.back().attribute->attr;
+                auto &attr = mod.attribute->attr;
                 uint32_t vid = addName(attr->name);
 
                 /* it's defining attributes iff : */
@@ -651,6 +654,18 @@ void CodeGenerator::visitDelete(const std::unique_ptr<AST::Delete> &node)
     {
         /* last modifier */
         AST::Composite::Modifier &mod = node->comp->mods.back();
+
+        /* composite base term */
+        switch (node->comp->vtype)
+        {
+            case AST::Composite::ValueType::Map        : visitMap(node->comp->map); break;
+            case AST::Composite::ValueType::Name       : visitName(node->comp->name); break;
+            case AST::Composite::ValueType::Array      : visitArray(node->comp->array); break;
+            case AST::Composite::ValueType::Tuple      : visitTuple(node->comp->tuple); break;
+            case AST::Composite::ValueType::Literal    : visitLiteral(node->comp->literal); break;
+            case AST::Composite::ValueType::Function   : visitFunction(node->comp->function); break;
+            case AST::Composite::ValueType::Expression : visitExpression(node->comp->expression); break;
+        }
 
         /* composite modifiers, except the last one */
         for (size_t i = 0; i < node->comp->mods.size() - 1; i++)
