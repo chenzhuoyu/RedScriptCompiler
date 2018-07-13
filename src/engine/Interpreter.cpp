@@ -1188,8 +1188,8 @@ Runtime::ObjectRef Interpreter::eval(void)
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "DuplicateSwitchCase"
 
-                /* even though we have covered all items in `OpCode`, we still
-                 * need this since the opcode is direcly casted from a byte,
+                /* even though we have covered all cases in `OpCode`, we still
+                 * need this, since the opcode is direcly casted from a byte,
                  * which might be an illegal value */
                 default:
                 {
@@ -1200,6 +1200,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                 }
 
 #pragma clang diagnostic pop
+
             }
         }
 
