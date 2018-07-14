@@ -7,21 +7,21 @@ TypeRef MapTypeObject;
 
 size_t MapObject::size(void)
 {
-    Utils::RWLock::Read _(_rwlock);
+    Utils::RWLock::Read _(_lock);
     return _map.size();
 }
 
 Runtime::ObjectRef MapObject::back(void)
 {
     /* unordered maps have no particular order, so any element is acceptable as "back" */
-    Utils::RWLock::Read _(_rwlock);
+    Utils::RWLock::Read _(_lock);
     return (_mode == Mode::Unordered) ? _map.begin()->second->value : _head.prev->value;
 }
 
 Runtime::ObjectRef MapObject::front(void)
 {
     /* unordered maps have no particular order, so any element is acceptable as "front" */
-    Utils::RWLock::Read _(_rwlock);
+    Utils::RWLock::Read _(_lock);
     return (_mode == Mode::Unordered) ? _map.begin()->second->value : _head.next->value;
 }
 
@@ -30,7 +30,7 @@ Runtime::ObjectRef MapObject::pop(Runtime::ObjectRef key)
     Node *node;
     {
         /* search for the key, constrain the lock within a scope */
-        Utils::RWLock::Write _(_rwlock);
+        Utils::RWLock::Write _(_lock);
         auto it = _map.find(key);
 
         /* check for existance */
@@ -56,35 +56,49 @@ Runtime::ObjectRef MapObject::pop(Runtime::ObjectRef key)
 
 Runtime::ObjectRef MapObject::find(Runtime::ObjectRef key)
 {
-    /* search for the key */
-    Utils::RWLock::Read _(_rwlock);
-    auto it = _map.find(key);
-
-    /* check for existance */
-    if (it == _map.end())
-        return nullptr;
-
-    /* move the node to head if LRU */
-    if (_mode == Mode::LRU)
+    /* non-LRU map, find operation is read-only */
+    if (_mode != Mode::LRU)
     {
-        detach(it->second);
-        attach(it->second, &_head);
+        Utils::RWLock::Read _(_lock);
+        auto it = _map.find(key);
+
+        /* check for existance */
+        if (it == _map.end())
+            return nullptr;
+
+        /* read the node value */
+        return it->second->value;
     }
 
-    /* read the node value */
-    return it->second->value;
+    /* LRU-map may alter the traverse order */
+    else
+    {
+        Utils::RWLock::Write _(_lock);
+        auto it = _map.find(key);
+
+        /* check for existance */
+        if (it == _map.end())
+            return nullptr;
+
+        /* move the node to head */
+        detach(it->second);
+        attach(it->second, &_head);
+
+        /* read the node value */
+        return it->second->value;
+    }
 }
 
 bool MapObject::has(Runtime::ObjectRef key)
 {
-    Utils::RWLock::Read _(_rwlock);
+    Utils::RWLock::Read _(_lock);
     return _map.find(key) != _map.end();
 }
 
 void MapObject::insert(Runtime::ObjectRef key, Runtime::ObjectRef value)
 {
     /* search for the key */
-    Utils::RWLock::Write _(_rwlock);
+    Utils::RWLock::Write _(_lock);
     auto it = _map.find(key);
     Node *node;
 
@@ -117,7 +131,7 @@ void MapObject::insert(Runtime::ObjectRef key, Runtime::ObjectRef value)
 void MapObject::clear(void)
 {
     /* lock in exclusive mode */
-    Utils::RWLock::Write _(_rwlock);
+    Utils::RWLock::Write _(_lock);
 
     /* list head */
     Node *next;
@@ -140,7 +154,7 @@ void MapObject::clear(void)
 void MapObject::enumerate(MapObject::EnumeratorFunc func)
 {
     /* lock in shared mode */
-    Utils::RWLock::Read _(_rwlock);
+    Utils::RWLock::Read _(_lock);
 
     /* unordered maps have no list head */
     if (_mode == Mode::Unordered)
@@ -167,7 +181,7 @@ void MapObject::enumerateCopy(MapObject::EnumeratorFunc func)
     {
         /* restrict the lock within scope, and perform
          * copy operations before actual enumeration */
-        Utils::RWLock::Read _(_rwlock);
+        Utils::RWLock::Read _(_lock);
 
         /* reserve space for key value pair */
         keys.reserve(_map.size());

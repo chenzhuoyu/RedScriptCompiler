@@ -50,7 +50,7 @@ public:
 private:
     Mode _mode;
     Node _head;
-    Utils::RWLock _rwlock;
+    Utils::RWLock _lock;
     std::unordered_map<Runtime::ObjectRef, Node *> _map;
 
 private:
