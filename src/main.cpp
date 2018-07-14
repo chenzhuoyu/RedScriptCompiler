@@ -52,19 +52,8 @@ const char *source = R"source(#!/usr/bin/env redscript
 #}
 #}
 
-a = ('one', 'two', 'three', 'four', 'five')
-a[:]
-a[0:]
-a[:1]
-a[0:1]
-a[::]
-a[0::]
-a[:1:]
-a[::2]
-a[0:1:]
-a[0::2]
-a[:1:2]
-a[0:1:2]
+a = 'hello, world'
+print(a[::-1][2:5][1:])
 )source";
 
 #include <iostream>

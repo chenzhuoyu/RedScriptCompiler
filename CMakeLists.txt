@@ -1,20 +1,25 @@
 cmake_minimum_required(VERSION 3.8)
 project(RedScriptCompiler C CXX)
 
+if (NOT (CMAKE_SIZEOF_VOID_P EQUAL 8))
+    message(ERROR "RedScript only support 64-bit processors.")
+endif ()
+
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     set(CMAKE_C_COMPILER /usr/bin/clang-5.0)
     set(CMAKE_ASM_COMPILER /usr/bin/clang-5.0)
     set(CMAKE_CXX_COMPILER /usr/bin/clang++-5.0)
-endif()
+endif ()
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 
 if (${CMAKE_BUILD_TYPE} MATCHES "Debug")
-    add_definitions(-Og)
     add_definitions(-D_GLIBCXX_DEBUG)
-endif()
+else ()
+    add_compile_options(-flto=full)
+endif ()
 
 add_compile_options(-g3)
 add_compile_options(-fPIC)

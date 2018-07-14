@@ -22,6 +22,10 @@ public:
    ~Integer() { mpz_clear(_value); }
 
 public:
+    Integer(size_t value) { mpz_init_set_ux(_value, value); }
+    Integer(ssize_t value) { mpz_init_set_sx(_value, value); }
+
+public:
     Integer(int32_t value)  { mpz_init_set_si(_value, value); }
     Integer(int64_t value)  { mpz_init_set_sx(_value, value); }
     Integer(uint32_t value) { mpz_init_set_ui(_value, value); }

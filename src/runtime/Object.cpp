@@ -437,18 +437,33 @@ ObjectRef Type::boolNot(ObjectRef self)
 
 void Type::sequenceDelSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step)
 {
+    /* avoid null objects been exported to user program */
+    if (end.isNull()) end = NullObject;
+    if (step.isNull()) step = NullObject;
+    if (begin.isNull()) begin = NullObject;
+
     /* wrap as delete slicing item */
     self->type()->sequenceDelItem(self, Object::newObject<SliceObject>(begin, end, step));
 }
 
 ObjectRef Type::sequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step)
 {
+    /* avoid null objects been exported to user program */
+    if (end.isNull()) end = NullObject;
+    if (step.isNull()) step = NullObject;
+    if (begin.isNull()) begin = NullObject;
+
     /* wrap as get slicing item */
     return self->type()->sequenceGetItem(self, Object::newObject<SliceObject>(begin, end, step));
 }
 
 void Type::sequenceSetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step, ObjectRef value)
 {
+    /* avoid null objects been exported to user program */
+    if (end.isNull()) end = NullObject;
+    if (step.isNull()) step = NullObject;
+    if (begin.isNull()) begin = NullObject;
+
     /* wrap as set slicing item */
     self->type()->sequenceSetItem(self, Object::newObject<SliceObject>(begin, end, step), value);
 }

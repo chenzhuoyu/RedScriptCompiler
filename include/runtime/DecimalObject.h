@@ -72,20 +72,22 @@ class DecimalObject : public Object
 
 public:
     virtual ~DecimalObject() = default;
-    explicit DecimalObject(Utils::Decimal value) : Object(DecimalTypeObject), _value(value) {}
+    explicit DecimalObject(const Utils::Decimal &value) : Object(DecimalTypeObject), _value(value) {}
+
+public:
+    const Utils::Decimal &value(void) { return _value; }
 
 public:
     bool isSafeFloat(void) { return _value.isSafeFloat(); }
     bool isSafeDouble(void) { return _value.isSafeDouble(); }
 
 public:
-    auto value(void) { return _value; }
     float toFloat(void) { return _value.toFloat(); }
     double toDouble(void) { return _value.toDouble(); }
 
 public:
     static ObjectRef fromDouble(double value) { return Object::newObject<DecimalObject>(value); }
-    static ObjectRef fromDecimal(Utils::Decimal value) { return Object::newObject<DecimalObject>(value); }
+    static ObjectRef fromDecimal(const Utils::Decimal &value) { return Object::newObject<DecimalObject>(value); }
 
 public:
     static void shutdown(void) {}

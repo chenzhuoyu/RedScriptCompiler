@@ -48,6 +48,11 @@ public:
     virtual ObjectRef sequenceGetItem(ObjectRef self, ObjectRef other) override;
     virtual void      sequenceSetItem(ObjectRef self, ObjectRef second, ObjectRef third) override;
 
+public:
+    virtual void      sequenceDelSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step) override;
+    virtual ObjectRef sequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step) override;
+    virtual void      sequenceSetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step, ObjectRef value) override;
+
 /*** Comparator Protocol ***/
 
 public:
@@ -109,7 +114,14 @@ public:
     void removeItemAt(size_t index);
 
 public:
+    void setSlice(size_t begin, size_t count, ssize_t step, ObjectRef items);
+    void removeSlice(size_t begin, size_t count, ssize_t step);
+
+public:
     ObjectRef itemAt(size_t index);
+    Reference<ArrayObject> slice(size_t begin, size_t count, ssize_t step);
+
+public:
     Reference<ArrayObject> repeatCopy(size_t count);
     Reference<ArrayObject> concatCopy(Reference<ArrayObject> items);
 

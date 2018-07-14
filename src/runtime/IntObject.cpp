@@ -131,7 +131,7 @@ ObjectRef IntObject::fromUInt(uint64_t value)
         return Object::newObject<IntObject>(value);
 }
 
-ObjectRef IntObject::fromInteger(Utils::Integer value)
+ObjectRef IntObject::fromInteger(const Utils::Integer &value)
 {
     /* read from integer pool if within range */
     if (value.isSafeInt())

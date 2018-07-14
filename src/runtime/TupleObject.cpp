@@ -25,10 +25,10 @@ uint64_t TupleType::objectHash(ObjectRef self)
     Reference<TupleObject> tuple = self.as<TupleObject>();
 
     /* hash each item */
-    for (size_t i = 0; i < tuple->size(); i++)
+    for (size_t i = 0; i < tuple->_size; i++)
     {
         hash *= 32;
-        hash ^= tuple->items()[i]->type()->objectHash(tuple->items()[i]);
+        hash ^= tuple->_items[i]->type()->objectHash(tuple->_items[i]);
     }
 
     /* invert the hash */
@@ -47,9 +47,9 @@ std::string TupleType::objectRepr(ObjectRef self)
         return "(...)";
 
     /* hash each item */
-    for (size_t i = 0; i < tuple->size(); i++)
+    for (size_t i = 0; i < tuple->_size; i++)
     {
-        auto item = tuple->items()[i];
+        auto item = tuple->_items[i];
         items.emplace_back(item->type()->objectRepr(item));
     }
 
@@ -63,7 +63,7 @@ std::string TupleType::objectRepr(ObjectRef self)
 bool TupleType::objectIsTrue(ObjectRef self)
 {
     /* non-empty tuple represents true */
-    return self.as<TupleObject>()->size() != 0;
+    return self.as<TupleObject>()->_size != 0;
 }
 
 /*** Numeric Protocol ***/
@@ -82,15 +82,15 @@ ObjectRef TupleType::numericAdd(ObjectRef self, ObjectRef other)
     /* convert to tuple */
     Reference<TupleObject> left = self.as<TupleObject>();
     Reference<TupleObject> right = other.as<TupleObject>();
-    Reference<TupleObject> result = TupleObject::fromSize(left->size() + right->size());
+    Reference<TupleObject> result = TupleObject::fromSize(left->_size + right->_size);
 
     /* fill each item form left tuple */
-    for (size_t i = 0; i < left->size(); i++)
-        result->items()[i] = left->items()[i];
+    for (size_t i = 0; i < left->_size; i++)
+        result->_items[i] = left->_items[i];
 
     /* fill each item form right tuple */
-    for (size_t i = 0; i < right->size(); i++)
-        result->items()[i + left->size()] = right->items()[i];
+    for (size_t i = 0; i < right->_size; i++)
+        result->_items[i + left->_size] = right->_items[i];
 
     /* move to prevent copy */
     return std::move(result);
@@ -117,7 +117,7 @@ ObjectRef TupleType::numericMul(ObjectRef self, ObjectRef other)
 
     /* get the repeating count */
     size_t times = val->toUInt();
-    size_t count = tuple->size();
+    size_t length = tuple->_size;
 
     /* shortcut for times == 0 and 1 */
     if (times == 0)
@@ -125,16 +125,16 @@ ObjectRef TupleType::numericMul(ObjectRef self, ObjectRef other)
 
     /* since tuples are immutable, it is safe to return a shared copy */
     if (times == 1)
-        return other;
+        return self;
 
     /* create the result tuple */
-    size_t newCount = count * times;
+    size_t newCount = length * times;
     Reference<TupleObject> result = TupleObject::fromSize(newCount);
 
     /* fill them up */
     for (size_t i = 0; i < times; i++)
-        for (size_t j = 0; j < count; j++)
-            result->items()[i * count + j] = tuple->items()[j];
+        for (size_t j = 0; j < length; j++)
+            result->_items[i * length + j] = tuple->_items[j];
 
     /* move to prevent copy */
     return std::move(result);
@@ -159,24 +159,14 @@ ObjectRef TupleIteratorType::iterableNext(ObjectRef self)
 ObjectRef TupleType::sequenceLen(ObjectRef self)
 {
     /* get the length, and wrap with integer */
-    return IntObject::fromUInt(self.as<TupleObject>()->size());
+    return IntObject::fromUInt(self.as<TupleObject>()->_size);
 }
 
 ObjectRef TupleType::sequenceGetItem(ObjectRef self, ObjectRef other)
 {
-    /* integer type check */
-    if (other->isNotInstanceOf(IntTypeObject))
-    {
-        throw Exceptions::TypeError(Utils::Strings::format(
-            "Tuple index must be integers, not \"%s\"",
-            other->type()->name()
-        ));
-    }
-
     /* extract the item */
-    auto pos = other.as<IntObject>();
     auto tuple = self.as<TupleObject>();
-    auto result = tuple->items()[Utils::Lists::indexConstraint(tuple, pos)];
+    auto result = tuple->_items[Utils::Lists::indexConstraint(tuple, other)];
 
     /* must not be null */
     if (result.isNull())
@@ -188,14 +178,36 @@ ObjectRef TupleType::sequenceGetItem(ObjectRef self, ObjectRef other)
 
 ObjectRef TupleType::sequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step)
 {
-    printf(
-        "%s %s %s\n",
-        begin.isNull() ? nullptr : begin->type()->objectRepr(begin).c_str(),
-        end  .isNull() ? nullptr : end->type()->objectRepr(end).c_str(),
-        step .isNull() ? nullptr : step->type()->objectRepr(step).c_str()
-    );
+    /* parse the slice range */
+    auto tuple = self.as<TupleObject>();
+    Utils::Lists::Slice slice = Utils::Lists::sliceConstraint(tuple, begin, end, step);
 
-    return IntObject::fromInt(0);
+    /* create result tuple */
+    size_t i = 0;
+    size_t size = tuple->_size;
+    Reference<TupleObject> result = TupleObject::fromSize(slice.count);
+
+    /* fill each item */
+    while ((i < slice.count) && (slice.begin < size))
+    {
+        /* copy one item into result */
+        result->_items[i++] = tuple->_items[slice.begin];
+
+        /* integer might underflow when slicing
+         * backwards, check before updating index */
+        if ((slice.step < 0) && (slice.begin < -slice.step))
+            break;
+
+        /* move to next item */
+        slice.begin += slice.step;
+    }
+
+    /* should have exact `count` items */
+    if (i != slice.count)
+        throw Exceptions::InternalError("Tuple slicing out of range");
+
+    /* move to prevent copy */
+    return std::move(result);
 }
 
 /*** Comparator Protocol ***/

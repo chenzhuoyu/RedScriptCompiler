@@ -83,6 +83,8 @@ class TupleObject : public Object
 {
     size_t _size;
     ObjectRef *_items;
+    friend class TupleType;
+    friend class TupleIteratorObject;
 
 public:
     virtual ~TupleObject() { delete[] _items; }
@@ -132,8 +134,8 @@ public:
             throw Exceptions::StopIteration();
 
         /* check for iterator position */
-        if (_pos < _tuple->size())
-            return _tuple->items()[_pos++];
+        if (_pos < _tuple->_size)
+            return _tuple->_items[_pos++];
 
         /* clear the reference before throwing the exception
          * to prevent cyclic reference to the tuple object */
