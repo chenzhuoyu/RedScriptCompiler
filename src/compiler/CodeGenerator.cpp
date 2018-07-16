@@ -1097,16 +1097,37 @@ void CodeGenerator::visitExpression(const std::unique_ptr<AST::Expression> &node
         switch (item.op->asOperator())
         {
             /* comparison operators */
-            case Token::Operator::Less              : emit(item.op, Engine::OpCode::LT);          break;
-            case Token::Operator::Greater           : emit(item.op, Engine::OpCode::GT);          break;
-            case Token::Operator::Leq               : emit(item.op, Engine::OpCode::LEQ);         break;
-            case Token::Operator::Geq               : emit(item.op, Engine::OpCode::LEQ);         break;
-            case Token::Operator::Equ               : emit(item.op, Engine::OpCode::EQ);          break;
-            case Token::Operator::Neq               : emit(item.op, Engine::OpCode::NEQ);         break;
-            case Token::Operator::Is                : emit(item.op, Engine::OpCode::IS);          break;
-            case Token::Operator::In                : emit(item.op, Engine::OpCode::IN);          break;
+            case Token::Operator::Less          : emit(item.op, Engine::OpCode::LT);          break;
+            case Token::Operator::Greater       : emit(item.op, Engine::OpCode::GT);          break;
+            case Token::Operator::Leq           : emit(item.op, Engine::OpCode::LEQ);         break;
+            case Token::Operator::Geq           : emit(item.op, Engine::OpCode::LEQ);         break;
+            case Token::Operator::Equ           : emit(item.op, Engine::OpCode::EQ);          break;
+            case Token::Operator::Neq           : emit(item.op, Engine::OpCode::NEQ);         break;
+            case Token::Operator::Is            : emit(item.op, Engine::OpCode::IS);          break;
+            case Token::Operator::In            : emit(item.op, Engine::OpCode::IN);          break;
 
-            /* "is not" semantic operator */
+            /* boolean operators, with short-circuit evaluation */
+            case Token::Operator::BoolOr        : emit(item.op, Engine::OpCode::BOOL_OR);     break;
+            case Token::Operator::BoolAnd       : emit(item.op, Engine::OpCode::BOOL_AND);    break;
+
+            /* basic arithmetic operators */
+            case Token::Operator::Plus          : emit(item.op, Engine::OpCode::ADD);         break;
+            case Token::Operator::Minus         : emit(item.op, Engine::OpCode::SUB);         break;
+            case Token::Operator::Divide        : emit(item.op, Engine::OpCode::DIV);         break;
+            case Token::Operator::Multiply      : emit(item.op, Engine::OpCode::MUL);         break;
+            case Token::Operator::Module        : emit(item.op, Engine::OpCode::MOD);         break;
+            case Token::Operator::Power         : emit(item.op, Engine::OpCode::POWER);       break;
+
+            /* bit manipulation operators */
+            case Token::Operator::BitAnd        : emit(item.op, Engine::OpCode::BIT_AND);     break;
+            case Token::Operator::BitOr         : emit(item.op, Engine::OpCode::BIT_OR);      break;
+            case Token::Operator::BitXor        : emit(item.op, Engine::OpCode::BIT_XOR);     break;
+
+            /* bit shifting operators */
+            case Token::Operator::ShiftLeft     : emit(item.op, Engine::OpCode::LSHIFT);      break;
+            case Token::Operator::ShiftRight    : emit(item.op, Engine::OpCode::RSHIFT);      break;
+
+                /* "is not" semantic operator */
             case Token::Operator::IsNot:
             {
                 emit(item.op, Engine::OpCode::IS);
@@ -1114,34 +1135,13 @@ void CodeGenerator::visitExpression(const std::unique_ptr<AST::Expression> &node
                 break;
             }
 
-            /* "not in" semantic operator */
+                /* "not in" semantic operator */
             case Token::Operator::NotIn:
             {
                 emit(item.op, Engine::OpCode::IN);
                 emit(item.op, Engine::OpCode::BOOL_NOT);
                 break;
             }
-
-            /* boolean operators, with short-circuit evaluation */
-            case Token::Operator::BoolOr            : emit(item.op, Engine::OpCode::BOOL_OR);     break;
-            case Token::Operator::BoolAnd           : emit(item.op, Engine::OpCode::BOOL_AND);    break;
-
-            /* basic arithmetic operators */
-            case Token::Operator::Plus              : emit(item.op, Engine::OpCode::ADD);         break;
-            case Token::Operator::Minus             : emit(item.op, Engine::OpCode::SUB);         break;
-            case Token::Operator::Divide            : emit(item.op, Engine::OpCode::DIV);         break;
-            case Token::Operator::Multiply          : emit(item.op, Engine::OpCode::MUL);         break;
-            case Token::Operator::Module            : emit(item.op, Engine::OpCode::MOD);         break;
-            case Token::Operator::Power             : emit(item.op, Engine::OpCode::POWER);       break;
-
-            /* bit manipulation operators */
-            case Token::Operator::BitAnd            : emit(item.op, Engine::OpCode::BIT_AND);     break;
-            case Token::Operator::BitOr             : emit(item.op, Engine::OpCode::BIT_OR);      break;
-            case Token::Operator::BitXor            : emit(item.op, Engine::OpCode::BIT_XOR);     break;
-
-            /* bit shifting operators */
-            case Token::Operator::ShiftLeft         : emit(item.op, Engine::OpCode::LSHIFT);      break;
-            case Token::Operator::ShiftRight        : emit(item.op, Engine::OpCode::RSHIFT);      break;
 
             /* other operators, should not happen */
             default:
