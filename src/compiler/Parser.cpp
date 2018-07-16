@@ -1338,7 +1338,7 @@ std::unique_ptr<AST::Composite> Parser::parseComposite(CompositeSuggestion sugge
 std::unique_ptr<AST::Expression> Parser::parseExpression(void)
 {
     /* parse the whole expression, then prune out redundent nodes */
-    std::unique_ptr<AST::Expression> result = parseContains();
+    std::unique_ptr<AST::Expression> result = parseBoolOr();
     pruneExpression(result);
     return result;
 }
@@ -1569,22 +1569,82 @@ void Parser::parseAssignTarget(std::unique_ptr<AST::Composite> &comp, std::uniqu
         return result;                                                                                  \
     }
 
-std::unique_ptr<AST::Expression> Parser::parseContains(void)    MAKE_EXPRESSION_PARSER(BoolOr   , In                                      )
-std::unique_ptr<AST::Expression> Parser::parseBoolOr(void)      MAKE_EXPRESSION_PARSER(BoolAnd  , BoolOr                                  )
-std::unique_ptr<AST::Expression> Parser::parseBoolAnd(void)     MAKE_EXPRESSION_PARSER(BitOr    , BoolAnd                                 )
-std::unique_ptr<AST::Expression> Parser::parseBitOr(void)       MAKE_EXPRESSION_PARSER(BitXor   , BitOr                                   )
-std::unique_ptr<AST::Expression> Parser::parseBitXor(void)      MAKE_EXPRESSION_PARSER(BitAnd   , BitXor                                  )
-std::unique_ptr<AST::Expression> Parser::parseBitAnd(void)      MAKE_EXPRESSION_PARSER(Equals   , BitAnd                                  )
-std::unique_ptr<AST::Expression> Parser::parseEquals(void)      MAKE_EXPRESSION_PARSER(Compares , Equ       , Neq                         )
-std::unique_ptr<AST::Expression> Parser::parseCompares(void)    MAKE_EXPRESSION_PARSER(Shifts   , Leq       , Geq       , Less  , Greater )
-std::unique_ptr<AST::Expression> Parser::parseShifts(void)      MAKE_EXPRESSION_PARSER(AddSub   , ShiftLeft , ShiftRight                  )
-std::unique_ptr<AST::Expression> Parser::parseAddSub(void)      MAKE_EXPRESSION_PARSER(Term     , Plus      , Minus                       )
-std::unique_ptr<AST::Expression> Parser::parseTerm(void)        MAKE_EXPRESSION_PARSER(Power    , Multiply  , Divide    , Module          )
-std::unique_ptr<AST::Expression> Parser::parsePower(void)       MAKE_EXPRESSION_PARSER(Factor   , Power                                   )
+std::unique_ptr<AST::Expression> Parser::parseBoolOr(void)      MAKE_EXPRESSION_PARSER(BoolAnd  , BoolOr                        )
+std::unique_ptr<AST::Expression> Parser::parseBoolAnd(void)     MAKE_EXPRESSION_PARSER(Compares , BoolAnd                       )
+std::unique_ptr<AST::Expression> Parser::parseBitOr(void)       MAKE_EXPRESSION_PARSER(BitXor   , BitOr                         )
+std::unique_ptr<AST::Expression> Parser::parseBitXor(void)      MAKE_EXPRESSION_PARSER(BitAnd   , BitXor                        )
+std::unique_ptr<AST::Expression> Parser::parseBitAnd(void)      MAKE_EXPRESSION_PARSER(Shifts   , BitAnd                        )
+std::unique_ptr<AST::Expression> Parser::parseShifts(void)      MAKE_EXPRESSION_PARSER(AddSub   , ShiftLeft , ShiftRight        )
+std::unique_ptr<AST::Expression> Parser::parseAddSub(void)      MAKE_EXPRESSION_PARSER(Term     , Plus      , Minus             )
+std::unique_ptr<AST::Expression> Parser::parseTerm(void)        MAKE_EXPRESSION_PARSER(Power    , Multiply  , Divide    , Module)
+std::unique_ptr<AST::Expression> Parser::parsePower(void)       MAKE_EXPRESSION_PARSER(Factor   , Power                         )
 
 #undef MAKE_CASE_ITEM
 #undef MAKE_OPERATOR_LIST
 #undef MAKE_EXPRESSION_PARSER
+
+std::unique_ptr<AST::Expression> Parser::parseCompares(void)
+{
+    /* parse first operand of the expression */
+    Token::Ptr token = _lexer->peek();
+    std::unique_ptr<AST::Expression> result(new AST::Expression(token, parseBitOr()));
+
+    /* check for consecutive operands */
+    while ((token = _lexer->peek())->is<Token::Type::Operators>())
+    {
+        /* check the operator */
+        switch (token->asOperator())
+        {
+            /* must be "not in" */
+            case Token::Operator::BoolNot:
+            {
+                _lexer->next();
+                _lexer->operatorExpected<Token::Operator::In>();
+                result->follows.emplace_back(Token::createNotInOperator(token), parseBitOr());
+                break;
+            }
+
+            /* "is" or "is not" */
+            case Token::Operator::Is:
+            {
+                /* skip the "is" operator */
+                _lexer->next();
+
+                /* check for "not" */
+                if (!(_lexer->peek()->isOperator<Token::Operator::BoolNot>()))
+                {
+                    result->follows.emplace_back(token, parseBitOr());
+                    break;
+                }
+
+                /* transform to "is not" operator */
+                _lexer->next();
+                result->follows.emplace_back(Token::createIsNotOperator(token), parseBitOr());
+                break;
+            }
+
+            /* general case, parse the following operands */
+            case Token::Operator::In:
+            case Token::Operator::Equ:
+            case Token::Operator::Neq:
+            case Token::Operator::Leq:
+            case Token::Operator::Geq:
+            case Token::Operator::Less:
+            case Token::Operator::Greater:
+            {
+                _lexer->next();
+                result->follows.emplace_back(token, parseBitOr());
+                break;
+            }
+
+            /* not the operator we want */
+            default:
+                return result;
+        }
+    }
+
+    return result;
+}
 
 std::unique_ptr<AST::Expression> Parser::parseFactor(void)
 {

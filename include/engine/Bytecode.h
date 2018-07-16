@@ -74,8 +74,9 @@ enum class OpCode : uint8_t
     NEQ             = 0x43,
     LEQ             = 0x44,
     GEQ             = 0x45,
-    IN              = 0x46,         // IN                           <stack_top> in <stack_top - 1>
-    EXC_MATCH       = 0x47,         // EXC_MATCH                    exception in thread state matches <stack_top>, clear if match
+    IS              = 0x46,         // IS                           <stack_top> is <stack_top - 1>
+    IN              = 0x47,         // IN                           <stack_top> in <stack_top - 1>
+    EXC_MATCH       = 0x48,         // EXC_MATCH                    exception in thread state matches <stack_top>, clear if match
 
     BR              = 0x50,         // BR               <pc>        Branch to <pc>
     BRTRUE          = 0x51,         // BRTRUE           <pc>        Branch to <pc> if <stack_top> represents True
@@ -200,10 +201,10 @@ static uint32_t OpCodeFlags[256] = {
     0,                  /* 0x43 :: NEQ           */
     0,                  /* 0x44 :: LEQ           */
     0,                  /* 0x45 :: GEQ           */
-    0,                  /* 0x46 :: IN            */
-    0,                  /* 0x46 :: EXC_MATCH     */
+    0,                  /* 0x46 :: IS            */
+    0,                  /* 0x47 :: IN            */
+    0,                  /* 0x48 :: EXC_MATCH     */
 
-    0,
     0,
     0,
     0,
@@ -329,10 +330,10 @@ static const char *OpCodeNames[256] = {
     "NEQ",                  /* 0x43 */
     "LEQ",                  /* 0x44 */
     "GEQ",                  /* 0x45 */
-    "IN",                   /* 0x46 */
-    "EXC_MATCH",            /* 0x47 */
+    "IS",                   /* 0x46 */
+    "IN",                   /* 0x47 */
+    "EXC_MATCH",            /* 0x48 */
 
-    nullptr,
     nullptr,
     nullptr,
     nullptr,

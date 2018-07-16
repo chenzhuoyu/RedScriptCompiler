@@ -112,7 +112,10 @@ public:
         InplaceShiftLeft,
         InplaceShiftRight,
 
+        Is,
         In,
+        IsNot,
+        NotIn,
         Assign,
         Lambda,
         Decorator,
@@ -321,7 +324,10 @@ public:
             case Operator::InplaceShiftLeft     : return "<Operator '<<='>";
             case Operator::InplaceShiftRight    : return "<Operator '>>='>";
 
+            case Operator::Is                   : return "<Operator 'is'>";
             case Operator::In                   : return "<Operator 'in'>";
+            case Operator::IsNot                : return "<Operator 'is not'>";
+            case Operator::NotIn                : return "<Operator 'not in'>";
             case Operator::Assign               : return "<Operator '='>";
             case Operator::Lambda               : return "<Operator '->'>";
             case Operator::Decorator            : return "<Operator '@'>";
@@ -342,6 +348,10 @@ public:
 public:
     static inline Ptr createString(int row, int col, const std::string &value) { return Ptr(new Token(row, col, Type::String, value)); }
     static inline Ptr createIdentifier(int row, int col, const std::string &value) { return Ptr(new Token(row, col, Type::Identifiers, value)); }
+
+public:
+    static inline Ptr createIsNotOperator(Ptr token) { return createOperator(token->row(), token->col(), Operator::IsNot); }
+    static inline Ptr createNotInOperator(Ptr token) { return createOperator(token->row(), token->col(), Operator::NotIn); }
 
 };
 

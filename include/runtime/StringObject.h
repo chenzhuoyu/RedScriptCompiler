@@ -93,10 +93,12 @@ public:
     const std::string &value(void) { return _value; }
 
 public:
+    static ObjectRef newEmpty(void);
     static ObjectRef fromString(const std::string &value);
+    static ObjectRef fromStringInterned(const std::string &value);
 
 public:
-    static void shutdown(void) {}
+    static void shutdown(void);
     static void initialize(void);
 
 };
@@ -119,7 +121,7 @@ public:
 
         /* check for iterator position */
         if (_pos < _string->_value.size())
-            return StringObject::fromString(std::string(1, _string->_value[_pos++]));
+            return StringObject::fromStringInterned(std::string(1, _string->_value[_pos++]));
 
         /* clear the reference before throwing the exception
          * to prevent cyclic reference to the string object */

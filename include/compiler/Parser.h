@@ -113,18 +113,18 @@ private:
     void parseAssignTarget(std::unique_ptr<AST::Composite> &comp, std::unique_ptr<AST::Unpack> &unpack, Token::Operator terminator);
 
 public:
-    std::unique_ptr<AST::Expression>        parseContains(void);
     std::unique_ptr<AST::Expression>        parseBoolOr(void);
     std::unique_ptr<AST::Expression>        parseBoolAnd(void);
     std::unique_ptr<AST::Expression>        parseBitOr(void);
     std::unique_ptr<AST::Expression>        parseBitXor(void);
     std::unique_ptr<AST::Expression>        parseBitAnd(void);
-    std::unique_ptr<AST::Expression>        parseEquals(void);
-    std::unique_ptr<AST::Expression>        parseCompares(void);
     std::unique_ptr<AST::Expression>        parseShifts(void);
     std::unique_ptr<AST::Expression>        parseAddSub(void);
     std::unique_ptr<AST::Expression>        parseTerm(void);
     std::unique_ptr<AST::Expression>        parsePower(void);
+
+public:
+    std::unique_ptr<AST::Expression>        parseCompares(void);
     std::unique_ptr<AST::Expression>        parseFactor(void);
 
 /*** Generic Statements ***/

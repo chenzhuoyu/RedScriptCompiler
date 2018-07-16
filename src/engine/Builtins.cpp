@@ -17,8 +17,8 @@ std::unordered_map<std::string, ClosureRef> Builtins::Globals;
 Runtime::ObjectRef Builtins::print(Utils::NFI::VariadicArgs args, Utils::NFI::KeywordArgs kwargs)
 {
     /* check for "end" and "delim" arguments */
-    Runtime::ObjectRef end = kwargs->find(Runtime::StringObject::fromString("end"));
-    Runtime::ObjectRef delim = kwargs->find(Runtime::StringObject::fromString("delim"));
+    Runtime::ObjectRef end = kwargs->find(Runtime::StringObject::fromStringInterned("end"));
+    Runtime::ObjectRef delim = kwargs->find(Runtime::StringObject::fromStringInterned("delim"));
 
     /* convert to strings, assign a default value if not present */
     std::string endStr = end.isNull() ? "\n" : end->type()->objectStr(end);
@@ -127,6 +127,15 @@ void Builtins::initialize(void)
         Closure::ref(Runtime::NativeFunctionObject::fromFunction(
             Utils::NFI::KeywordNames({"obj"}),
             [](Runtime::ObjectRef self){ return self->type()->objectRepr(self); }
+        ))
+    );
+
+    /* built-in `intern()` function */
+    Globals.emplace(
+        "intern",
+        Closure::ref(Runtime::NativeFunctionObject::fromFunction(
+            Utils::NFI::KeywordNames({"str"}),
+            [](const std::string &str){ return Runtime::StringObject::fromStringInterned(str); }
         ))
     );
 

@@ -1,3 +1,6 @@
+#include <array>
+#include <unordered_map>
+
 #include "runtime/IntObject.h"
 #include "runtime/BoolObject.h"
 #include "runtime/StringObject.h"
@@ -11,6 +14,11 @@ namespace RedScript::Runtime
 /* type object for string and string iterator */
 TypeRef StringTypeObject;
 TypeRef StringIteratorTypeObject;
+
+/* special string constants and string pool */
+static Reference<StringObject> _empty;
+static std::array<Reference<StringObject>, 256> _chars;
+static std::unordered_map<std::string, Reference<StringObject>> _interned;
 
 /*** Object Protocol ***/
 
@@ -83,7 +91,7 @@ ObjectRef StringType::numericMul(ObjectRef self, ObjectRef other)
     {
         /* repeat 0 times, that gives an empty string */
         case 0:
-            return StringObject::fromString("");
+            return StringObject::newEmpty();
 
         /* repeat 1 time, that gives the string itself;
          * since strings are immutable, it is safe to return a shared copy */
@@ -125,7 +133,7 @@ ObjectRef StringType::sequenceGetItem(ObjectRef self, ObjectRef other)
 {
     /* extract the item */
     Reference<StringObject> string = self.as<StringObject>();
-    return StringObject::fromString(std::string(1, string->_value[Utils::Lists::indexConstraint(string, other)]));
+    return StringObject::fromStringInterned(std::string(1, string->_value[Utils::Lists::indexConstraint(string, other)]));
 }
 
 ObjectRef StringType::sequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step)
@@ -214,10 +222,52 @@ ObjectRef StringType::comparableContains(ObjectRef self, ObjectRef other)
     );
 }
 
+ObjectRef StringObject::newEmpty(void)
+{
+    /* we have an empty string already */
+    return _empty;
+}
+
 ObjectRef StringObject::fromString(const std::string &value)
 {
-    // TODO: implement a string pool
+    /* empty string */
+    if (value.empty())
+        return _empty;
+
+    /* single-character strings */
+    if (value.size() == 1)
+        return _chars[value[0]];
+
+    /* otherwise create a new string object */
     return Object::newObject<StringObject>(value);
+}
+
+ObjectRef StringObject::fromStringInterned(const std::string &value)
+{
+    /* empty string */
+    if (value.empty())
+        return _empty;
+
+    /* single-character strings */
+    if (value.size() == 1)
+        return _chars[value[0]];
+
+    /* intern string if not already */
+    if (_interned.find(value) == _interned.end())
+        _interned.emplace(value, Object::newObject<StringObject>(value));
+
+    /* read from pool */
+    return _interned.at(value);
+}
+
+void StringObject::shutdown(void)
+{
+    /* clear all character strings */
+    for (int c = 0; c < 256; c++)
+        _chars[c] = nullptr;
+
+    /* clear all interned strings */
+    _interned.clear();
 }
 
 void StringObject::initialize(void)
@@ -227,5 +277,13 @@ void StringObject::initialize(void)
     static StringIteratorType stringIteratorType;
     StringTypeObject = Reference<StringType>::refStatic(stringType);
     StringIteratorTypeObject = Reference<StringIteratorType>::refStatic(stringIteratorType);
+
+    /* empty string */
+    static StringObject empty("");
+    _empty = Reference<StringObject>::refStatic(empty);
+
+    /* single-character strings */
+    for (int c = 0; c < 256; c++)
+        _chars[c] = Object::newObject<StringObject>(std::string(1, c));
 }
 }

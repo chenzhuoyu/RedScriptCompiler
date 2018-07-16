@@ -701,7 +701,7 @@ Runtime::ObjectRef Interpreter::eval(void)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wswitch"
 
-                    /* dispatch opcode */
+                    /* dispatch operators */
                     switch (opcode)
                     {
                         case OpCode::POS       : r = a->type()->numericPos(a); break;
@@ -749,6 +749,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                 case OpCode::NEQ:
                 case OpCode::LEQ:
                 case OpCode::GEQ:
+                case OpCode::IS:
                 case OpCode::IN:
                 {
                     /* check stack */
@@ -767,6 +768,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                     /* dispatch operators */
                     switch (opcode)
                     {
+                        /* arithmetic operators */
                         case OpCode::ADD         : r = a->type()->numericAdd(a, b); break;
                         case OpCode::SUB         : r = a->type()->numericSub(a, b); break;
                         case OpCode::MUL         : r = a->type()->numericMul(a, b); break;
@@ -774,13 +776,16 @@ Runtime::ObjectRef Interpreter::eval(void)
                         case OpCode::MOD         : r = a->type()->numericMod(a, b); break;
                         case OpCode::POWER       : r = a->type()->numericPower(a, b); break;
 
+                        /* bitwise operators */
                         case OpCode::BIT_OR      : r = a->type()->numericOr(a, b); break;
                         case OpCode::BIT_AND     : r = a->type()->numericAnd(a, b); break;
                         case OpCode::BIT_XOR     : r = a->type()->numericXor(a, b); break;
 
+                        /* bit shifting operators */
                         case OpCode::LSHIFT      : r = a->type()->numericLShift(a, b); break;
                         case OpCode::RSHIFT      : r = a->type()->numericRShift(a, b); break;
 
+                        /* in-place arithmetic operators */
                         case OpCode::INP_ADD     : r = a->type()->numericIncAdd(a, b); break;
                         case OpCode::INP_SUB     : r = a->type()->numericIncSub(a, b); break;
                         case OpCode::INP_MUL     : r = a->type()->numericIncMul(a, b); break;
@@ -788,23 +793,40 @@ Runtime::ObjectRef Interpreter::eval(void)
                         case OpCode::INP_MOD     : r = a->type()->numericIncMod(a, b); break;
                         case OpCode::INP_POWER   : r = a->type()->numericIncPower(a, b); break;
 
+                        /* in-place bitwise operators */
                         case OpCode::INP_BIT_OR  : r = a->type()->numericIncOr(a, b); break;
                         case OpCode::INP_BIT_AND : r = a->type()->numericIncAnd(a, b); break;
                         case OpCode::INP_BIT_XOR : r = a->type()->numericIncXor(a, b); break;
 
+                        /* in-place bit shifting operators */
                         case OpCode::INP_LSHIFT  : r = a->type()->numericIncLShift(a, b); break;
                         case OpCode::INP_RSHIFT  : r = a->type()->numericIncRShift(a, b); break;
 
+                        /* boolean logic operators */
                         case OpCode::BOOL_OR     : r = a->type()->boolOr(a, b); break;
                         case OpCode::BOOL_AND    : r = a->type()->boolAnd(a, b); break;
 
+                        /* comparison operators */
                         case OpCode::EQ          : r = a->type()->comparableEq(a, b); break;
                         case OpCode::LT          : r = a->type()->comparableLt(a, b); break;
                         case OpCode::GT          : r = a->type()->comparableGt(a, b); break;
                         case OpCode::NEQ         : r = a->type()->comparableNeq(a, b); break;
                         case OpCode::LEQ         : r = a->type()->comparableLeq(a, b); break;
                         case OpCode::GEQ         : r = a->type()->comparableGeq(a, b); break;
-                        case OpCode::IN          : r = a->type()->comparableContains(a, b); break;
+
+                        /* special operator "is": absolute equals */
+                        case OpCode::IS:
+                        {
+                            r = Runtime::BoolObject::fromBool(a.get() == b.get());
+                            break;
+                        }
+
+                        /* special operator "in": "a in b" means "b.__contains__(a)" */
+                        case OpCode::IN:
+                        {
+                            r = b->type()->comparableContains(b, a);
+                            break;
+                        }
                     }
 
 #pragma clang diagnostic pop

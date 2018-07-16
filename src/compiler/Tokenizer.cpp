@@ -83,6 +83,7 @@ static const std::unordered_map<std::string, Token::Operator> Operators = {
     { "<<=" , Token::Operator::InplaceShiftLeft     },
     { ">>=" , Token::Operator::InplaceShiftRight    },
 
+    { "is"  , Token::Operator::Is                   },
     { "in"  , Token::Operator::In                   },
     { "="   , Token::Operator::Assign               },
     { "->"  , Token::Operator::Lambda               },

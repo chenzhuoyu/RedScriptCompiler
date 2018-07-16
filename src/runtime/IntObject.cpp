@@ -116,7 +116,7 @@ ObjectRef IntType::comparableCompare(ObjectRef self, ObjectRef other)
 ObjectRef IntObject::fromInt(int64_t value)
 {
     /* read from integer pool if within range */
-    if (value >= POOL_LOWER && value <= POOL_UPPER)
+    if ((value >= POOL_LOWER) && (value <= POOL_UPPER))
         return _pool[value - POOL_LOWER];
     else
         return Object::newObject<IntObject>(value);

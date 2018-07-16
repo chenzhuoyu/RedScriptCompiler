@@ -865,7 +865,7 @@ void CodeGenerator::visitInvoke(const std::unique_ptr<AST::Invoke> &node)
         {
             /* wrap key as string object */
             auto name = item.first->name;
-            auto string = Runtime::Reference<Runtime::StringObject>::newObject(name);
+            auto string = Runtime::StringObject::fromStringInterned(name);
 
             /* load key and value into stack */
             emitOperand(node, Engine::OpCode::LOAD_CONST, addConst(string));
@@ -992,9 +992,9 @@ void CodeGenerator::visitLiteral(const std::unique_ptr<AST::Literal> &node)
     /* construct corresponding type */
     switch (node->vtype)
     {
-        case AST::Literal::Type::Integer : val = Runtime::IntObject::fromInteger(node->integer); break;
-        case AST::Literal::Type::String  : val = Runtime::StringObject::fromString(node->string); break;
+        case AST::Literal::Type::String  : val = Runtime::StringObject::fromStringInterned(node->string); break;
         case AST::Literal::Type::Decimal : val = Runtime::DecimalObject::fromDecimal(node->decimal); break;
+        case AST::Literal::Type::Integer : val = Runtime::IntObject::fromInteger(node->integer); break;
     }
 
     /* emit opcode with operand */
@@ -1103,7 +1103,24 @@ void CodeGenerator::visitExpression(const std::unique_ptr<AST::Expression> &node
             case Token::Operator::Geq               : emit(item.op, Engine::OpCode::LEQ);         break;
             case Token::Operator::Equ               : emit(item.op, Engine::OpCode::EQ);          break;
             case Token::Operator::Neq               : emit(item.op, Engine::OpCode::NEQ);         break;
+            case Token::Operator::Is                : emit(item.op, Engine::OpCode::IS);          break;
             case Token::Operator::In                : emit(item.op, Engine::OpCode::IN);          break;
+
+            /* "is not" semantic operator */
+            case Token::Operator::IsNot:
+            {
+                emit(item.op, Engine::OpCode::IS);
+                emit(item.op, Engine::OpCode::BOOL_NOT);
+                break;
+            }
+
+            /* "not in" semantic operator */
+            case Token::Operator::NotIn:
+            {
+                emit(item.op, Engine::OpCode::IN);
+                emit(item.op, Engine::OpCode::BOOL_NOT);
+                break;
+            }
 
             /* boolean operators, with short-circuit evaluation */
             case Token::Operator::BoolOr            : emit(item.op, Engine::OpCode::BOOL_OR);     break;

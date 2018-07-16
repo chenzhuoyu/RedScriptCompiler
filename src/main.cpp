@@ -53,7 +53,10 @@ const char *source = R"source(#!/usr/bin/env redscript
 #}
 
 a = 'hello, world'
-print(a[::-1][2:5][1:])
+b = 'hello' + ', world'
+print(a == b)
+print(a is b)
+print(a is not b)
 )source";
 
 #include <iostream>

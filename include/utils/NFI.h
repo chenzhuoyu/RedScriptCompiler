@@ -683,7 +683,7 @@ struct ArgumentPackUnboxer<I, T, Args ...>
 
         /* pop from for keyword arguments if any */
         if (name.size())
-            value = kwargs->pop(Runtime::StringObject::fromString(name));
+            value = kwargs->pop(Runtime::StringObject::fromStringInterned(name));
 
         /* keyword arguments have higher priority */
         if (value.isNull())
@@ -692,11 +692,11 @@ struct ArgumentPackUnboxer<I, T, Args ...>
             if (I < args->size())
                 value = args->items()[I];
 
-                /* check for default values */
+            /* check for default values */
             else if (I >= keywords.size() - defaults.size())
                 value = defaults[I + defaults.size() - keywords.size()];
 
-                /* oterwise it's an error */
+            /* oterwise it's an error */
             else
             {
                 throw Exceptions::TypeError(Utils::Strings::format(
