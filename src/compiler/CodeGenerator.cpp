@@ -1030,7 +1030,7 @@ void CodeGenerator::visitDecorator(const std::unique_ptr<AST::Decorator> &node)
     emitOperand(name, Engine::OpCode::STOR_LOCAL, addLocal(name->name));
 }
 
-enum class OperatorType : int
+enum class OperatorType
 {
     Unknown,
     Generic,
