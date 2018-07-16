@@ -52,11 +52,8 @@ const char *source = R"source(#!/usr/bin/env redscript
 #}
 #}
 
-a = 'hello, world'
-b = 'hello' + ', world'
-print(a == b)
-print(a is b)
-print(a is not b)
+a = 2
+print(1 < a < 3)
 )source";
 
 #include <iostream>

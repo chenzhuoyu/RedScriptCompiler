@@ -150,7 +150,7 @@ void CodeGenerator::visitIf(const std::unique_ptr<AST::If> &node)
 {
     /* if (<expr>) <stmt> */
     visitExpression(node->expr);
-    uint32_t then = emitJump(node, Engine::OpCode::BRFALSE);
+    uint32_t then = emitJump(node, Engine::OpCode::BRP_FALSE);
     visitStatement(node->positive);
 
     /* no else clause */
@@ -241,7 +241,7 @@ void CodeGenerator::visitTry(const std::unique_ptr<AST::Try> &node)
 
         /* skip to next "except" block if not matches */
         isFirst = false;
-        nextBlock = emitJump(except.exception, Engine::OpCode::BRFALSE);
+        nextBlock = emitJump(except.exception, Engine::OpCode::BRP_FALSE);
 
         /* save to alias if present */
         if (!(except.alias))
@@ -283,7 +283,7 @@ void CodeGenerator::visitWhile(const std::unique_ptr<AST::While> &node)
     /* while condition expression */
     uint32_t next = pc();
     visitExpression(node->expr);
-    uint32_t exit = emitJump(node->expr, Engine::OpCode::BRFALSE);
+    uint32_t exit = emitJump(node->expr, Engine::OpCode::BRP_FALSE);
 
     /* enter loop scope */
     BreakableScope bs(this);
@@ -344,7 +344,7 @@ void CodeGenerator::visitSwitch(const std::unique_ptr<AST::Switch> &node)
         emit(node->expr, Engine::OpCode::DUP);
         visitExpression(item.value);
         emit(node->expr, Engine::OpCode::EQ);
-        jumps.emplace_back(emitJump(node->expr, Engine::OpCode::BRTRUE));
+        jumps.emplace_back(emitJump(node->expr, Engine::OpCode::BRP_TRUE));
     }
 
     /* default value jump */
@@ -1030,9 +1030,18 @@ void CodeGenerator::visitDecorator(const std::unique_ptr<AST::Decorator> &node)
     emitOperand(name, Engine::OpCode::STOR_LOCAL, addLocal(name->name));
 }
 
+enum class OperatorType : int
+{
+    Unknown,
+    Generic,
+    Comparison,
+};
+
 void CodeGenerator::visitExpression(const std::unique_ptr<AST::Expression> &node)
 {
     /* short circuit patches */
+    uint32_t br = 0;
+    OperatorType type = OperatorType::Unknown;
     std::vector<uint32_t> patches;
 
     /* first expression */
@@ -1060,30 +1069,91 @@ void CodeGenerator::visitExpression(const std::unique_ptr<AST::Expression> &node
     }
 
     /* remaining expression parts */
-    for (const auto &item : node->follows)
+    for (size_t i = 0; i < node->follows.size(); i++)
     {
+        /* extract the term */
+        const auto &item = node->follows[i];
+        Token::Operator op = item.op->asOperator();
+
         /* short-circuited boolean operation */
-        switch (item.op->asOperator())
+        switch (op)
         {
-            /* boolean or, with short-circuit evaluation */
+            /* comparison operators */
+            case Token::Operator::Less:
+            case Token::Operator::Greater:
+            case Token::Operator::Leq:
+            case Token::Operator::Geq:
+            case Token::Operator::Equ:
+            case Token::Operator::Neq:
+            case Token::Operator::Is:
+            case Token::Operator::In:
+            case Token::Operator::IsNot:
+            case Token::Operator::NotIn:
+            {
+                /* must not be other operator types */
+                if (type == OperatorType::Generic)
+                    throw Exceptions::InternalError("Mixed operator types");
+
+                /* set as comparison operators */
+                type = OperatorType::Comparison;
+                break;
+            }
+
+                /* boolean or, with short-circuit evaluation */
             case Token::Operator::BoolOr:
             {
-                emit(item.op, Engine::OpCode::DUP);
-                patches.emplace_back(emitJump(item.op, Engine::OpCode::BRTRUE));
+                /* must not be other operator types */
+                if (type == OperatorType::Comparison)
+                    throw Exceptions::InternalError("Mixed operator types");
+
+                /* short-circuit operation */
+                type = OperatorType::Generic;
+                patches.emplace_back(emitJump(item.op, Engine::OpCode::BRNP_TRUE));
                 break;
             }
 
             /* boolean and, with short-circuit evaluation */
             case Token::Operator::BoolAnd:
             {
-                emit(item.op, Engine::OpCode::DUP);
-                patches.emplace_back(emitJump(item.op, Engine::OpCode::BRFALSE));
+                /* must not be other operator types */
+                if (type == OperatorType::Comparison)
+                    throw Exceptions::InternalError("Mixed operator types");
+
+                /* short-circuit operation */
+                type = OperatorType::Generic;
+                patches.emplace_back(emitJump(item.op, Engine::OpCode::BRNP_FALSE));
                 break;
             }
 
-            /* other operators, don't care */
-            default:
+            /* basic arithmetic operators */
+            case Token::Operator::Plus:
+            case Token::Operator::Minus:
+            case Token::Operator::Divide:
+            case Token::Operator::Multiply:
+            case Token::Operator::Module:
+            case Token::Operator::Power:
+
+            /* bit manipulation operators */
+            case Token::Operator::BitAnd:
+            case Token::Operator::BitOr:
+            case Token::Operator::BitXor:
+
+            /* bit shifting operators */
+            case Token::Operator::ShiftLeft:
+            case Token::Operator::ShiftRight:
+            {
+                /* must not be other operator types */
+                if (type == OperatorType::Comparison)
+                    throw Exceptions::InternalError("Mixed operator types");
+
+                /* it's generic operator */
+                type = OperatorType::Generic;
                 break;
+            }
+
+            /* other operators, should not happen */
+            default:
+                throw Exceptions::InternalError(Utils::Strings::format("Impossible operator %s", item.op->toString()));
         }
 
         /* next term */
@@ -1093,8 +1163,15 @@ void CodeGenerator::visitExpression(const std::unique_ptr<AST::Expression> &node
             case AST::Expression::Operand::Type::Expression : visitExpression(item.expression); break;
         }
 
+        /* sequential comparison support */
+        if ((i < node->follows.size() - 1) && (type == OperatorType::Comparison))
+        {
+            emit(item.op, Engine::OpCode::DUP);
+            emit(item.op, Engine::OpCode::ROTATE);
+        }
+
         /* emit operators */
-        switch (item.op->asOperator())
+        switch (op)
         {
             /* comparison operators */
             case Token::Operator::Less          : emit(item.op, Engine::OpCode::LT);          break;
@@ -1147,11 +1224,27 @@ void CodeGenerator::visitExpression(const std::unique_ptr<AST::Expression> &node
             default:
                 throw Exceptions::InternalError(Utils::Strings::format("Impossible operator %s", item.op->toString()));
         }
+
+        /* sequential comparison support */
+        if ((i < node->follows.size() - 1) && (type == OperatorType::Comparison))
+            patches.emplace_back(emitJump(item.op, Engine::OpCode::BRCP_FALSE));
     }
+
+    /* sequential comparison support */
+    if ((node->follows.size() > 1) && (type == OperatorType::Comparison))
+        br = emitJump(node, Engine::OpCode::BR);
 
     /* patch all jump instructions */
     for (const auto &offset : patches)
         patchBranch(offset, pc());
+
+    /* sequential comparison support */
+    if ((node->follows.size() > 1) && (type == OperatorType::Comparison))
+    {
+        emit(node, Engine::OpCode::SWAP);
+        emit(node, Engine::OpCode::DROP);
+        patchBranch(br, pc());
+    }
 }
 
 void CodeGenerator::visitStatement(const std::unique_ptr<AST::Statement> &node)

@@ -683,6 +683,42 @@ Runtime::ObjectRef Interpreter::eval(void)
                     break;
                 }
 
+                /* swap top 2 items */
+                case OpCode::SWAP:
+                {
+                    /* check for stack */
+                    if (_stack.size() < 2)
+                        throw Exceptions::InternalError("Stack underflow");
+
+                    /* get the top two elements */
+                    Runtime::ObjectRef a = std::move(*(_stack.end() - 1));
+                    Runtime::ObjectRef b = std::move(*(_stack.end() - 2));
+
+                    /* swap the order */
+                    *(_stack.end() - 1) = std::move(b);
+                    *(_stack.end() - 2) = std::move(a);
+                    break;
+                }
+
+                /* rotate top 3 items */
+                case OpCode::ROTATE:
+                {
+                    /* check for stack */
+                    if (_stack.size() < 3)
+                        throw Exceptions::InternalError("Stack underflow");
+
+                    /* get the top two elements */
+                    Runtime::ObjectRef a = std::move(*(_stack.end() - 1));
+                    Runtime::ObjectRef b = std::move(*(_stack.end() - 2));
+                    Runtime::ObjectRef c = std::move(*(_stack.end() - 3));
+
+                    /* swap the order */
+                    *(_stack.end() - 1) = std::move(b);
+                    *(_stack.end() - 2) = std::move(c);
+                    *(_stack.end() - 3) = std::move(a);
+                    break;
+                }
+
                 /* unary operators */
                 case OpCode::POS:
                 case OpCode::NEG:
@@ -859,9 +895,13 @@ Runtime::ObjectRef Interpreter::eval(void)
                     break;
                 }
 
-                /* conditional branch */
-                case OpCode::BRTRUE:
-                case OpCode::BRFALSE:
+                /* conditional branches */
+                case OpCode::BRP_TRUE:
+                case OpCode::BRP_FALSE:
+                case OpCode::BRCP_TRUE:
+                case OpCode::BRCP_FALSE:
+                case OpCode::BRNP_TRUE:
+                case OpCode::BRNP_FALSE:
                 {
                     /* check stack */
                     if (_stack.empty())
@@ -875,12 +915,68 @@ Runtime::ObjectRef Interpreter::eval(void)
                     if (q < s || q >= e)
                         throw Exceptions::InternalError("Jump outside of code");
 
-                    /* set the instruction pointer if condition met */
-                    if ((opcode == OpCode::BRTRUE) == _stack.back()->type()->objectIsTrue(_stack.back()))
-                        p = q;
+                    /* evaluate condition */
+                    auto value = _stack.back();
+                    bool isTrue = value->type()->objectIsTrue(value);
 
-                    /* discard stack top */
-                    _stack.pop_back();
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wswitch"
+
+                    /* adjust stack */
+                    switch (opcode)
+                    {
+                        /* always pop */
+                        case OpCode::BRP_TRUE:
+                        case OpCode::BRP_FALSE:
+                        {
+                            _stack.pop_back();
+                            break;
+                        }
+
+                        /* pop if not true */
+                        case OpCode::BRCP_TRUE:
+                        {
+                            if (!isTrue) _stack.pop_back();
+                            break;
+                        }
+
+                        /* pop if not false */
+                        case OpCode::BRCP_FALSE:
+                        {
+                            if (isTrue) _stack.pop_back();
+                            break;
+                        }
+
+                        /* don't pop */
+                        case OpCode::BRNP_TRUE:
+                        case OpCode::BRNP_FALSE:
+                            break;
+                    }
+
+                    /* set instruction pointers */
+                    switch (opcode)
+                    {
+                        /* branch if true */
+                        case OpCode::BRP_TRUE:
+                        case OpCode::BRCP_TRUE:
+                        case OpCode::BRNP_TRUE:
+                        {
+                            if (isTrue) p = q;
+                            break;
+                        }
+
+                        /* branch if false */
+                        case OpCode::BRP_FALSE:
+                        case OpCode::BRCP_FALSE:
+                        case OpCode::BRNP_FALSE:
+                        {
+                            if (!isTrue) p = q;
+                            break;
+                        }
+                    }
+
+#pragma clang diagnostic pop
+
                     break;
                 }
 

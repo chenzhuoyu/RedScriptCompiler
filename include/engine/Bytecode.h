@@ -29,12 +29,14 @@ enum class OpCode : uint8_t
     SET_SLICE       = 0x10,         // SET_SLICE        <flags>     <stack_top + 3>[<stack_top + 2>:<stack_top + 1>:<stack_top>] = <stack_top + 4>
     DEL_SLICE       = 0x11,         // DEL_SLICE        <flags>     delete <stack_top + 3>[<stack_top + 2>:<stack_top + 1>:<stack_top>]
 
-    POP_RETURN      = 0x1a,         // POP_RETURN                   Pop and return <stack_top>
-    CALL_FUNCTION   = 0x1b,         // CALL_FUNCTION    <flags>     Call function at stack top
+    POP_RETURN      = 0x18,         // POP_RETURN                   Pop and return <stack_top>
+    CALL_FUNCTION   = 0x19,         // CALL_FUNCTION    <flags>     Call function at stack top
 
-    DUP             = 0x1d,         // DUP                          Duplicate <stack_top>
-    DUP2            = 0x1e,         // DUP2                         Duplicate <stack_top> and <stack_top - 1>
-    DROP            = 0x1f,         // DROP                         Drop <stack_top>
+    DUP             = 0x1b,         // DUP                          Duplicate <stack_top>
+    DUP2            = 0x1c,         // DUP2                         Duplicate <stack_top> and <stack_top - 1>
+    DROP            = 0x1d,         // DROP                         Drop <stack_top>
+    SWAP            = 0x1e,         // SWAP                         Swap top 2 items on stack, so that <stack_top - 1> becomes <stack_top>
+    ROTATE          = 0x1f,         // ROTATE                       Rotate top 3 items on stack, so that <stack_top - 1> becomes <stack_top>
 
     ADD             = 0x20,         // ADD                          <stack_top> = <stack_top + 1> + <stack_top>
     SUB             = 0x21,         // ...
@@ -78,9 +80,13 @@ enum class OpCode : uint8_t
     IN              = 0x47,         // IN                           <stack_top> in <stack_top - 1>
     EXC_MATCH       = 0x48,         // EXC_MATCH                    exception in thread state matches <stack_top>, clear if match
 
-    BR              = 0x50,         // BR               <pc>        Branch to <pc>
-    BRTRUE          = 0x51,         // BRTRUE           <pc>        Branch to <pc> if <stack_top> represents True
-    BRFALSE         = 0x52,         // BRFALSE          <pc>        Branch to <pc> if <stack_top> represents False
+    BR              = 0x4b,         // BR               <pc>        Branch to <pc>
+    BRP_TRUE        = 0x4c,         // BRP_TRUE         <pc>        Branch to <pc> if pop <stack_top> represents True
+    BRP_FALSE       = 0x4d,         // BRP_FALSE        <pc>        Branch to <pc> if pop <stack_top> represents False
+    BRCP_TRUE       = 0x4e,         // BRCP_TRUE        <pc>        Branch to <pc> if <stack_top> represents True, otherwise pop
+    BRCP_FALSE      = 0x4f,         // BRCP_FALSE       <pc>        Branch to <pc> if <stack_top> represents False, otherwise pop
+    BRNP_TRUE       = 0x50,         // BRNP_TRUE        <pc>        Branch to <pc> if <stack_top> represents True
+    BRNP_FALSE      = 0x51,         // BRNP_FALSE       <pc>        Branch to <pc> if <stack_top> represents False
 
     RAISE           = 0x53,         // RAISE                        Raise an exception at <stack_top>
     PUSH_BLOCK      = 0x54,         // PUSH_BLOCK       <block>     Load exception rescure block
@@ -146,17 +152,17 @@ static uint32_t OpCodeFlags[256] = {
     0,
     0,
     0,
-    0,
-    0,
 
-    0,                  /* 0x1a :: POP_RETURN    */
-    OP_V,               /* 0x1b :: CALL_FUNCTION */
+    0,                  /* 0x18 :: POP_RETURN    */
+    OP_V,               /* 0x19 :: CALL_FUNCTION */
 
     0,
 
-    0,                  /* 0x1d :: DUP           */
-    0,                  /* 0x1e :: DUP2          */
-    0,                  /* 0x1f :: DROP          */
+    0,                  /* 0x1b :: DUP           */
+    0,                  /* 0x1c :: DUP2          */
+    0,                  /* 0x1d :: DROP          */
+    0,                  /* 0x1e :: SWAP          */
+    0,                  /* 0x1f :: ROTATE        */
 
     0,                  /* 0x20 :: ADD           */
     0,                  /* 0x21 :: SUB           */
@@ -207,15 +213,16 @@ static uint32_t OpCodeFlags[256] = {
 
     0,
     0,
-    0,
-    0,
-    0,
-    0,
-    0,
 
-    OP_V | OP_REL,      /* 0x50 :: BR            */
-    OP_V | OP_REL,      /* 0x51 :: BRTRUE        */
-    OP_V | OP_REL,      /* 0x52 :: BRFALSE       */
+    OP_V | OP_REL,      /* 0x4b :: BR            */
+    OP_V | OP_REL,      /* 0x4c :: BRP_TRUE      */
+    OP_V | OP_REL,      /* 0x4d :: BRP_FALSE     */
+    OP_V | OP_REL,      /* 0x4e :: BRCP_TRUE     */
+    OP_V | OP_REL,      /* 0x4f :: BRCP_FALSE    */
+    OP_V | OP_REL,      /* 0x50 :: BRNP_TRUE     */
+    OP_V | OP_REL,      /* 0x51 :: BRNP_FALSE    */
+
+    0,
 
     0,                  /* 0x53 :: RAISE         */
     OP_V,               /* 0x54 :: PUSH_BLOCK    */
@@ -275,17 +282,17 @@ static const char *OpCodeNames[256] = {
     nullptr,
     nullptr,
     nullptr,
-    nullptr,
-    nullptr,
 
-    "POP_RETURN",           /* 0x1a */
-    "CALL_FUNCTION",        /* 0x1b */
+    "POP_RETURN",           /* 0x18 */
+    "CALL_FUNCTION",        /* 0x19 */
 
     nullptr,
 
-    "DUP",                  /* 0x1d */
-    "DUP2",                 /* 0x1e */
-    "DROP",                 /* 0x1f */
+    "DUP",                  /* 0x1b */
+    "DUP2",                 /* 0x1c */
+    "DROP",                 /* 0x1d */
+    "SWAP",                 /* 0x1e */
+    "ROTATE",               /* 0x1f */
 
     "ADD",                  /* 0x20 */
     "SUB",                  /* 0x21 */
@@ -336,15 +343,16 @@ static const char *OpCodeNames[256] = {
 
     nullptr,
     nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
 
-    "BR",                   /* 0x50 */
-    "BRTRUE",               /* 0x51 */
-    "BRFALSE",              /* 0x52 */
+    "BR",                   /* 0x4b */
+    "BRP_TRUE",             /* 0x4c */
+    "BRP_FALSE",            /* 0x4d */
+    "BRCP_TRUE",            /* 0x4e */
+    "BRCP_FALSE",           /* 0x4f */
+    "BRNP_TRUE",            /* 0x50 */
+    "BRNP_FALSE",           /* 0x51 */
+
+    nullptr,
 
     "RAISE",                /* 0x53 */
     "PUSH_BLOCK",           /* 0x54 */
