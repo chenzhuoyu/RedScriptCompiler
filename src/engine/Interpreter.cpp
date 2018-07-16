@@ -16,13 +16,6 @@
 #include "exceptions/RuntimeError.h"
 #include "exceptions/StopIteration.h"
 
-#define OPERAND() ({                                                            \
-    auto v = p;                                                                 \
-    p += sizeof(uint32_t);                                                      \
-    if (p >= e) throw Exceptions::InternalError("Unexpected end of bytecode");  \
-    *reinterpret_cast<const uint32_t *>(v);                                     \
-})
-
 namespace
 {
 template <typename T>
@@ -116,6 +109,13 @@ Runtime::ObjectRef Interpreter::eval(void)
     const char *s = _code->buffer().data();
     const char *p = _code->buffer().data();
     const char *e = _code->buffer().data() + _code->buffer().size();
+
+#define OPERAND() ({                                                            \
+    auto v = p;                                                                 \
+    p += sizeof(uint32_t);                                                      \
+    if (p >= e) throw Exceptions::InternalError("Unexpected end of bytecode");  \
+    *reinterpret_cast<const uint32_t *>(v);                                     \
+})
 
     /* loop until code ends */
     while (p < e)
@@ -1330,9 +1330,10 @@ Runtime::ObjectRef Interpreter::eval(void)
         }
     }
 
+
+#undef OPERAND
+
     /* really should not get here */
     throw Exceptions::InternalError("Unexpected termination of eval loop");
 }
 }
-
-#undef OPERAND
