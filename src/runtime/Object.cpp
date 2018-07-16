@@ -167,7 +167,7 @@ Type::DescriptorType Type::resolveDescriptor(ObjectRef obj, ObjectRef &getter, O
         if (siter != type->dict().end()) { ret = true; setter  = siter->second; }
         if (diter != type->dict().end()) { ret = true; deleter = diter->second; }
 
-        /* either one is not null, it's a object descriptor */
+        /* either one is not null, it's an object descriptor */
         return ret ? DescriptorType::Object : DescriptorType::NotADescriptor;
     }
 }
@@ -235,11 +235,11 @@ void Type::objectDelAttr(ObjectRef self, const std::string &name)
             throw Exceptions::AttributeError(Utils::Strings::format("Cannot delete attribute \"%s\" from type \"%s\"", name, _name));
     }
 
-    /* check for getter */
+    /* check for getdeleterter */
     if (deleter.isNull())
         throw Exceptions::AttributeError(Utils::Strings::format("Attribute \"%s\" of \"%s\" is not deletable", name, _name));
 
-    /* invoke the getter */
+    /* invoke the deleter */
     auto kwargs = MapObject::newOrdered();
     auto result = deleter->type()->objectInvoke(deleter, args, kwargs);
 
@@ -373,11 +373,11 @@ void Type::objectSetAttr(ObjectRef self, const std::string &name, ObjectRef valu
         }
     }
 
-    /* check for getter */
+    /* check for setter */
     if (setter.isNull())
-        throw Exceptions::AttributeError(Utils::Strings::format("Attribute \"%s\" of \"%s\" is not mutable", name, _name));
+        throw Exceptions::AttributeError(Utils::Strings::format("Attribute \"%s\" of \"%s\" is read-only", name, _name));
 
-    /* invoke the getter */
+    /* invoke the setter */
     auto kwargs = MapObject::newOrdered();
     auto result = setter->type()->objectInvoke(setter, args, kwargs);
 
