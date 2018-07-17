@@ -86,6 +86,7 @@ set(SOURCE_FILES
         include/exceptions/ValueError.h
         include/runtime/ArrayObject.h
         include/runtime/BoolObject.h
+        include/runtime/BoundMethodObject.h
         include/runtime/CodeObject.h
         include/runtime/DecimalObject.h
         include/runtime/ExceptionBlockObject.h
@@ -101,6 +102,7 @@ set(SOURCE_FILES
         include/runtime/SliceObject.h
         include/runtime/StringObject.h
         include/runtime/TupleObject.h
+        include/runtime/UnboundMethodObject.h
         include/utils/Decimal.h
         include/utils/Immovable.h
         include/utils/Integer.h
@@ -122,6 +124,7 @@ set(SOURCE_FILES
         src/engine/Memory.cpp
         src/runtime/ArrayObject.cpp
         src/runtime/BoolObject.cpp
+        src/runtime/BoundMethodObject.cpp
         src/runtime/CodeObject.cpp
         src/runtime/DecimalObject.cpp
         src/runtime/ExceptionBlockObject.cpp
@@ -137,6 +140,7 @@ set(SOURCE_FILES
         src/runtime/SliceObject.cpp
         src/runtime/StringObject.cpp
         src/runtime/TupleObject.cpp
+        src/runtime/UnboundMethodObject.cpp
         src/utils/Decimal.cpp
         src/utils/Integer.cpp
         src/utils/Strings.cpp

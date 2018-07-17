@@ -98,6 +98,10 @@ template <typename T> static inline long toInt(T c)         { return in(c, '0', 
 
 Tokenizer::Tokenizer(const std::string &source) : _source(source)
 {
+    /* force a new-line at end of source if not present */
+    if (_source.empty() || (_source[_source.size() - 1] != '\n'))
+        _source.append("\n");
+
     /* initial state */
     _stack.push_back(State {
         /* row   */ 1,

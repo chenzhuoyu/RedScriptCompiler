@@ -853,7 +853,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                         /* special operator "is": absolute equals */
                         case OpCode::IS:
                         {
-                            r = Runtime::BoolObject::fromBool(a.get() == b.get());
+                            r = Runtime::BoolObject::fromBool(a.isIdenticalWith(b));
                             break;
                         }
 

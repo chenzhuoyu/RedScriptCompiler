@@ -49,7 +49,7 @@ public:
 
 public:
     virtual ~Object() = default;
-    explicit Object(TypeRef type) : _type(type) {}
+    explicit Object(TypeRef type) : _type(type) { _dict.emplace("__class__", _type); }
 
 private:
     /* used by `_HasComparator<T>` and `_ReferenceComparator<T, U>` to perform equality test */
@@ -71,6 +71,7 @@ public:
     bool isNotInstanceOf(TypeRef type) { return !(_type.isIdenticalWith(type)); }
 
 public:
+    /* for object system initialization and destruction, internal use only! */
     static void shutdown(void) {}
     static void initialize(void);
 
@@ -97,6 +98,11 @@ public:
     TypeRef super(void) { return _super; }
     std::string &name(void) { return _name; }
 
+public:
+    /* for adding built-in attributes such as "__init__", internal use only! */
+    virtual void addBuiltins(void);
+    virtual void clearBuiltins(void) { dict().clear(); }
+
 private:
     ObjectRef applyUnary(const char *name, ObjectRef self);
     ObjectRef applyBinary(const char *name, ObjectRef self, ObjectRef other, const char *alternative = nullptr);
@@ -116,8 +122,16 @@ public:
     virtual bool objectIsInstanceOf(ObjectRef self, TypeRef type) { return objectIsSubclassOf(self->type(), type); }
 
 private:
-    enum class DescriptorType { Proxy, Object, NotADescriptor };
-    DescriptorType resolveDescriptor(ObjectRef obj, ObjectRef &getter, ObjectRef &setter, ObjectRef &deleter);
+    enum class DescriptorType
+    {
+        Native,
+        Unbound,
+        UserDefined,
+        NotADescriptor,
+    };
+
+private:
+    DescriptorType resolveDescriptor(ObjectRef obj, ObjectRef *getter, ObjectRef *setter, ObjectRef *deleter);
 
 public:
     virtual bool      objectHasAttr(ObjectRef self, const std::string &name);

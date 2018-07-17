@@ -1,9 +1,6 @@
 #ifndef REDSCRIPT_RUNTIME_DESCRIPTOROBJECT_H
 #define REDSCRIPT_RUNTIME_DESCRIPTOROBJECT_H
 
-#include <string>
-#include <cstdint>
-
 #include "runtime/Object.h"
 
 namespace RedScript::Runtime
@@ -36,6 +33,10 @@ public:
     ObjectRef getter(void) { return _getter; }
     ObjectRef setter(void) { return _setter; }
     ObjectRef deleter(void) { return _deleter; }
+
+public:
+    static ObjectRef newReadOnly(ObjectRef getter) { return Object::newObject<ProxyObject>(getter, nullptr, nullptr); }
+    static ObjectRef newReadWrite(ObjectRef getter, ObjectRef setter) { return Object::newObject<ProxyObject>(getter, setter, nullptr); }
 
 public:
     static void shutdown(void) {}

@@ -19,7 +19,9 @@
 #include "runtime/StringObject.h"
 #include "runtime/DecimalObject.h"
 #include "runtime/FunctionObject.h"
+#include "runtime/BoundMethodObject.h"
 #include "runtime/NativeClassObject.h"
+#include "runtime/UnboundMethodObject.h"
 #include "runtime/NativeFunctionObject.h"
 #include "runtime/ExceptionBlockObject.h"
 
@@ -54,14 +56,45 @@ namespace RedScript
 {
 void shutdown(void)
 {
-    /* shutdown built-in globals, and perform a full garbage collection */
+    /** clear built-in attributes and functions **/
+
+    /* shutdown built-in globals */
     Engine::Builtins::shutdown();
-    Engine::GarbageCollector::collect(Engine::GarbageCollector::CollectionMode::Full);
+
+    /* generic objects */
+    Runtime::ExceptionBlockTypeObject->clearBuiltins();
+    Runtime::NativeFunctionTypeObject->clearBuiltins();
+    Runtime::UnboundMethodTypeObject->clearBuiltins();
+    Runtime::NativeClassTypeObject->clearBuiltins();
+    Runtime::BoundMethodTypeObject->clearBuiltins();
+    Runtime::FunctionTypeObject->clearBuiltins();
+    Runtime::DecimalTypeObject->clearBuiltins();
+    Runtime::TupleTypeObject->clearBuiltins();
+    Runtime::ArrayTypeObject->clearBuiltins();
+    Runtime::CodeTypeObject->clearBuiltins();
+    Runtime::MapTypeObject->clearBuiltins();
+
+    /* pooled objects */
+    Runtime::StringTypeObject->clearBuiltins();
+    Runtime::IntTypeObject->clearBuiltins();
+
+    /* singleton objects */
+    Runtime::NullTypeObject->clearBuiltins();
+    Runtime::BoolTypeObject->clearBuiltins();
+
+    /* meta objects */
+    Runtime::SliceTypeObject->clearBuiltins();
+    Runtime::ProxyTypeObject->clearBuiltins();
+    Runtime::TypeObject->clearBuiltins();
+
+    /** shutdown objects **/
 
     /* generic objects */
     Runtime::ExceptionBlockObject::shutdown();
     Runtime::NativeFunctionObject::shutdown();
+    Runtime::UnboundMethodObject::shutdown();
     Runtime::NativeClassObject::shutdown();
+    Runtime::BoundMethodObject::shutdown();
     Runtime::FunctionObject::shutdown();
     Runtime::DecimalObject::shutdown();
     Runtime::TupleObject::shutdown();
@@ -81,12 +114,17 @@ void shutdown(void)
     Runtime::SliceObject::shutdown();
     Runtime::ProxyObject::shutdown();
     Runtime::Object::shutdown();
+
+    /* perform a full garbage collection */
+    Engine::GarbageCollector::collect(Engine::GarbageCollector::CollectionMode::Full);
 }
 
 void initialize(size_t stack)
 {
     /* main program stack size */
     setStackSize(stack);
+
+    /** initialize objects **/
 
     /* meta objects */
     Runtime::Object::initialize();
@@ -108,9 +146,39 @@ void initialize(size_t stack)
     Runtime::TupleObject::initialize();
     Runtime::DecimalObject::initialize();
     Runtime::FunctionObject::initialize();
+    Runtime::BoundMethodObject::initialize();
     Runtime::NativeClassObject::initialize();
+    Runtime::UnboundMethodObject::initialize();
     Runtime::NativeFunctionObject::initialize();
     Runtime::ExceptionBlockObject::initialize();
+
+    /** initialize built-in attributes and functions **/
+
+    /* meta objects */
+    Runtime::TypeObject->addBuiltins();
+    Runtime::ProxyTypeObject->addBuiltins();
+    Runtime::SliceTypeObject->addBuiltins();
+
+    /* singleton objects */
+    Runtime::BoolTypeObject->addBuiltins();
+    Runtime::NullTypeObject->addBuiltins();
+
+    /* pooled objects */
+    Runtime::IntTypeObject->addBuiltins();
+    Runtime::StringTypeObject->addBuiltins();
+
+    /* generic objects */
+    Runtime::MapTypeObject->addBuiltins();
+    Runtime::CodeTypeObject->addBuiltins();
+    Runtime::ArrayTypeObject->addBuiltins();
+    Runtime::TupleTypeObject->addBuiltins();
+    Runtime::DecimalTypeObject->addBuiltins();
+    Runtime::FunctionTypeObject->addBuiltins();
+    Runtime::BoundMethodTypeObject->addBuiltins();
+    Runtime::NativeClassTypeObject->addBuiltins();
+    Runtime::UnboundMethodTypeObject->addBuiltins();
+    Runtime::NativeFunctionTypeObject->addBuiltins();
+    Runtime::ExceptionBlockTypeObject->addBuiltins();
 
     /* built-in globals */
     Engine::Builtins::initialize();

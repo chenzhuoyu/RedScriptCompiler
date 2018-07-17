@@ -307,6 +307,29 @@ struct UnboxerHelper
 };
 
 template <size_t I, typename T>
+struct UnboxerHelper<I, false, false, Runtime::Reference<T>>
+{
+    static Runtime::Reference<T> unbox(Runtime::ObjectRef value, const std::string &name)
+    {
+        try
+        {
+            /* some kind of reference, try cast to that type */
+            return value.as<T>();
+        }
+        catch (const std::bad_cast &)
+        {
+            /* not convertible */
+            throw Exceptions::TypeError(Utils::Strings::format(
+                "Argument at position %zu%s cannot be a \"%s\" object",
+                I,
+                name.empty() ? "" : Utils::Strings::format("(%s)", name),
+                value->type()->name()
+            ));
+        }
+    }
+};
+
+template <size_t I, typename T>
 struct UnboxerHelper<I, true, false, T>
 {
     static T unbox(Runtime::ObjectRef value, const std::string &name)

@@ -9,6 +9,7 @@
 #include "runtime/SliceObject.h"
 #include "runtime/TupleObject.h"
 #include "runtime/StringObject.h"
+#include "runtime/UnboundMethodObject.h"
 
 #include "utils/Strings.h"
 #include "exceptions/TypeError.h"
@@ -79,6 +80,12 @@ void Object::initialize(void)
 
 /*** Type Implementations ***/
 
+void Type::addBuiltins(void)
+{
+    dict().emplace("__name__", StringObject::fromString(_name));
+    dict().emplace("__hash__", UnboundMethodObject::fromFunction([](ObjectRef self){ return self->type()->objectHash(self); }));
+}
+
 ObjectRef Type::applyUnary(const char *name, ObjectRef self)
 {
     // TODO: implement this
@@ -101,12 +108,14 @@ ObjectRef Type::applyTernary(const char *name, ObjectRef self, ObjectRef second,
 
 uint64_t Type::objectHash(ObjectRef self)
 {
+    // TODO: apply "__hash__" if any
     std::hash<uintptr_t> hash;
     return hash(reinterpret_cast<uintptr_t>(self.get()));
 }
 
 StringList Type::objectDir(ObjectRef self)
 {
+    // TODO: apply "__dir__" if any
     StringList result;
     for (const auto &x : self->dict()) result.emplace_back(x.first);
     return std::move(result);
@@ -114,6 +123,7 @@ StringList Type::objectDir(ObjectRef self)
 
 std::string Type::objectRepr(ObjectRef self)
 {
+    // TODO: apply "__repr__" if any
     /* basic object representation */
     return Utils::Strings::format("<%s object at %p>", _name, static_cast<void *>(self.get()));
 }
@@ -135,8 +145,12 @@ bool Type::objectIsSubclassOf(ObjectRef self, TypeRef type)
     return t.isIdenticalWith(type);
 }
 
-Type::DescriptorType Type::resolveDescriptor(ObjectRef obj, ObjectRef &getter, ObjectRef &setter, ObjectRef &deleter)
+Type::DescriptorType Type::resolveDescriptor(ObjectRef obj, ObjectRef *getter, ObjectRef *setter, ObjectRef *deleter)
 {
+    /* it's an unbound method object */
+    if (obj->isInstanceOf(UnboundMethodTypeObject))
+        return DescriptorType::Unbound;
+
     /* it's a proxy object */
     if (obj->isInstanceOf(ProxyTypeObject))
     {
@@ -144,32 +158,28 @@ Type::DescriptorType Type::resolveDescriptor(ObjectRef obj, ObjectRef &getter, O
         auto desc = obj.as<ProxyObject>();
 
         /* get those modifiers */
-        getter = desc->getter();
-        setter = desc->setter();
-        deleter = desc->deleter();
+        if (getter ) *getter = desc->getter();
+        if (setter ) *setter = desc->setter();
+        if (deleter) *deleter = desc->deleter();
 
-        /* it's a proxy descriptor */
-        return DescriptorType::Proxy;
+        /* it's a native proxy descriptor */
+        return DescriptorType::Native;
     }
 
     /* not a proxy, check for proxy-like descriptor */
-    else
-    {
-        /* find in type dict */
-        bool ret = false;
-        auto type = obj->type();
-        auto giter = type->dict().find("__get__");
-        auto siter = type->dict().find("__set__");
-        auto diter = type->dict().find("__delete__");
+    bool ret = false;
+    auto type = obj->type();
+    auto giter = type->dict().find("__get__");
+    auto siter = type->dict().find("__set__");
+    auto diter = type->dict().find("__delete__");
 
-        /* read those modifiers */
-        if (giter != type->dict().end()) { ret = true; getter  = giter->second; }
-        if (siter != type->dict().end()) { ret = true; setter  = siter->second; }
-        if (diter != type->dict().end()) { ret = true; deleter = diter->second; }
+    /* read those modifiers */
+    if (giter != type->dict().end()) { ret = true; if (getter ) *getter  = giter->second; }
+    if (siter != type->dict().end()) { ret = true; if (setter ) *setter  = siter->second; }
+    if (diter != type->dict().end()) { ret = true; if (deleter) *deleter = diter->second; }
 
-        /* either one is not null, it's an object descriptor */
-        return ret ? DescriptorType::Object : DescriptorType::NotADescriptor;
-    }
+    /* either one is not null, it's an user-defined object descriptor */
+    return ret ? DescriptorType::UserDefined : DescriptorType::NotADescriptor;
 }
 
 bool Type::objectHasAttr(ObjectRef self, const std::string &name)
@@ -208,29 +218,28 @@ void Type::objectDelAttr(ObjectRef self, const std::string &name)
         throw Exceptions::AttributeError(Utils::Strings::format("Attribute \"%s\" of \"%s\" is not defined yet", name, _name));
 
     /* descriptor properties */
-    ObjectRef getter;
-    ObjectRef setter;
     ObjectRef deleter;
     Reference<TupleObject> args;
 
     /* check descriptor type */
-    switch (resolveDescriptor(iter->second, getter, setter, deleter))
+    switch (resolveDescriptor(iter->second, nullptr, nullptr, &deleter))
     {
-        /* proxy descriptor */
-        case DescriptorType::Proxy:
+        /* native descriptor */
+        case DescriptorType::Native:
         {
             args = TupleObject::fromObjects(self, this->self());
             break;
         }
 
-        /* proxy-like object descriptor */
-        case DescriptorType::Object:
+        /* user-defined proxy-like object descriptor */
+        case DescriptorType::UserDefined:
         {
             args = TupleObject::fromObjects(iter->second, self, this->self());
             break;
         }
 
-        /* plain-old object */
+        /* plain-old object or unbound method */
+        case DescriptorType::Unbound:
         case DescriptorType::NotADescriptor:
             throw Exceptions::AttributeError(Utils::Strings::format("Cannot delete attribute \"%s\" from type \"%s\"", name, _name));
     }
@@ -273,22 +282,24 @@ ObjectRef Type::objectGetAttr(ObjectRef self, const std::string &name)
 
     /* descriptor properties */
     ObjectRef getter;
-    ObjectRef setter;
-    ObjectRef deleter;
     Reference<TupleObject> args;
 
     /* check descriptor type */
-    switch (resolveDescriptor(iter->second, getter, setter, deleter))
+    switch (resolveDescriptor(iter->second, &getter, nullptr, nullptr))
     {
-        /* proxy descriptor */
-        case DescriptorType::Proxy:
+        /* native descriptor */
+        case DescriptorType::Native:
         {
             args = TupleObject::fromObjects(self, this->self());
             break;
         }
 
-        /* proxy-like object descriptor */
-        case DescriptorType::Object:
+        /* unbound method */
+        case DescriptorType::Unbound:
+            return iter->second.as<UnboundMethodObject>()->bind(self);
+
+        /* user-defined proxy-like object descriptor */
+        case DescriptorType::UserDefined:
         {
             args = TupleObject::fromObjects(iter->second, self, this->self());
             break;
@@ -343,29 +354,28 @@ void Type::objectSetAttr(ObjectRef self, const std::string &name, ObjectRef valu
     }
 
     /* descriptor properties */
-    ObjectRef getter;
     ObjectRef setter;
-    ObjectRef deleter;
     Reference<TupleObject> args;
 
     /* check for descriptor type */
-    switch (resolveDescriptor(iter->second, getter, setter, deleter))
+    switch (resolveDescriptor(iter->second, nullptr, &setter, nullptr))
     {
-        /* proxy descriptor */
-        case DescriptorType::Proxy:
+        /* native descriptor */
+        case DescriptorType::Native:
         {
             args = TupleObject::fromObjects(self, this->self(), value);
             break;
         }
 
-        /* proxy-like object descriptor */
-        case DescriptorType::Object:
+        /* user-defined proxy-like object descriptor */
+        case DescriptorType::UserDefined:
         {
             args = TupleObject::fromObjects(iter->second, self, this->self(), value);
             break;
         }
 
-        /* plain-old object */
+        /* plain-old object or unbound method */
+        case DescriptorType::Unbound:
         case DescriptorType::NotADescriptor:
         {
             self->dict().emplace(name, value);

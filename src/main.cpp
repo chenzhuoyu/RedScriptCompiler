@@ -1,62 +1,7 @@
-const char *source = R"source(#!/usr/bin/env redscript
-#native 'C' class NativeClass(clfags = '-Wall')
-#{
-#struct tc_comp_t
-#{
-#    int val_1;
-#    int val_2;
-#    struct {
-#        int x;
-#        int y;
-#    };
-#};
-#
-#typedef int (*ff)(long, float);
-#int *fun(ff);
-#int *fun(ff f) {
-#    static int x = 1;
-#    return &x;
-#}
-#
-#struct tc_comp_t;
-#typedef struct tc_comp_t TestComposite;
-#
-#static int b = 1000;
-#
-#long test(TestComposite ts, float f);
-#static TestComposite test_func(int arg0, float arg1);
-#
-#extern int scanf(const char *fmt, ...);
-#extern int printf(const char *fmt, ...);
-#
-#typedef enum {
-#    item_1,
-#    item_2,
-#} test_enum_t;
-#
-#long test(TestComposite ts, float f)
-#{
-#    typedef struct tc_comp_t Test123;
-#    printf("this is test\n");
-#    return test_func(ts.val_1, f).val_2;
-#}
-#
-#static TestComposite test_func(int arg0, float arg1)
-#{
-#    b += arg0;
-#    printf("hello, world from native code, b = %d, &b = %p, this = %p, arg1 = %f\n", b, &b, (void *)test, arg1);
-#    TestComposite tc;
-#    tc.val_1 = 999;
-#    tc.val_2 = 12345;
-#    return tc;
-#}
-#}
-
-a = 2
-print(1 < a < 3)
-)source";
-
+#include <string>
+#include <fstream>
 #include <iostream>
+#include <streambuf>
 
 #include <unistd.h>
 #include <libtcc.h>
@@ -136,6 +81,9 @@ static void dis(RedScript::Runtime::Reference<RedScript::Runtime::CodeObject> co
 
 static void run(void)
 {
+    std::ifstream ifs("test.red");
+    std::string source((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+
     RedScript::Compiler::Parser parser(std::make_unique<RedScript::Compiler::Tokenizer>(source));
     RedScript::Compiler::CodeGenerator codegen(parser.parse());
     RedScript::Runtime::Reference<RedScript::Runtime::CodeObject> code = codegen.build().as<RedScript::Runtime::CodeObject>();
