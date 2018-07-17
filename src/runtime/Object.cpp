@@ -121,69 +121,16 @@ void Type::addBuiltins(void)
     );
 }
 
-ObjectRef Type::applyUnary(const char *name, ObjectRef self)
+bool Type::haveUserMethod(ObjectRef obj, const char *name)
 {
-    // TODO: implement this
-    throw Exceptions::InternalError("not implemented yet");
-}
+    /* find in class dict */
+    auto type = obj->type();
+    auto iter = type->dict().find(name);
 
-ObjectRef Type::applyBinary(const char *name, ObjectRef self, ObjectRef other, const char *alternative)
-{
-    // TODO: implement this
-    throw Exceptions::InternalError("not implemented yet");
-}
-
-ObjectRef Type::applyTernary(const char *name, ObjectRef self, ObjectRef second, ObjectRef third)
-{
-    // TODO: implement this
-    throw Exceptions::InternalError("not implemented yet");
-}
-
-/*** Object Protocol ***/
-
-uint64_t Type::objectHash(ObjectRef self)
-{
-    // TODO: apply "__hash__" if any
-    std::hash<uintptr_t> hash;
-    return hash(reinterpret_cast<uintptr_t>(self.get()));
-}
-
-StringList Type::objectDir(ObjectRef self)
-{
-    // TODO: apply "__dir__" if any
-    StringList result;
-    for (const auto &x : self->dict()) result.emplace_back(x.first);
-    return std::move(result);
-}
-
-std::string Type::objectRepr(ObjectRef self)
-{
-    // TODO: apply "__repr__" if any
-
-    /* basic object representation */
-    if (self->isNotInstanceOf(TypeObject))
-        return Utils::Strings::format("<%s object at %p>", _name, static_cast<void *>(self.get()));
-
-    /* type object representation */
-    auto type = self.as<Type>();
-    return Utils::Strings::format("<type \"%s\" at %p>", type->name(), static_cast<void *>(type.get()));
-}
-
-bool Type::objectIsSubclassOf(ObjectRef self, TypeRef type)
-{
-    /* not a type at all */
-    if (self->type() != TypeObject)
-        return false;
-
-    /* convert to type reference */
-    TypeRef t = self.as<Type>();
-
-    /* search for parent classes */
-    while (t.isIdenticalWith(type) && t.isIdenticalWith(TypeObject))
-        t = t->super();
-
-    /* check for type */
-    return t.isIdenticalWith(type);
+    /* we can apply the method iff: */
+    return (iter != type->dict().end()) &&                              /* this attribute exists */
+           (iter->second->isNotInstanceOf(UnboundMethodTypeObject) ||   /* and it is not an unbound method object */
+            iter->second.as<UnboundMethodObject>()->isUserDefined());   /* or it is an unbound method, but is user-defined */
 }
 
 Type::DescriptorType Type::resolveDescriptor(ObjectRef obj, ObjectRef *getter, ObjectRef *setter, ObjectRef *deleter)
@@ -221,6 +168,170 @@ Type::DescriptorType Type::resolveDescriptor(ObjectRef obj, ObjectRef *getter, O
 
     /* either one is not null, it's an user-defined object descriptor */
     return ret ? DescriptorType::UserDefined : DescriptorType::NotADescriptor;
+}
+
+ObjectRef Type::applyUnary(const char *name, ObjectRef self)
+{
+    // TODO: implement this
+    throw Exceptions::InternalError("not implemented yet");
+}
+
+ObjectRef Type::applyBinary(const char *name, ObjectRef self, ObjectRef other, const char *alternative)
+{
+    // TODO: implement this
+    throw Exceptions::InternalError("not implemented yet");
+}
+
+ObjectRef Type::applyTernary(const char *name, ObjectRef self, ObjectRef second, ObjectRef third)
+{
+    // TODO: implement this
+    throw Exceptions::InternalError("not implemented yet");
+}
+
+/*** Object Protocol ***/
+
+uint64_t Type::objectHash(ObjectRef self)
+{
+    /* check for user-defined "__hash__" function */
+    if (!(haveUserMethod(self, "__hash__")))
+    {
+        /* default: hash the object pointer */
+        std::hash<uintptr_t> hash;
+        return hash(reinterpret_cast<uintptr_t>(self.get()));
+    }
+
+    /* apply the "__hash__" function */
+    ObjectRef ret = applyUnary("__hash__", self);
+
+    /* must be an integer object */
+    if (ret->isNotInstanceOf(IntTypeObject))
+    {
+        throw Exceptions::TypeError(Utils::Strings::format(
+            "\"__hash__\" function must return an integer, not \"%s\"",
+            ret->type()->name()
+        ));
+    }
+
+    /* convert to integer */
+    Reference<IntObject> value = ret.as<IntObject>();
+
+    /* and must be a valid unsigned integer */
+    if (!(value->isSafeUInt()))
+        throw Exceptions::ValueError("\"__hash__\" function must return an unsigned integer");
+
+    /* convert to unsigned integer */
+    return value->toUInt();
+}
+
+StringList Type::objectDir(ObjectRef self)
+{
+    /* result name list */
+    StringList result;
+
+    /* check for user-defined "__dir__" function */
+    if (!(haveUserMethod(self, "__dir__")))
+    {
+        /* default: list every key in object dict */
+        for (const auto &x : self->dict())
+            result.emplace_back(x.first);
+    }
+    else
+    {
+        /* apply the "__dir__" function */
+        ObjectRef ret = applyUnary("__dir__", self);
+
+        /* must be a tuple */
+        if (ret->isNotInstanceOf(TupleTypeObject))
+        {
+            throw Exceptions::TypeError(Utils::Strings::format(
+                "\"__dir__\" must return a tuple, not \"%s\"",
+                ret->type()->name()
+            ));
+        }
+
+        /* convert to tuple */
+        auto tuple = ret.as<TupleObject>();
+        size_t count = tuple->size();
+        ObjectRef *items = tuple->items();
+
+        /* fill every item */
+        for (size_t i = 0; i < count; i++)
+            result.emplace_back(items[i]->type()->objectStr(items[i]));
+    }
+
+    /* move to prevent copy */
+    return std::move(result);
+}
+
+std::string Type::objectStr(ObjectRef self)
+{
+    /* check for user-defined "__str__" function */
+    if (!(haveUserMethod(self, "__str__")))
+        return objectRepr(self);
+
+    /* apply the "__str__" function */
+    ObjectRef ret = applyUnary("__str__", self);
+
+    /* must be an integer object */
+    if (ret->isNotInstanceOf(StringTypeObject))
+    {
+        throw Exceptions::TypeError(Utils::Strings::format(
+            "\"__str__\" function must return a string, not \"%s\"",
+            ret->type()->name()
+        ));
+    }
+
+    /* get it's value */
+    return ret.as<StringObject>()->value();
+}
+
+std::string Type::objectRepr(ObjectRef self)
+{
+    /* check for user-defined "__repr__" function */
+    if (!(haveUserMethod(self, "__repr__")))
+    {
+        /* basic object representation */
+        if (self->isNotInstanceOf(TypeObject))
+            return Utils::Strings::format("<%s object at %p>", _name, static_cast<void *>(self.get()));
+
+        /* type object representation */
+        auto type = self.as<Type>();
+        return Utils::Strings::format("<type \"%s\" at %p>", type->name(), static_cast<void *>(type.get()));
+    }
+    else
+    {
+        /* apply the "__repr__" function */
+        ObjectRef ret = applyUnary("__repr__", self);
+
+        /* must be an integer object */
+        if (ret->isNotInstanceOf(StringTypeObject))
+        {
+            throw Exceptions::TypeError(Utils::Strings::format(
+                "\"__repr__\" function must return a string, not \"%s\"",
+                ret->type()->name()
+            ));
+        }
+
+        /* get it's value */
+        return ret.as<StringObject>()->value();
+    }
+}
+
+bool Type::objectIsSubclassOf(ObjectRef self, TypeRef type)
+{
+    /* not a type at all */
+    if (self->type() != TypeObject)
+        return false;
+
+    /* convert to type reference */
+    TypeRef t = self.as<Type>();
+
+    /* search for parent classes */
+    while (t.isIdenticalWith(type) && t.isIdenticalWith(TypeObject))
+        t = t->super();
+
+    /* check for type */
+    return t.isIdenticalWith(type);
 }
 
 bool Type::objectHasAttr(ObjectRef self, const std::string &name)
@@ -459,29 +570,26 @@ ObjectRef Type::objectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs)
 
 ObjectRef Type::boolOr(ObjectRef self, ObjectRef other)
 {
-    // TODO: apply binary operator if any
-    // return applyBinary("__bool_or__", self, other);
-    return BoolObject::fromBool(
-        self->type()->objectIsTrue(self) ||
-        other->type()->objectIsTrue(other)
-    );
+    if (haveUserMethod(self, "__bool_or__"))
+        return applyBinary("__bool_or__", self, other);
+    else
+        return BoolObject::fromBool(self->type()->objectIsTrue(self) || other->type()->objectIsTrue(other));
 }
 
 ObjectRef Type::boolAnd(ObjectRef self, ObjectRef other)
 {
-    // TODO: apply binary operator if any
-    // return applyBinary("__bool_and__", self, other);
-    return BoolObject::fromBool(
-        self->type()->objectIsTrue(self) &&
-        other->type()->objectIsTrue(other)
-    );
+    if (haveUserMethod(self, "__bool_and__"))
+        return applyBinary("__bool_and__", self, other);
+    else
+        return BoolObject::fromBool(self->type()->objectIsTrue(self) && other->type()->objectIsTrue(other));
 }
 
 ObjectRef Type::boolNot(ObjectRef self)
 {
-    // TODO: apply binary operator if any
-    // return applyUnary("__bool_not__", self);
-    return BoolObject::fromBool(!(self->type()->objectIsTrue(self)));
+    if (haveUserMethod(self, "__bool_not__"))
+        return applyUnary("__bool_not__", self);
+    else
+        return BoolObject::fromBool(!(self->type()->objectIsTrue(self)));
 }
 
 /*** Sequence Protocol ***/
@@ -523,22 +631,25 @@ void Type::sequenceSetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, Obje
 
 ObjectRef Type::comparableEq(ObjectRef self, ObjectRef other)
 {
-    // TODO: apply binary operator if any
-    // return applyBinary("__eq__", self, other);
-    return BoolObject::fromBool(self.get() == other.get());
+    if (haveUserMethod(self, "__neq__"))
+        return applyBinary("__eq__", self, other);
+    else
+        return BoolObject::fromBool(self.isIdenticalWith(other));
 }
 
 ObjectRef Type::comparableNeq(ObjectRef self, ObjectRef other)
 {
-    // TODO: apply binary operator if any
-    // return applyBinary("__neq__", self, other);
-    return BoolObject::fromBool(self.get() == other.get());
+    if (haveUserMethod(self, "__neq__"))
+        return applyBinary("__neq__", self, other);
+    else
+        return BoolObject::fromBool(!(self.isIdenticalWith(other)));
 }
 
 ObjectRef Type::comparableCompare(ObjectRef self, ObjectRef other)
 {
-    // TODO: apply binary operator if any
-    // return applyBinary("__compare__", self, other);
+    /* apply user method if any */
+    if (haveUserMethod(self, "__compare__"))
+        return applyBinary("__compare__", self, other);
 
     /* check for equality */
     if (self == other)

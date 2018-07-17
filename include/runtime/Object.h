@@ -104,24 +104,6 @@ public:
     virtual void clearBuiltins(void) { dict().clear(); }
 
 private:
-    ObjectRef applyUnary(const char *name, ObjectRef self);
-    ObjectRef applyBinary(const char *name, ObjectRef self, ObjectRef other, const char *alternative = nullptr);
-    ObjectRef applyTernary(const char *name, ObjectRef self, ObjectRef second, ObjectRef third);
-
-/*** Object Protocol ***/
-
-public:
-    virtual uint64_t    objectHash(ObjectRef self);
-    virtual StringList  objectDir (ObjectRef self);
-    virtual std::string objectStr (ObjectRef self) { return objectRepr(self); }
-    virtual std::string objectRepr(ObjectRef self);
-
-public:
-    virtual bool objectIsTrue(ObjectRef self) { return true; }
-    virtual bool objectIsSubclassOf(ObjectRef self, TypeRef type);
-    virtual bool objectIsInstanceOf(ObjectRef self, TypeRef type) { return objectIsSubclassOf(self->type(), type); }
-
-private:
     enum class DescriptorType
     {
         Native,
@@ -131,7 +113,26 @@ private:
     };
 
 private:
+    bool haveUserMethod(ObjectRef obj, const char *name);
     DescriptorType resolveDescriptor(ObjectRef obj, ObjectRef *getter, ObjectRef *setter, ObjectRef *deleter);
+
+private:
+    ObjectRef applyUnary(const char *name, ObjectRef self);
+    ObjectRef applyBinary(const char *name, ObjectRef self, ObjectRef other, const char *alternative = nullptr);
+    ObjectRef applyTernary(const char *name, ObjectRef self, ObjectRef second, ObjectRef third);
+
+/*** Object Protocol ***/
+
+public:
+    virtual uint64_t    objectHash(ObjectRef self);
+    virtual StringList  objectDir (ObjectRef self);
+    virtual std::string objectStr (ObjectRef self);
+    virtual std::string objectRepr(ObjectRef self);
+
+public:
+    virtual bool objectIsTrue(ObjectRef self) { return true; }
+    virtual bool objectIsSubclassOf(ObjectRef self, TypeRef type);
+    virtual bool objectIsInstanceOf(ObjectRef self, TypeRef type) { return objectIsSubclassOf(self->type(), type); }
 
 public:
     virtual bool      objectHasAttr(ObjectRef self, const std::string &name);

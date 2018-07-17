@@ -32,6 +32,10 @@ public:
     explicit UnboundMethodObject(ObjectRef func) : Object(UnboundMethodTypeObject), _func(func) {}
 
 public:
+    bool isNative(void) { return _func->isInstanceOf(NativeFunctionTypeObject); }
+    bool isUserDefined(void) { return _func->isNotInstanceOf(NativeFunctionTypeObject); }
+
+public:
     ObjectRef bind(ObjectRef self);
     ObjectRef invoke(Reference<TupleObject> args, Reference<MapObject> kwargs);
 
