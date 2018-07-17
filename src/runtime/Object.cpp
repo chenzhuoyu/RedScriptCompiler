@@ -82,8 +82,43 @@ void Object::initialize(void)
 
 void Type::addBuiltins(void)
 {
+    /* class name */
     dict().emplace("__name__", StringObject::fromString(_name));
+
+    /* basic object protocol functions */
+    dict().emplace("__str__" , UnboundMethodObject::fromFunction([](ObjectRef self){ return self->type()->objectStr (self); }));
+    dict().emplace("__repr__", UnboundMethodObject::fromFunction([](ObjectRef self){ return self->type()->objectRepr(self); }));
     dict().emplace("__hash__", UnboundMethodObject::fromFunction([](ObjectRef self){ return self->type()->objectHash(self); }));
+
+    /* built-in "__delattr__" function */
+    dict().emplace(
+        "__delattr__",
+        UnboundMethodObject::fromFunction([](Runtime::ObjectRef self, const std::string &name)
+        {
+            /* invoke the object protocol */
+            self->type()->objectDelAttr(self, name);
+        })
+    );
+
+    /* built-in "__getattr__" function */
+    dict().emplace(
+        "__getattr__",
+        UnboundMethodObject::fromFunction([](Runtime::ObjectRef self, const std::string &name)
+        {
+            /* invoke the object protocol */
+            return self->type()->objectGetAttr(self, name);
+        })
+    );
+
+    /* built-in "__setattr__" function */
+    dict().emplace(
+        "__setattr__",
+        UnboundMethodObject::fromFunction([](Runtime::ObjectRef self, const std::string &name, Runtime::ObjectRef value)
+        {
+            /* invoke the object protocol */
+            self->type()->objectSetAttr(self, name, value);
+        })
+    );
 }
 
 ObjectRef Type::applyUnary(const char *name, ObjectRef self)

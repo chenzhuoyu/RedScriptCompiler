@@ -56,4 +56,3 @@ a = 2
 print(dir(a))
 print(dir(a.__class__))
 print(a.__class__.__name__)
-print(a.__hash__())
