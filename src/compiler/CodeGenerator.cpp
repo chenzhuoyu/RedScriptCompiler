@@ -1,5 +1,3 @@
-#include <stdexcept>
-
 #include "runtime/IntObject.h"
 #include "runtime/BoolObject.h"
 #include "runtime/CodeObject.h"
