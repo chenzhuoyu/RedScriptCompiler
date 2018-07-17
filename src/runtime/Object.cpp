@@ -159,8 +159,14 @@ StringList Type::objectDir(ObjectRef self)
 std::string Type::objectRepr(ObjectRef self)
 {
     // TODO: apply "__repr__" if any
+
     /* basic object representation */
-    return Utils::Strings::format("<%s object at %p>", _name, static_cast<void *>(self.get()));
+    if (self->isNotInstanceOf(TypeObject))
+        return Utils::Strings::format("<%s object at %p>", _name, static_cast<void *>(self.get()));
+
+    /* type object representation */
+    auto type = self.as<Type>();
+    return Utils::Strings::format("<type \"%s\" at %p>", type->name(), static_cast<void *>(type.get()));
 }
 
 bool Type::objectIsSubclassOf(ObjectRef self, TypeRef type)
