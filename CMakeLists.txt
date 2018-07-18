@@ -13,7 +13,6 @@ endif ()
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 
 if (${CMAKE_BUILD_TYPE} MATCHES "Debug")
     add_definitions(-D_GLIBCXX_DEBUG)

@@ -211,12 +211,8 @@ public:
     size_t refCount(void) const { return _object ? _object->refCount() : SIZE_MAX; }
 
 public:
-    template <typename U>
-    bool isIdenticalWith(const Reference<U> &other) const
-    {
-        /* check if those pointers are identical */
-        return _object == other._object;
-    }
+    template <typename U> bool isIdenticalWith(const Reference<U> &other) const { return _object == other._object; }
+    template <typename U> bool isNotIdenticalWith(const Reference<U> &other) const { return _object != other._object; }
 
 public:
     operator T *(void) { return _object; }

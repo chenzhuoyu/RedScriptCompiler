@@ -24,6 +24,7 @@ extern TypeRef TypeObject;
 class Object : public ReferenceCounted
 {
     Dict _dict;
+    Dict _attrs;
     TypeRef _type;
 
 private:
@@ -49,7 +50,7 @@ public:
 
 public:
     virtual ~Object() = default;
-    explicit Object(TypeRef type) : _type(type) { _dict.emplace("__class__", _type); }
+    explicit Object(TypeRef type) : _type(type) { _attrs.emplace("__class__", _type); }
 
 private:
     /* used by `_HasComparator<T>` and `_ReferenceComparator<T, U>` to perform equality test */
@@ -63,6 +64,9 @@ private:
 
 public:
     Dict &dict(void) { return _dict; }
+    Dict &attrs(void) { return _attrs; }
+
+public:
     TypeRef type(void) { return _type; }
     ObjectRef self(void) { return ObjectRef::borrow(this); }
 
@@ -101,7 +105,7 @@ public:
 public:
     /* for adding built-in attributes such as "__init__", internal use only! */
     virtual void addBuiltins(void);
-    virtual void clearBuiltins(void) { dict().clear(); }
+    virtual void clearBuiltins(void);
 
 private:
     enum class DescriptorType
@@ -113,13 +117,50 @@ private:
     };
 
 private:
-    bool haveUserMethod(ObjectRef obj, const char *name);
+    ObjectRef findUserMethod(ObjectRef self, const char *name, const char *alt);
     DescriptorType resolveDescriptor(ObjectRef obj, ObjectRef *getter, ObjectRef *setter, ObjectRef *deleter);
 
 private:
-    ObjectRef applyUnary(const char *name, ObjectRef self);
-    ObjectRef applyBinary(const char *name, ObjectRef self, ObjectRef other, const char *alternative = nullptr);
-    ObjectRef applyTernary(const char *name, ObjectRef self, ObjectRef second, ObjectRef third);
+    ObjectRef applyUnary(const char *name, ObjectRef self, bool isSilent = false);
+    ObjectRef applyBinary(const char *name, ObjectRef self, ObjectRef other, const char *alt = nullptr, bool isSilent = false);
+    ObjectRef applyTernary(const char *name, ObjectRef self, ObjectRef second, ObjectRef third, bool isSilent = false);
+
+private:
+    ObjectRef applyUnaryMethod(ObjectRef method, ObjectRef self);
+    ObjectRef applyBinaryMethod(ObjectRef method, ObjectRef self, ObjectRef other);
+    ObjectRef applyTernaryMethod(ObjectRef method, ObjectRef self, ObjectRef second, ObjectRef third);
+
+/*** Default Object Protocol ***/
+
+protected:
+    uint64_t    defaultObjectHash(ObjectRef self);
+    StringList  defaultObjectDir (ObjectRef self);
+    std::string defaultObjectStr (ObjectRef self) { return objectRepr(self); }
+    std::string defaultObjectRepr(ObjectRef self);
+
+public:
+    bool defaultObjectIsTrue(ObjectRef self) { return true; }
+    bool defaultObjectIsSubclassOf(ObjectRef self, TypeRef type);
+    bool defaultObjectIsInstanceOf(ObjectRef self, TypeRef type) { return objectIsSubclassOf(self->type(), type); }
+
+public:
+    void      defaultObjectDelAttr(ObjectRef self, const std::string &name);
+    ObjectRef defaultObjectGetAttr(ObjectRef self, const std::string &name);
+    void      defaultObjectSetAttr(ObjectRef self, const std::string &name, ObjectRef value);
+
+/*** Default Boolean Protocol ***/
+
+public:
+    ObjectRef defaultBoolOr (ObjectRef self, ObjectRef other);
+    ObjectRef defaultBoolAnd(ObjectRef self, ObjectRef other);
+    ObjectRef defaultBoolNot(ObjectRef self);
+
+/*** Default Comparator Protocol ***/
+
+public:
+    ObjectRef defaultComparableEq(ObjectRef self, ObjectRef other);
+    ObjectRef defaultComparableNeq(ObjectRef self, ObjectRef other);
+    ObjectRef defaultComparableCompare(ObjectRef self, ObjectRef other);
 
 /*** Object Protocol ***/
 
@@ -132,7 +173,7 @@ public:
 public:
     virtual bool objectIsTrue(ObjectRef self) { return true; }
     virtual bool objectIsSubclassOf(ObjectRef self, TypeRef type);
-    virtual bool objectIsInstanceOf(ObjectRef self, TypeRef type) { return objectIsSubclassOf(self->type(), type); }
+    virtual bool objectIsInstanceOf(ObjectRef self, TypeRef type);
 
 public:
     virtual bool      objectHasAttr(ObjectRef self, const std::string &name);

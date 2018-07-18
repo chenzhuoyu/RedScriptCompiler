@@ -52,5 +52,6 @@
 #}
 #}
 
-a = 2
-print(hash(a))
+a = b = 2
+print(a, b)
+print(a.__class__.__name__)

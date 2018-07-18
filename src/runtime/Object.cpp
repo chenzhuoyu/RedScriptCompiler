@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <unordered_set>
 
 #include "runtime/Object.h"
@@ -82,55 +83,63 @@ void Object::initialize(void)
 
 void Type::addBuiltins(void)
 {
-    /* class name */
-    dict().emplace("__name__", StringObject::fromString(_name));
-
-    /* basic object protocol functions */
-    dict().emplace("__str__" , UnboundMethodObject::fromFunction([](ObjectRef self){ return self->type()->objectStr (self); }));
-    dict().emplace("__repr__", UnboundMethodObject::fromFunction([](ObjectRef self){ return self->type()->objectRepr(self); }));
-    dict().emplace("__hash__", UnboundMethodObject::fromFunction([](ObjectRef self){ return self->type()->objectHash(self); }));
+    /* basic object protocol attributes */
+    attrs().emplace("__name__", StringObject::fromString(_name));
+    attrs().emplace("__repr__", UnboundMethodObject::fromFunction([](ObjectRef self){ return self->type()->defaultObjectRepr(self); }));
+    attrs().emplace("__hash__", UnboundMethodObject::fromFunction([](ObjectRef self){ return self->type()->defaultObjectHash(self); }));
 
     /* built-in "__delattr__" function */
-    dict().emplace(
+    attrs().emplace(
         "__delattr__",
         UnboundMethodObject::fromFunction([](Runtime::ObjectRef self, const std::string &name)
         {
             /* invoke the object protocol */
-            self->type()->objectDelAttr(self, name);
+            self->type()->defaultObjectDelAttr(self, name);
         })
     );
 
     /* built-in "__getattr__" function */
-    dict().emplace(
+    attrs().emplace(
         "__getattr__",
         UnboundMethodObject::fromFunction([](Runtime::ObjectRef self, const std::string &name)
         {
             /* invoke the object protocol */
-            return self->type()->objectGetAttr(self, name);
+            return self->type()->defaultObjectGetAttr(self, name);
         })
     );
 
     /* built-in "__setattr__" function */
-    dict().emplace(
+    attrs().emplace(
         "__setattr__",
         UnboundMethodObject::fromFunction([](Runtime::ObjectRef self, const std::string &name, Runtime::ObjectRef value)
         {
             /* invoke the object protocol */
-            self->type()->objectSetAttr(self, name, value);
+            self->type()->defaultObjectSetAttr(self, name, value);
         })
     );
 }
 
-bool Type::haveUserMethod(ObjectRef obj, const char *name)
+void Type::clearBuiltins(void)
 {
-    /* find in class dict */
-    auto type = obj->type();
+    dict().clear();
+    attrs().clear();
+}
+
+ObjectRef Type::findUserMethod(ObjectRef self, const char *name, const char *alt)
+{
+    /* get it's dict */
+    auto type = self->type();
     auto iter = type->dict().find(name);
 
-    /* we can apply the method iff: */
-    return (iter != type->dict().end()) &&                              /* this attribute exists */
-           (iter->second->isNotInstanceOf(UnboundMethodTypeObject) ||   /* and it is not an unbound method object */
-            iter->second.as<UnboundMethodObject>()->isUserDefined());   /* or it is an unbound method, but is user-defined */
+    /* find the alternate name as needed */
+    if (alt && (iter == type->dict().end()))
+        iter = type->dict().find(alt);
+
+    /* check for existence */
+    if (iter == type->dict().end())
+        return nullptr;
+    else
+        return iter->second;
 }
 
 Type::DescriptorType Type::resolveDescriptor(ObjectRef obj, ObjectRef *getter, ObjectRef *setter, ObjectRef *deleter)
@@ -170,154 +179,127 @@ Type::DescriptorType Type::resolveDescriptor(ObjectRef obj, ObjectRef *getter, O
     return ret ? DescriptorType::UserDefined : DescriptorType::NotADescriptor;
 }
 
-ObjectRef Type::applyUnary(const char *name, ObjectRef self)
+ObjectRef Type::applyUnary(const char *name, ObjectRef self, bool isSilent)
 {
-    // TODO: implement this
-    throw Exceptions::InternalError("not implemented yet");
+    /* find the user method */
+    ObjectRef method = findUserMethod(self, name, nullptr);
+
+    /* found, apply the method */
+    if (!(method.isNull()))
+        return applyUnaryMethod(std::move(method), std::move(self));
+
+    /* don't throw exceptions if required */
+    if (isSilent)
+        return nullptr;
+
+    /* otherwise throw the exception */
+    throw Exceptions::AttributeError(Utils::Strings::format(
+        "\"%s\" object doesn't support \"%s\" action",
+        self->type()->name(),
+        name
+    ));
 }
 
-ObjectRef Type::applyBinary(const char *name, ObjectRef self, ObjectRef other, const char *alternative)
+ObjectRef Type::applyBinary(const char *name, ObjectRef self, ObjectRef other, const char *alt, bool isSilent)
 {
-    // TODO: implement this
-    throw Exceptions::InternalError("not implemented yet");
+    /* find the user method */
+    ObjectRef method = findUserMethod(self, name, alt);
+
+    /* found, apply the method */
+    if (!(method.isNull()))
+        return applyBinaryMethod(std::move(method), std::move(self), std::move(other));
+
+    /* don't throw exceptions if required */
+    if (isSilent)
+        return nullptr;
+
+    /* otherwise throw the exception */
+    throw Exceptions::AttributeError(Utils::Strings::format(
+        "\"%s\" object doesn't support \"%s\" action",
+        self->type()->name(),
+        name
+    ));
 }
 
-ObjectRef Type::applyTernary(const char *name, ObjectRef self, ObjectRef second, ObjectRef third)
+ObjectRef Type::applyTernary(const char *name, ObjectRef self, ObjectRef second, ObjectRef third, bool isSilent)
 {
-    // TODO: implement this
-    throw Exceptions::InternalError("not implemented yet");
+    /* find the user method */
+    ObjectRef method = findUserMethod(self, name, nullptr);
+
+    /* found, apply the method */
+    if (!(method.isNull()))
+        return applyTernaryMethod(std::move(method), std::move(self), std::move(second), std::move(third));
+
+    /* don't throw exceptions if required */
+    if (isSilent)
+        return nullptr;
+
+    /* otherwise throw the exception */
+    throw Exceptions::AttributeError(Utils::Strings::format(
+        "\"%s\" object doesn't support \"%s\" action",
+        self->type()->name(),
+        name
+    ));
 }
 
-/*** Object Protocol ***/
-
-uint64_t Type::objectHash(ObjectRef self)
+ObjectRef Type::applyUnaryMethod(ObjectRef method, ObjectRef self)
 {
-    /* check for user-defined "__hash__" function */
-    if (!(haveUserMethod(self, "__hash__")))
-    {
-        /* default: hash the object pointer */
-        std::hash<uintptr_t> hash;
-        return hash(reinterpret_cast<uintptr_t>(self.get()));
-    }
-
-    /* apply the "__hash__" function */
-    ObjectRef ret = applyUnary("__hash__", self);
-
-    /* must be an integer object */
-    if (ret->isNotInstanceOf(IntTypeObject))
-    {
-        throw Exceptions::TypeError(Utils::Strings::format(
-            "\"__hash__\" function must return an integer, not \"%s\"",
-            ret->type()->name()
-        ));
-    }
-
-    /* convert to integer */
-    Reference<IntObject> value = ret.as<IntObject>();
-
-    /* and must be a valid unsigned integer */
-    if (!(value->isSafeUInt()))
-        throw Exceptions::ValueError("\"__hash__\" function must return an unsigned integer");
-
-    /* convert to unsigned integer */
-    return value->toUInt();
+    auto args = TupleObject::fromObjects(self);
+    return method->type()->objectInvoke(method, args, MapObject::newOrdered());
 }
 
-StringList Type::objectDir(ObjectRef self)
+ObjectRef Type::applyBinaryMethod(ObjectRef method, ObjectRef self, ObjectRef other)
+{
+    auto args = TupleObject::fromObjects(self, other);
+    return method->type()->objectInvoke(method, args, MapObject::newOrdered());
+}
+
+ObjectRef Type::applyTernaryMethod(ObjectRef method, ObjectRef self, ObjectRef second, ObjectRef third)
+{
+    auto args = TupleObject::fromObjects(self, second, third);
+    return method->type()->objectInvoke(method, args, MapObject::newOrdered());
+}
+
+/*** Default Object Protocol ***/
+
+uint64_t Type::defaultObjectHash(ObjectRef self)
+{
+    /* default: hash the object pointer */
+    std::hash<uintptr_t> hash;
+    return hash(reinterpret_cast<uintptr_t>(self.get()));
+}
+
+StringList Type::defaultObjectDir(ObjectRef self)
 {
     /* result name list */
     StringList result;
 
-    /* check for user-defined "__dir__" function */
-    if (!(haveUserMethod(self, "__dir__")))
-    {
-        /* default: list every key in object dict */
-        for (const auto &x : self->dict())
-            result.emplace_back(x.first);
-    }
-    else
-    {
-        /* apply the "__dir__" function */
-        ObjectRef ret = applyUnary("__dir__", self);
+    /* list every key in object dict */
+    for (const auto &x : self->dict())
+        result.emplace_back(x.first);
 
-        /* must be a tuple */
-        if (ret->isNotInstanceOf(TupleTypeObject))
-        {
-            throw Exceptions::TypeError(Utils::Strings::format(
-                "\"__dir__\" must return a tuple, not \"%s\"",
-                ret->type()->name()
-            ));
-        }
+    /* and built-in attributes */
+    for (const auto &x : self->attrs())
+        result.emplace_back(x.first);
 
-        /* convert to tuple */
-        auto tuple = ret.as<TupleObject>();
-        size_t count = tuple->size();
-        ObjectRef *items = tuple->items();
-
-        /* fill every item */
-        for (size_t i = 0; i < count; i++)
-            result.emplace_back(items[i]->type()->objectStr(items[i]));
-    }
-
-    /* move to prevent copy */
+    /* sort the names, and remove duplications */
+    std::sort(result.begin(), result.end());
+    result.erase(std::unique(result.begin(), result.end()), result.end());
     return std::move(result);
 }
 
-std::string Type::objectStr(ObjectRef self)
+std::string Type::defaultObjectRepr(ObjectRef self)
 {
-    /* check for user-defined "__str__" function */
-    if (!(haveUserMethod(self, "__str__")))
-        return objectRepr(self);
+    /* basic object representation */
+    if (self->isNotInstanceOf(TypeObject))
+        return Utils::Strings::format("<%s object at %p>", _name, static_cast<void *>(self.get()));
 
-    /* apply the "__str__" function */
-    ObjectRef ret = applyUnary("__str__", self);
-
-    /* must be an integer object */
-    if (ret->isNotInstanceOf(StringTypeObject))
-    {
-        throw Exceptions::TypeError(Utils::Strings::format(
-            "\"__str__\" function must return a string, not \"%s\"",
-            ret->type()->name()
-        ));
-    }
-
-    /* get it's value */
-    return ret.as<StringObject>()->value();
+    /* type object representation */
+    auto type = self.as<Type>();
+    return Utils::Strings::format("<type \"%s\" at %p>", type->name(), static_cast<void *>(type.get()));
 }
 
-std::string Type::objectRepr(ObjectRef self)
-{
-    /* check for user-defined "__repr__" function */
-    if (!(haveUserMethod(self, "__repr__")))
-    {
-        /* basic object representation */
-        if (self->isNotInstanceOf(TypeObject))
-            return Utils::Strings::format("<%s object at %p>", _name, static_cast<void *>(self.get()));
-
-        /* type object representation */
-        auto type = self.as<Type>();
-        return Utils::Strings::format("<type \"%s\" at %p>", type->name(), static_cast<void *>(type.get()));
-    }
-    else
-    {
-        /* apply the "__repr__" function */
-        ObjectRef ret = applyUnary("__repr__", self);
-
-        /* must be an integer object */
-        if (ret->isNotInstanceOf(StringTypeObject))
-        {
-            throw Exceptions::TypeError(Utils::Strings::format(
-                "\"__repr__\" function must return a string, not \"%s\"",
-                ret->type()->name()
-            ));
-        }
-
-        /* get it's value */
-        return ret.as<StringObject>()->value();
-    }
-}
-
-bool Type::objectIsSubclassOf(ObjectRef self, TypeRef type)
+bool Type::defaultObjectIsSubclassOf(ObjectRef self, TypeRef type)
 {
     /* not a type at all */
     if (self->type() != TypeObject)
@@ -334,22 +316,7 @@ bool Type::objectIsSubclassOf(ObjectRef self, TypeRef type)
     return t.isIdenticalWith(type);
 }
 
-bool Type::objectHasAttr(ObjectRef self, const std::string &name)
-{
-    try
-    {
-        /* try getting the attributes from object */
-        objectGetAttr(self, name);
-        return true;
-    }
-    catch (const Exceptions::AttributeError &)
-    {
-        /* attribute not found */
-        return false;
-    }
-}
-
-void Type::objectDelAttr(ObjectRef self, const std::string &name)
+void Type::defaultObjectDelAttr(ObjectRef self, const std::string &name)
 {
     /* find the attribute in dict */
     auto iter = self->dict().find(name);
@@ -361,9 +328,14 @@ void Type::objectDelAttr(ObjectRef self, const std::string &name)
         return;
     }
 
+    /* built-in attributes */
+    if (self->attrs().find(name) != self->attrs().end())
+        throw Exceptions::AttributeError(Utils::Strings::format("Cannot delete built-in attribute \"%s\" of \"%s\"", name, _name));
+
     /* find in type dict */
     if ((iter = this->dict().find(name)) == this->dict().end())
-        throw Exceptions::AttributeError(Utils::Strings::format("\"%s\" object has no attribute \"%s\"", _name, name));
+        if ((iter = this->attrs().find(name)) == this->attrs().end())
+            throw Exceptions::AttributeError(Utils::Strings::format("\"%s\" object has no attribute \"%s\"", _name, name));
 
     /* check for null */
     if (iter->second.isNull())
@@ -409,13 +381,14 @@ void Type::objectDelAttr(ObjectRef self, const std::string &name)
         throw Exceptions::InternalError(Utils::Strings::format("Descriptor \"%s\" of \"%s\" gives null", name, _name));
 }
 
-ObjectRef Type::objectGetAttr(ObjectRef self, const std::string &name)
+ObjectRef Type::defaultObjectGetAttr(ObjectRef self, const std::string &name)
 {
-    /* find the attribute in dict */
-    auto iter = self->dict().find(name);
+    /* attribute dictionary iterator */
+    decltype(self->dict().find(name)) iter;
 
-    /* if not exists, search from type dict, throw an exception if not found either */
-    if (iter != self->dict().end())
+    /* attribute exists */
+    if (((iter = self->dict().find(name)) != self->dict().end()) ||
+        ((iter = self->attrs().find(name)) != self->attrs().end()))
     {
         /* check for null, and read it's value directly */
         if (iter->second.isNull())
@@ -424,9 +397,10 @@ ObjectRef Type::objectGetAttr(ObjectRef self, const std::string &name)
             return iter->second;
     }
 
-    /* find in type dict */
+    /* find in type dict and built-in type attribute dict */
     if ((iter = this->dict().find(name)) == this->dict().end())
-        throw Exceptions::AttributeError(Utils::Strings::format("\"%s\" object has no attribute \"%s\"", _name, name));
+        if ((iter = this->attrs().find(name)) == this->attrs().end())
+            throw Exceptions::AttributeError(Utils::Strings::format("\"%s\" object has no attribute \"%s\"", _name, name));
 
     /* check for null */
     if (iter->second.isNull())
@@ -478,7 +452,7 @@ ObjectRef Type::objectGetAttr(ObjectRef self, const std::string &name)
     return std::move(result);
 }
 
-void Type::objectSetAttr(ObjectRef self, const std::string &name, ObjectRef value)
+void Type::defaultObjectSetAttr(ObjectRef self, const std::string &name, ObjectRef value)
 {
     /* check for value */
     if (value.isNull())
@@ -494,9 +468,14 @@ void Type::objectSetAttr(ObjectRef self, const std::string &name, ObjectRef valu
         return;
     }
 
+    /* built-in attributes */
+    if (self->attrs().find(name) != self->attrs().end())
+        throw Exceptions::AttributeError(Utils::Strings::format("Attribute \"%s\" of \"%s\" is read-only", name, _name));
+
     /* find in type dict */
     if ((iter = this->dict().find(name)) == this->dict().end())
-        throw Exceptions::AttributeError(Utils::Strings::format("\"%s\" object has no attribute \"%s\"", _name, name));
+        if ((iter = this->attrs().find(name)) == this->attrs().end())
+            throw Exceptions::AttributeError(Utils::Strings::format("\"%s\" object has no attribute \"%s\"", _name, name));
 
     /* not assigned yet, copy to instance dict */
     if (iter->second.isNull())
@@ -548,6 +527,268 @@ void Type::objectSetAttr(ObjectRef self, const std::string &name, ObjectRef valu
         throw Exceptions::InternalError(Utils::Strings::format("Descriptor \"%s\" of \"%s\" gives null", name, _name));
 }
 
+/*** Default Boolean Protocol ***/
+
+ObjectRef Type::defaultBoolOr(ObjectRef self, ObjectRef other)
+{
+    /* default: boolean or their truth value */
+    return BoolObject::fromBool(self->type()->objectIsTrue(self) || other->type()->objectIsTrue(other));
+}
+
+ObjectRef Type::defaultBoolAnd(ObjectRef self, ObjectRef other)
+{
+    /* default: boolean and their truth value */
+    return BoolObject::fromBool(self->type()->objectIsTrue(self) && other->type()->objectIsTrue(other));
+}
+
+ObjectRef Type::defaultBoolNot(ObjectRef self)
+{
+    /* default: boolean invert it's truth value */
+    return BoolObject::fromBool(!(self->type()->objectIsTrue(self)));
+}
+
+/*** Default Comparator Protocol ***/
+
+ObjectRef Type::defaultComparableEq(ObjectRef self, ObjectRef other)
+{
+    /* default: pointer comparison */
+    return BoolObject::fromBool(self.isIdenticalWith(other));
+}
+
+ObjectRef Type::defaultComparableNeq(ObjectRef self, ObjectRef other)
+{
+    /* default: pointer comparison */
+    return BoolObject::fromBool(self.isNotIdenticalWith(other));
+}
+
+ObjectRef Type::defaultComparableCompare(ObjectRef self, ObjectRef other)
+{
+    /* check for equality */
+    if (self == other)
+        return IntObject::fromInt(0);
+
+    /* compare "greater than" */
+    ObjectRef gt = self->type()->comparableGt(self, other);
+
+    /* must not be null */
+    if (gt.isNull())
+        throw Exceptions::InternalError("\"__gt__\" gives null");
+
+    /* check for truth value */
+    if (gt->type()->objectIsTrue(gt))
+        return IntObject::fromInt(1);
+
+    /* compare "less than" */
+    ObjectRef lt = self->type()->comparableLt(self, other);
+
+    /* must not be null */
+    if (lt.isNull())
+        throw Exceptions::InternalError("\"__lt__\" gives null");
+
+    /* check for truth value */
+    if (lt->type()->objectIsTrue(lt))
+        return IntObject::fromInt(-1);
+
+    /* obejcts are unordered */
+    throw Exceptions::TypeError(Utils::Strings::format(
+        "\"%s\" and \"%s\" objects are unordered",
+        self->type()->name(),
+        other->type()->name()
+    ));
+}
+
+/*** Object Protocol ***/
+
+uint64_t Type::objectHash(ObjectRef self)
+{
+    /* apply the "__hash__" function */
+    ObjectRef ret = applyUnary("__hash__", self, true);
+
+    /* doesn't have user-defined "__hash__" function */
+    if (ret.isNull())
+        return defaultObjectHash(self);
+
+    /* must be an integer object */
+    if (ret->isNotInstanceOf(IntTypeObject))
+    {
+        throw Exceptions::TypeError(Utils::Strings::format(
+            "\"__hash__\" function must return an integer, not \"%s\"",
+            ret->type()->name()
+        ));
+    }
+
+    /* convert to integer */
+    Reference<IntObject> value = ret.as<IntObject>();
+
+    /* and must be a valid unsigned integer */
+    if (!(value->isSafeUInt()))
+        throw Exceptions::ValueError("\"__hash__\" function must return an unsigned integer");
+
+    /* convert to unsigned integer */
+    return value->toUInt();
+}
+
+StringList Type::objectDir(ObjectRef self)
+{
+    /* apply the "__dir__" function */
+    ObjectRef ret = applyUnary("__dir__", self, true);
+    StringList result;
+
+    /* doesn't have user-defined "__dir__" function */
+    if (ret.isNull())
+        return defaultObjectDir(self);
+
+    /* must be a tuple */
+    if (ret->isNotInstanceOf(TupleTypeObject))
+    {
+        throw Exceptions::TypeError(Utils::Strings::format(
+            "\"__dir__\" must return a tuple, not \"%s\"",
+            ret->type()->name()
+        ));
+    }
+
+    /* convert to tuple */
+    auto tuple = ret.as<TupleObject>();
+    size_t count = tuple->size();
+    ObjectRef *items = tuple->items();
+
+    /* fill every item */
+    for (size_t i = 0; i < count; i++)
+        result.emplace_back(items[i]->type()->objectStr(items[i]));
+
+    /* move to prevent copy */
+    return std::move(result);
+}
+
+std::string Type::objectStr(ObjectRef self)
+{
+    /* apply the "__str__" function */
+    ObjectRef ret = applyUnary("__str__", self, true);
+
+    /* doesn't have user-defined "__str__" function */
+    if (ret.isNull())
+        return defaultObjectStr(self);
+
+    /* must be an integer object */
+    if (ret->isNotInstanceOf(StringTypeObject))
+    {
+        throw Exceptions::TypeError(Utils::Strings::format(
+            "\"__str__\" function must return a string, not \"%s\"",
+            ret->type()->name()
+        ));
+    }
+
+    /* get it's value */
+    return ret.as<StringObject>()->value();
+}
+
+std::string Type::objectRepr(ObjectRef self)
+{
+    /* apply the "__repr__" function */
+    ObjectRef ret = applyUnary("__repr__", self, true);
+
+    /* doesn't have user-defined "__repr__" function */
+    if (ret.isNull())
+        return defaultObjectRepr(self);
+
+    /* must be an integer object */
+    if (ret->isNotInstanceOf(StringTypeObject))
+    {
+        throw Exceptions::TypeError(Utils::Strings::format(
+            "\"__repr__\" function must return a string, not \"%s\"",
+            ret->type()->name()
+        ));
+    }
+
+    /* get it's value */
+    return ret.as<StringObject>()->value();
+}
+
+bool Type::objectIsSubclassOf(ObjectRef self, TypeRef type)
+{
+    ObjectRef ret = applyBinary("__is_subclass_of__", self, type, nullptr, true);
+    return ret.isNull() ? defaultObjectIsSubclassOf(std::move(self), std::move(type)) : ret->type()->objectIsTrue(ret);
+}
+
+bool Type::objectIsInstanceOf(ObjectRef self, TypeRef type)
+{
+    ObjectRef ret = applyBinary("__is_instance_of__", self, type, nullptr, true);
+    return ret.isNull() ? defaultObjectIsInstanceOf(std::move(self), std::move(type)) : ret->type()->objectIsTrue(ret);
+}
+
+bool Type::objectHasAttr(ObjectRef self, const std::string &name)
+{
+    try
+    {
+        /* try getting the attributes from object */
+        objectGetAttr(self, name);
+        return true;
+    }
+    catch (const Exceptions::AttributeError &)
+    {
+        /* attribute not found */
+        return false;
+    }
+}
+
+void Type::objectDelAttr(ObjectRef self, const std::string &name)
+{
+    /* find the user method */
+    ObjectRef method = findUserMethod(self, "__delattr__", nullptr);
+
+    /* doesn't have one, call the default */
+    if (method.isNull())
+    {
+        defaultObjectDelAttr(std::move(self), name);
+        return;
+    }
+
+    /* otherwise, apply the user method */
+    applyBinaryMethod(
+        std::move(method),
+        std::move(self),
+        StringObject::fromStringInterned(name)
+    );
+}
+
+ObjectRef Type::objectGetAttr(ObjectRef self, const std::string &name)
+{
+    /* find the user method */
+    ObjectRef method = findUserMethod(self, "__getattr__", nullptr);
+
+    /* doesn't have one, call the default */
+    if (method.isNull())
+        return defaultObjectGetAttr(std::move(self), name);
+
+    /* otherwise, apply the user method */
+    return applyBinaryMethod(
+        std::move(method),
+        std::move(self),
+        StringObject::fromStringInterned(name)
+    );
+}
+
+void Type::objectSetAttr(ObjectRef self, const std::string &name, ObjectRef value)
+{
+    /* find the user method */
+    ObjectRef method = findUserMethod(self, "__setattr__", nullptr);
+
+    /* doesn't have one, call the default */
+    if (method.isNull())
+    {
+        defaultObjectSetAttr(std::move(self), name, std::move(value));
+        return;
+    }
+
+    /* otherwise, apply the user method */
+    applyTernaryMethod(
+        std::move(method),
+        std::move(self),
+        StringObject::fromStringInterned(name),
+        std::move(value)
+    );
+}
+
 void Type::objectDefineAttr(ObjectRef self, const std::string &name, ObjectRef value)
 {
     /* check for value */
@@ -560,6 +801,20 @@ void Type::objectDefineAttr(ObjectRef self, const std::string &name, ObjectRef v
 
 ObjectRef Type::objectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs)
 {
+    /* apply the user method if any */
+    ObjectRef ret = applyTernary(
+        "__invoke__",
+        std::move(self),
+        std::move(args),
+        std::move(kwargs),
+        true
+    );
+
+    /* apply successful */
+    if (!(ret.isNull()))
+        return std::move(ret);
+
+    /* otherwise, not callable */
     throw Exceptions::TypeError(Utils::Strings::format(
         "\"%s\" object is not callable",
         self->type()->name()
@@ -570,26 +825,20 @@ ObjectRef Type::objectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs)
 
 ObjectRef Type::boolOr(ObjectRef self, ObjectRef other)
 {
-    if (haveUserMethod(self, "__bool_or__"))
-        return applyBinary("__bool_or__", self, other);
-    else
-        return BoolObject::fromBool(self->type()->objectIsTrue(self) || other->type()->objectIsTrue(other));
+    ObjectRef ret = applyBinary("__bool_or__", self, other, nullptr, true);
+    return ret.isNull() ? defaultBoolOr(std::move(self), std::move(other)) : std::move(ret);
 }
 
 ObjectRef Type::boolAnd(ObjectRef self, ObjectRef other)
 {
-    if (haveUserMethod(self, "__bool_and__"))
-        return applyBinary("__bool_and__", self, other);
-    else
-        return BoolObject::fromBool(self->type()->objectIsTrue(self) && other->type()->objectIsTrue(other));
+    ObjectRef ret = applyBinary("__bool_and__", self, other, nullptr, true);
+    return ret.isNull() ? defaultBoolAnd(std::move(self), std::move(other)) : std::move(ret);
 }
 
 ObjectRef Type::boolNot(ObjectRef self)
 {
-    if (haveUserMethod(self, "__bool_not__"))
-        return applyUnary("__bool_not__", self);
-    else
-        return BoolObject::fromBool(!(self->type()->objectIsTrue(self)));
+    ObjectRef ret = applyUnary("__bool_not__", self, true);
+    return ret.isNull() ? defaultBoolNot(std::move(self)) : std::move(ret);
 }
 
 /*** Sequence Protocol ***/
@@ -631,57 +880,19 @@ void Type::sequenceSetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, Obje
 
 ObjectRef Type::comparableEq(ObjectRef self, ObjectRef other)
 {
-    if (haveUserMethod(self, "__neq__"))
-        return applyBinary("__eq__", self, other);
-    else
-        return BoolObject::fromBool(self.isIdenticalWith(other));
+    ObjectRef ret = applyBinary("__eq__", self, other, nullptr, true);
+    return ret.isNull() ? defaultComparableEq(std::move(self), std::move(other)) : std::move(ret);
 }
 
 ObjectRef Type::comparableNeq(ObjectRef self, ObjectRef other)
 {
-    if (haveUserMethod(self, "__neq__"))
-        return applyBinary("__neq__", self, other);
-    else
-        return BoolObject::fromBool(!(self.isIdenticalWith(other)));
+    ObjectRef ret = applyBinary("__neq__", self, other, nullptr, true);
+    return ret.isNull() ? defaultComparableNeq(std::move(self), std::move(other)) : std::move(ret);
 }
 
 ObjectRef Type::comparableCompare(ObjectRef self, ObjectRef other)
 {
-    /* apply user method if any */
-    if (haveUserMethod(self, "__compare__"))
-        return applyBinary("__compare__", self, other);
-
-    /* check for equality */
-    if (self == other)
-        return IntObject::fromInt(0);
-
-    /* compare "greater than" */
-    ObjectRef gt = self->type()->comparableGt(self, other);
-
-    /* must not be null */
-    if (gt.isNull())
-        throw Exceptions::InternalError("\"__gt__\" gives null");
-
-    /* check for truth value */
-    if (gt->type()->objectIsTrue(gt))
-        return IntObject::fromInt(1);
-
-    /* compare "less than" */
-    ObjectRef lt = self->type()->comparableLt(self, other);
-
-    /* must not be null */
-    if (lt.isNull())
-        throw Exceptions::InternalError("\"__lt__\" gives null");
-
-    /* check for truth value */
-    if (lt->type()->objectIsTrue(lt))
-        return IntObject::fromInt(-1);
-
-    /* obejcts are unordered */
-    throw Exceptions::TypeError(Utils::Strings::format(
-        "\"%s\" and \"%s\" objects are unordered",
-        self->type()->name(),
-        other->type()->name()
-    ));
+    ObjectRef ret = applyBinary("__compare__", self, other, nullptr, true);
+    return ret.isNull() ? defaultComparableCompare(std::move(self), std::move(other)) : std::move(ret);
 }
 }
