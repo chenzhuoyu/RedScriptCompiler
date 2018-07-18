@@ -226,7 +226,7 @@ public:
 
 struct Assign : public Node
 {
-    AST_NODE(Assign);
+    AST_NODE(Assign)
 
 public:
     struct Target
