@@ -98,7 +98,7 @@ public:
 
 public:
     std::unique_ptr<AST::Name>              parseName(void);
-    std::unique_ptr<AST::Unpack>            parseUnpack(Token::Operator terminator);
+    std::unique_ptr<AST::Unpack>            parseUnpack(Token::Operator terminator, bool tryParse);
     std::unique_ptr<AST::Literal>           parseLiteral(void);
     std::unique_ptr<AST::Composite>         parseComposite(CompositeSuggestion suggestion);
     std::unique_ptr<AST::Expression>        parseExpression(void);
@@ -110,7 +110,7 @@ private:
 
 private:
     void pruneExpression(std::unique_ptr<AST::Expression> &expr);
-    void parseAssignTarget(std::unique_ptr<AST::Composite> &comp, std::unique_ptr<AST::Unpack> &unpack, Token::Operator terminator);
+    bool parseAssignTarget(AST::Assign::Target &target, Token::Operator terminator, bool tryParse);
 
 public:
     std::unique_ptr<AST::Expression>        parseBoolOr(void);

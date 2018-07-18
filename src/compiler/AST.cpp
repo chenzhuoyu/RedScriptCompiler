@@ -108,10 +108,13 @@ void Visitor::visitFunction(const std::unique_ptr<Function> &node)
 
 void Visitor::visitAssign(const std::unique_ptr<Assign> &node)
 {
-    if (node->unpack)
-        visitUnpack(node->unpack);
-    else
-        visitComposite(node->composite);
+    for (const auto &target : node->targets)
+    {
+        if (target.unpack)
+            visitUnpack(target.unpack);
+        else
+            visitComposite(target.composite);
+    }
 
     visitExpression(node->expression);
 }

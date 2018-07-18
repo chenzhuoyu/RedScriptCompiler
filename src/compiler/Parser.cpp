@@ -47,12 +47,19 @@ std::unique_ptr<AST::If> Parser::parseIf(void)
 std::unique_ptr<AST::For> Parser::parseFor(void)
 {
     Token::Ptr token = _lexer->peek();
+    AST::Assign::Target target = {nullptr, nullptr};
     std::unique_ptr<AST::For> result(new AST::For(token));
 
     /* for (<sequence> in <expr>) <body> */
     _lexer->keywordExpected<Token::Keyword::For>();
     _lexer->operatorExpected<Token::Operator::BracketLeft>();
-    parseAssignTarget(result->comp, result->pack, Token::Operator::In);
+
+    /* parse as assign target */
+    parseAssignTarget(target, Token::Operator::In, false);
+    result->pack = std::move(target.unpack);
+    result->comp = std::move(target.composite);
+
+    /* ... in <expression> */
     result->expr = parseExpression();
     _lexer->operatorExpected<Token::Operator::BracketRight>();
     result->body = Scope::wrap(_loops, std::bind(&Parser::parseStatement, this));
@@ -953,7 +960,7 @@ std::unique_ptr<AST::Name> Parser::parseName(void)
     return result;
 }
 
-std::unique_ptr<AST::Unpack> Parser::parseUnpack(Token::Operator terminator)
+std::unique_ptr<AST::Unpack> Parser::parseUnpack(Token::Operator terminator, bool tryParse)
 {
     Token::Ptr token = _lexer->peek();
     std::unique_ptr<AST::Unpack> result(new AST::Unpack(token));
@@ -1011,9 +1018,9 @@ std::unique_ptr<AST::Unpack> Parser::parseUnpack(Token::Operator terminator)
 
                     /* process arrays and tuples accordingly */
                     if (comp->vtype == AST::Composite::ValueType::Array)
-                        result->items.emplace_back(parseUnpack(Token::Operator::IndexRight));
+                        result->items.emplace_back(parseUnpack(Token::Operator::IndexRight, false));
                     else
-                        result->items.emplace_back(parseUnpack(Token::Operator::BracketRight));
+                        result->items.emplace_back(parseUnpack(Token::Operator::BracketRight, false));
 
                     /* peek the next token */
                     token = _lexer->peek();
@@ -1043,6 +1050,10 @@ std::unique_ptr<AST::Unpack> Parser::parseUnpack(Token::Operator terminator)
             _lexer->next();
             break;
         }
+
+        /* trial parsing, gives a null */
+        else if (tryParse)
+            return nullptr;
 
         /* otherwise it's an error */
         else
@@ -1458,82 +1469,108 @@ void Parser::pruneExpression(std::unique_ptr<AST::Expression> &expr)
     }
 }
 
-void Parser::parseAssignTarget(std::unique_ptr<AST::Composite> &comp, std::unique_ptr<AST::Unpack> &unpack, Token::Operator terminator)
+bool Parser::parseAssignTarget(AST::Assign::Target &target, Token::Operator terminator, bool tryParse)
 {
     /* save tokenizer state, and clear both nodes */
-    comp.reset();
-    unpack.reset();
     _lexer->pushState();
+    target.unpack.reset();
+    target.composite.reset();
 
     /* parse the first element as expression */
     Token::Ptr token = _lexer->peek();
     std::unique_ptr<AST::Expression> expr = parseFactor();
 
-    /* check for following operator */
+    /* this is an inlined `Unpack` sequence, restore all the state and parse from start */
     if (_lexer->peek()->isOperator<Token::Operator::Comma>())
     {
-        /* this is an inlined `Unpack` sequence, restore all the state and parse from start */
+        /* reset the lexer state */
         _lexer->popState();
-        unpack = std::move(parseUnpack(terminator));
-    }
-    else
-    {
-        /* must ends with a terminator token */
-        if ((token = _lexer->next())->asOperator() != terminator)
-            throw Exceptions::SyntaxError(token, Utils::Strings::format("Token %s expected", Token::toString(terminator)));
+        _lexer->pushState();
 
-        /* should be a single `Composite`, so test and extract it */
-        while (!comp)
+        /* parse the unpack sequence */
+        if ((target.unpack = parseUnpack(terminator, tryParse)) == nullptr)
         {
-            /* has unary operators or following operands, it's an expression, and not assignable */
-            if (expr->hasOp || !expr->follows.empty())
-                throw Exceptions::SyntaxError(token, "Expressions are not assignable");
-
-            /* if it's the composite, extract it, otherwise, move to inner expression */
-            if (expr->first.type == AST::Expression::Operand::Type::Composite)
-                comp = std::move(expr->first.composite);
-            else
-                expr = std::move(expr->first.expression);
+            _lexer->popState();
+            return false;
         }
-
-        /* it's a mutable composite, preserve the current tokenizer state and take it directly */
-        if (comp->isSyntacticallyMutable(true))
+        else
         {
             _lexer->preserveState();
-            return;
-        }
-
-        /* otherwise, it maybe a sub-sequence */
-        switch (comp->vtype)
-        {
-            /* they are all immutable */
-            case AST::Composite::ValueType::Map:
-            case AST::Composite::ValueType::Name:
-            case AST::Composite::ValueType::Literal:
-            case AST::Composite::ValueType::Function:
-            case AST::Composite::ValueType::Expression:
-                throw Exceptions::SyntaxError(token, "Expressions are not assignable");
-
-            /* process them together since they are essentially the same */
-            case AST::Composite::ValueType::Array:
-            case AST::Composite::ValueType::Tuple:
-            {
-                /* restore the state and skip the start operator */
-                _lexer->popState();
-                _lexer->next();
-
-                /* process arrays and tuples accordingly */
-                if (comp->vtype == AST::Composite::ValueType::Array)
-                    unpack = std::move(parseUnpack(Token::Operator::IndexRight));
-                else
-                    unpack = std::move(parseUnpack(Token::Operator::BracketRight));
-
-                /* clear composite node */
-                comp.reset();
-                break;
-            }
+            return true;
         }
     }
+
+    /* must ends with a terminator token */
+    if (!((token = _lexer->next())->is<Token::Type::Operators>()) || (token->asOperator() != terminator))
+    {
+        /* trial parsing, restore the lexer state */
+        if (tryParse)
+        {
+            _lexer->popState();
+            return false;
+        }
+
+        /* otherwise it's an error */
+        throw Exceptions::SyntaxError(token, Utils::Strings::format(
+            "Token %s expected",
+            Token::toString(terminator)
+        ));
+    }
+
+    /* should be a single `Composite`, so test and extract it */
+    while (!(target.composite))
+    {
+        /* has unary operators or following operands, it's an expression, and not assignable */
+        if (expr->hasOp || !expr->follows.empty())
+            throw Exceptions::SyntaxError(token, "Expressions are not assignable");
+
+        /* if it's the composite, extract it, otherwise, move to inner expression */
+        if (expr->first.type != AST::Expression::Operand::Type::Composite)
+            expr = std::move(expr->first.expression);
+        else
+            target.composite = std::move(expr->first.composite);
+    }
+
+    /* it's a mutable composite, preserve the current tokenizer state and take it directly */
+    if (target.composite->isSyntacticallyMutable(true))
+    {
+        _lexer->preserveState();
+        return true;
+    }
+
+    /* otherwise, it maybe a sub-sequence */
+    switch (target.composite->vtype)
+    {
+        /* they are all immutable */
+        case AST::Composite::ValueType::Map:
+        case AST::Composite::ValueType::Name:
+        case AST::Composite::ValueType::Literal:
+        case AST::Composite::ValueType::Function:
+        case AST::Composite::ValueType::Expression:
+            throw Exceptions::SyntaxError(token, "Expressions are not assignable");
+
+        /* process them together since they are essentially the same */
+        case AST::Composite::ValueType::Array:
+        case AST::Composite::ValueType::Tuple:
+        {
+            /* restore the state and skip the start operator */
+            _lexer->popState();
+            _lexer->next();
+
+            /* process arrays and tuples accordingly */
+            if (target.composite->vtype == AST::Composite::ValueType::Array)
+                target.unpack = std::move(parseUnpack(Token::Operator::IndexRight, false));
+            else
+                target.unpack = std::move(parseUnpack(Token::Operator::BracketRight, false));
+
+            /* clear composite node */
+            target.composite.reset();
+            break;
+        }
+    }
+
+    /* parse successful */
+    return true;
 }
 
 #define MAKE_CASE_ITEM(_, op)       case Token::Operator::op:
@@ -1941,10 +1978,14 @@ std::unique_ptr<AST::Statement> Parser::parseStatement(void)
             {
                 /* restore the tokenizer state */
                 _lexer->popState();
+                AST::Assign::Target target;
                 std::unique_ptr<AST::Assign> assign(new AST::Assign(token));
 
-                /* <sequence> = <return-expr> */
-                parseAssignTarget(assign->composite, assign->unpack, Token::Operator::Assign);
+                /* <seq1> = <seq2> = ... */
+                while (parseAssignTarget(target, Token::Operator::Assign, true))
+                    assign->targets.emplace_back(std::move(target));
+
+                /* ... = <return-expr> */
                 assign->expression = parseReturnExpression();
                 result = std::make_unique<AST::Statement>(token, std::move(assign));
             }

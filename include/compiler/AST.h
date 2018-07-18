@@ -229,8 +229,14 @@ struct Assign : public Node
     AST_NODE(Assign);
 
 public:
-    std::unique_ptr<AST::Unpack> unpack;
-    std::unique_ptr<AST::Composite> composite;
+    struct Target
+    {
+        std::unique_ptr<AST::Unpack> unpack;
+        std::unique_ptr<AST::Composite> composite;
+    };
+
+public:
+    std::vector<Target> targets;
     std::unique_ptr<AST::Expression> expression;
 
 };

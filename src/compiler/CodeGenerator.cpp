@@ -523,11 +523,26 @@ void CodeGenerator::visitAssign(const std::unique_ptr<AST::Assign> &node)
     /* build the expression value */
     visitExpression(node->expression);
 
-    /* check assigning target type */
-    if (node->unpack)
-        visitUnpack(node->unpack);
+    /* assign from right to left */
+    for (auto it = node->targets.rbegin(); it != node->targets.rend() - 1; it++)
+    {
+        if (it->unpack)
+        {
+            emit(it->unpack, Engine::OpCode::DUP);
+            visitUnpack(it->unpack);
+        }
+        else
+        {
+            emit(it->composite, Engine::OpCode::DUP);
+            buildCompositeTarget(it->composite);
+        }
+    }
+
+    /* store the first item */
+    if (node->targets[0].unpack)
+        visitUnpack(node->targets[0].unpack);
     else
-        buildCompositeTarget(node->composite);
+        buildCompositeTarget(node->targets[0].composite);
 }
 
 void CodeGenerator::visitIncremental(const std::unique_ptr<AST::Incremental> &node)
