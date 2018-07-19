@@ -81,6 +81,13 @@ void Object::initialize(void)
 
 /*** Type Implementations ***/
 
+void Type::typeShutdown(void)
+{
+    clearBuiltins();
+    dict().clear();
+    attrs().clear();
+}
+
 void Type::typeInitialize(void)
 {
     addBuiltins();
@@ -123,13 +130,6 @@ void Type::addBuiltins(void)
             self->type()->nativeObjectSetAttr(self, name, value);
         })
     );
-}
-
-void Type::typeShutdown(void)
-{
-    clearBuiltins();
-    dict().clear();
-    attrs().clear();
 }
 
 ObjectRef Type::findUserMethod(ObjectRef self, const char *name, const char *alt)
