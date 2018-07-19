@@ -10,6 +10,10 @@ class ProxyType : public Type
 public:
     explicit ProxyType() : Type("proxy") {}
 
+protected:
+    virtual void addBuiltins(void) override {}
+    virtual void clearBuiltins(void) override {}
+
 };
 
 /* type object for proxy */

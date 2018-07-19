@@ -13,6 +13,10 @@ class ExceptionBlockType : public Type
 public:
     explicit ExceptionBlockType() : Type("exception_block") {}
 
+protected:
+    virtual void addBuiltins(void) override {}
+    virtual void clearBuiltins(void) override {}
+
 };
 
 /* type object for exception block */

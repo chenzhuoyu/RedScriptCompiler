@@ -15,66 +15,70 @@ class IntType : public Type
 public:
     explicit IntType() : Type("int") {}
 
-/*** Object Protocol ***/
+protected:
+    virtual void addBuiltins(void) override {}
+    virtual void clearBuiltins(void) override {}
+
+/*** Native Object Protocol ***/
 
 public:
-    virtual uint64_t    objectHash(ObjectRef self) override;
-    virtual std::string objectRepr(ObjectRef self) override;
+    virtual uint64_t    nativeObjectHash(ObjectRef self) override;
+    virtual std::string nativeObjectRepr(ObjectRef self) override;
 
 public:
-    virtual bool objectIsTrue(ObjectRef self) override;
+    virtual bool nativeObjectIsTrue(ObjectRef self) override;
 
-/*** Numeric Protocol ***/
-
-public:
-    virtual ObjectRef numericPos(ObjectRef self) override;
-    virtual ObjectRef numericNeg(ObjectRef self) override;
-    virtual ObjectRef numericNot(ObjectRef self) override;
+/*** Native Numeric Protocol ***/
 
 public:
-    virtual ObjectRef numericAdd  (ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef numericSub  (ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef numericMul  (ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef numericDiv  (ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef numericMod  (ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef numericPower(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeNumericPos(ObjectRef self) override;
+    virtual ObjectRef nativeNumericNeg(ObjectRef self) override;
+    virtual ObjectRef nativeNumericNot(ObjectRef self) override;
 
 public:
-    virtual ObjectRef numericOr (ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef numericAnd(ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef numericXor(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeNumericAdd  (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeNumericSub  (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeNumericMul  (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeNumericDiv  (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeNumericMod  (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeNumericPower(ObjectRef self, ObjectRef other) override;
 
 public:
-    virtual ObjectRef numericLShift(ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef numericRShift(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeNumericOr (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeNumericAnd(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeNumericXor(ObjectRef self, ObjectRef other) override;
 
 public:
-    virtual ObjectRef numericIncAdd  (ObjectRef self, ObjectRef other) override { return numericAdd  (self, other); }
-    virtual ObjectRef numericIncSub  (ObjectRef self, ObjectRef other) override { return numericSub  (self, other); }
-    virtual ObjectRef numericIncMul  (ObjectRef self, ObjectRef other) override { return numericMul  (self, other); }
-    virtual ObjectRef numericIncDiv  (ObjectRef self, ObjectRef other) override { return numericDiv  (self, other); }
-    virtual ObjectRef numericIncMod  (ObjectRef self, ObjectRef other) override { return numericMod  (self, other); }
-    virtual ObjectRef numericIncPower(ObjectRef self, ObjectRef other) override { return numericPower(self, other); }
+    virtual ObjectRef nativeNumericLShift(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeNumericRShift(ObjectRef self, ObjectRef other) override;
 
 public:
-    virtual ObjectRef numericIncOr (ObjectRef self, ObjectRef other) override { return numericOr (self, other); }
-    virtual ObjectRef numericIncAnd(ObjectRef self, ObjectRef other) override { return numericAnd(self, other); }
-    virtual ObjectRef numericIncXor(ObjectRef self, ObjectRef other) override { return numericXor(self, other); }
+    virtual ObjectRef nativeNumericIncAdd  (ObjectRef self, ObjectRef other) override { return nativeNumericAdd  (self, other); }
+    virtual ObjectRef nativeNumericIncSub  (ObjectRef self, ObjectRef other) override { return nativeNumericSub  (self, other); }
+    virtual ObjectRef nativeNumericIncMul  (ObjectRef self, ObjectRef other) override { return nativeNumericMul  (self, other); }
+    virtual ObjectRef nativeNumericIncDiv  (ObjectRef self, ObjectRef other) override { return nativeNumericDiv  (self, other); }
+    virtual ObjectRef nativeNumericIncMod  (ObjectRef self, ObjectRef other) override { return nativeNumericMod  (self, other); }
+    virtual ObjectRef nativeNumericIncPower(ObjectRef self, ObjectRef other) override { return nativeNumericPower(self, other); }
 
 public:
-    virtual ObjectRef numericIncLShift(ObjectRef self, ObjectRef other) override { return numericLShift(self, other); }
-    virtual ObjectRef numericIncRShift(ObjectRef self, ObjectRef other) override { return numericRShift(self, other); }
-
-/*** Comparator Protocol ***/
+    virtual ObjectRef nativeNumericIncOr (ObjectRef self, ObjectRef other) override { return nativeNumericOr (self, other); }
+    virtual ObjectRef nativeNumericIncAnd(ObjectRef self, ObjectRef other) override { return nativeNumericAnd(self, other); }
+    virtual ObjectRef nativeNumericIncXor(ObjectRef self, ObjectRef other) override { return nativeNumericXor(self, other); }
 
 public:
-    virtual ObjectRef comparableEq(ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef comparableLt(ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef comparableGt(ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef comparableNeq(ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef comparableLeq(ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef comparableGeq(ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef comparableCompare(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeNumericIncLShift(ObjectRef self, ObjectRef other) override { return nativeNumericLShift(self, other); }
+    virtual ObjectRef nativeNumericIncRShift(ObjectRef self, ObjectRef other) override { return nativeNumericRShift(self, other); }
+
+/*** Native Comparator Protocol ***/
+
+public:
+    virtual ObjectRef nativeComparableEq(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeComparableLt(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeComparableGt(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeComparableNeq(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeComparableLeq(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeComparableGeq(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeComparableCompare(ObjectRef self, ObjectRef other) override;
 
 };
 

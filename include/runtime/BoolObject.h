@@ -13,12 +13,18 @@ class BoolType : public Type
 public:
     explicit BoolType() : Type("bool") {}
 
-public:
-    virtual uint64_t    objectHash(ObjectRef self) override;
-    virtual std::string objectRepr(ObjectRef self) override;
+protected:
+    virtual void addBuiltins(void) override {}
+    virtual void clearBuiltins(void) override {}
+
+/*** Native Object Protocol ***/
 
 public:
-    virtual bool objectIsTrue(ObjectRef self) override;
+    virtual uint64_t    nativeObjectHash(ObjectRef self) override;
+    virtual std::string nativeObjectRepr(ObjectRef self) override;
+
+public:
+    virtual bool nativeObjectIsTrue(ObjectRef self) override;
 
 };
 

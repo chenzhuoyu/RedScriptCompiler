@@ -62,30 +62,30 @@ void shutdown(void)
     Engine::Builtins::shutdown();
 
     /* generic objects */
-    Runtime::ExceptionBlockTypeObject->clearBuiltins();
-    Runtime::NativeFunctionTypeObject->clearBuiltins();
-    Runtime::UnboundMethodTypeObject->clearBuiltins();
-    Runtime::NativeClassTypeObject->clearBuiltins();
-    Runtime::BoundMethodTypeObject->clearBuiltins();
-    Runtime::FunctionTypeObject->clearBuiltins();
-    Runtime::DecimalTypeObject->clearBuiltins();
-    Runtime::TupleTypeObject->clearBuiltins();
-    Runtime::ArrayTypeObject->clearBuiltins();
-    Runtime::CodeTypeObject->clearBuiltins();
-    Runtime::MapTypeObject->clearBuiltins();
+    Runtime::ExceptionBlockTypeObject->typeShutdown();
+    Runtime::NativeFunctionTypeObject->typeShutdown();
+    Runtime::UnboundMethodTypeObject->typeShutdown();
+    Runtime::NativeClassTypeObject->typeShutdown();
+    Runtime::BoundMethodTypeObject->typeShutdown();
+    Runtime::FunctionTypeObject->typeShutdown();
+    Runtime::DecimalTypeObject->typeShutdown();
+    Runtime::TupleTypeObject->typeShutdown();
+    Runtime::ArrayTypeObject->typeShutdown();
+    Runtime::CodeTypeObject->typeShutdown();
+    Runtime::MapTypeObject->typeShutdown();
 
     /* pooled objects */
-    Runtime::StringTypeObject->clearBuiltins();
-    Runtime::IntTypeObject->clearBuiltins();
+    Runtime::StringTypeObject->typeShutdown();
+    Runtime::IntTypeObject->typeShutdown();
 
     /* singleton objects */
-    Runtime::NullTypeObject->clearBuiltins();
-    Runtime::BoolTypeObject->clearBuiltins();
+    Runtime::NullTypeObject->typeShutdown();
+    Runtime::BoolTypeObject->typeShutdown();
 
     /* meta objects */
-    Runtime::SliceTypeObject->clearBuiltins();
-    Runtime::ProxyTypeObject->clearBuiltins();
-    Runtime::TypeObject->clearBuiltins();
+    Runtime::SliceTypeObject->typeShutdown();
+    Runtime::ProxyTypeObject->typeShutdown();
+    Runtime::TypeObject->typeShutdown();
 
     /** shutdown objects **/
 
@@ -155,30 +155,30 @@ void initialize(size_t stack)
     /** initialize built-in attributes and functions **/
 
     /* meta objects */
-    Runtime::TypeObject->addBuiltins();
-    Runtime::ProxyTypeObject->addBuiltins();
-    Runtime::SliceTypeObject->addBuiltins();
+    Runtime::TypeObject->typeInitialize();
+    Runtime::ProxyTypeObject->typeInitialize();
+    Runtime::SliceTypeObject->typeInitialize();
 
     /* singleton objects */
-    Runtime::BoolTypeObject->addBuiltins();
-    Runtime::NullTypeObject->addBuiltins();
+    Runtime::BoolTypeObject->typeInitialize();
+    Runtime::NullTypeObject->typeInitialize();
 
     /* pooled objects */
-    Runtime::IntTypeObject->addBuiltins();
-    Runtime::StringTypeObject->addBuiltins();
+    Runtime::IntTypeObject->typeInitialize();
+    Runtime::StringTypeObject->typeInitialize();
 
     /* generic objects */
-    Runtime::MapTypeObject->addBuiltins();
-    Runtime::CodeTypeObject->addBuiltins();
-    Runtime::ArrayTypeObject->addBuiltins();
-    Runtime::TupleTypeObject->addBuiltins();
-    Runtime::DecimalTypeObject->addBuiltins();
-    Runtime::FunctionTypeObject->addBuiltins();
-    Runtime::BoundMethodTypeObject->addBuiltins();
-    Runtime::NativeClassTypeObject->addBuiltins();
-    Runtime::UnboundMethodTypeObject->addBuiltins();
-    Runtime::NativeFunctionTypeObject->addBuiltins();
-    Runtime::ExceptionBlockTypeObject->addBuiltins();
+    Runtime::MapTypeObject->typeInitialize();
+    Runtime::CodeTypeObject->typeInitialize();
+    Runtime::ArrayTypeObject->typeInitialize();
+    Runtime::TupleTypeObject->typeInitialize();
+    Runtime::DecimalTypeObject->typeInitialize();
+    Runtime::FunctionTypeObject->typeInitialize();
+    Runtime::BoundMethodTypeObject->typeInitialize();
+    Runtime::NativeClassTypeObject->typeInitialize();
+    Runtime::UnboundMethodTypeObject->typeInitialize();
+    Runtime::NativeFunctionTypeObject->typeInitialize();
+    Runtime::ExceptionBlockTypeObject->typeInitialize();
 
     /* built-in globals */
     Engine::Builtins::initialize();

@@ -81,12 +81,18 @@ void Object::initialize(void)
 
 /*** Type Implementations ***/
 
+void Type::typeInitialize(void)
+{
+    addBuiltins();
+    attrs().emplace("__name__", StringObject::fromString(_name));
+    attrs().emplace("__super__", _super.isNull() ? TypeObject : _super);
+}
+
 void Type::addBuiltins(void)
 {
     /* basic object protocol attributes */
-    attrs().emplace("__name__", StringObject::fromString(_name));
-    attrs().emplace("__repr__", UnboundMethodObject::fromFunction([](ObjectRef self){ return self->type()->defaultObjectRepr(self); }));
-    attrs().emplace("__hash__", UnboundMethodObject::fromFunction([](ObjectRef self){ return self->type()->defaultObjectHash(self); }));
+    attrs().emplace("__repr__", UnboundMethodObject::fromFunction([](ObjectRef self){ return self->type()->nativeObjectRepr(self); }));
+    attrs().emplace("__hash__", UnboundMethodObject::fromFunction([](ObjectRef self){ return self->type()->nativeObjectHash(self); }));
 
     /* built-in "__delattr__" function */
     attrs().emplace(
@@ -94,7 +100,7 @@ void Type::addBuiltins(void)
         UnboundMethodObject::fromFunction([](Runtime::ObjectRef self, const std::string &name)
         {
             /* invoke the object protocol */
-            self->type()->defaultObjectDelAttr(self, name);
+            self->type()->nativeObjectDelAttr(self, name);
         })
     );
 
@@ -104,7 +110,7 @@ void Type::addBuiltins(void)
         UnboundMethodObject::fromFunction([](Runtime::ObjectRef self, const std::string &name)
         {
             /* invoke the object protocol */
-            return self->type()->defaultObjectGetAttr(self, name);
+            return self->type()->nativeObjectGetAttr(self, name);
         })
     );
 
@@ -114,13 +120,14 @@ void Type::addBuiltins(void)
         UnboundMethodObject::fromFunction([](Runtime::ObjectRef self, const std::string &name, Runtime::ObjectRef value)
         {
             /* invoke the object protocol */
-            self->type()->defaultObjectSetAttr(self, name, value);
+            self->type()->nativeObjectSetAttr(self, name, value);
         })
     );
 }
 
-void Type::clearBuiltins(void)
+void Type::typeShutdown(void)
 {
+    clearBuiltins();
     dict().clear();
     attrs().clear();
 }
@@ -179,7 +186,7 @@ Type::DescriptorType Type::resolveDescriptor(ObjectRef obj, ObjectRef *getter, O
     return ret ? DescriptorType::UserDefined : DescriptorType::NotADescriptor;
 }
 
-ObjectRef Type::applyUnary(const char *name, ObjectRef self, bool isSilent)
+ObjectRef Type::applyUnary(const char *name, ObjectRef self)
 {
     /* find the user method */
     ObjectRef method = findUserMethod(self, name, nullptr);
@@ -189,18 +196,10 @@ ObjectRef Type::applyUnary(const char *name, ObjectRef self, bool isSilent)
         return applyUnaryMethod(std::move(method), std::move(self));
 
     /* don't throw exceptions if required */
-    if (isSilent)
-        return nullptr;
-
-    /* otherwise throw the exception */
-    throw Exceptions::AttributeError(Utils::Strings::format(
-        "\"%s\" object doesn't support \"%s\" action",
-        self->type()->name(),
-        name
-    ));
+    return nullptr;
 }
 
-ObjectRef Type::applyBinary(const char *name, ObjectRef self, ObjectRef other, const char *alt, bool isSilent)
+ObjectRef Type::applyBinary(const char *name, ObjectRef self, ObjectRef other, const char *alt)
 {
     /* find the user method */
     ObjectRef method = findUserMethod(self, name, alt);
@@ -210,10 +209,10 @@ ObjectRef Type::applyBinary(const char *name, ObjectRef self, ObjectRef other, c
         return applyBinaryMethod(std::move(method), std::move(self), std::move(other));
 
     /* don't throw exceptions if required */
-    if (isSilent)
-        return nullptr;
+    return nullptr;
 
     /* otherwise throw the exception */
+    // todo: move this
     throw Exceptions::AttributeError(Utils::Strings::format(
         "\"%s\" object doesn't support \"%s\" action",
         self->type()->name(),
@@ -221,7 +220,7 @@ ObjectRef Type::applyBinary(const char *name, ObjectRef self, ObjectRef other, c
     ));
 }
 
-ObjectRef Type::applyTernary(const char *name, ObjectRef self, ObjectRef second, ObjectRef third, bool isSilent)
+ObjectRef Type::applyTernary(const char *name, ObjectRef self, ObjectRef second, ObjectRef third)
 {
     /* find the user method */
     ObjectRef method = findUserMethod(self, name, nullptr);
@@ -231,10 +230,10 @@ ObjectRef Type::applyTernary(const char *name, ObjectRef self, ObjectRef second,
         return applyTernaryMethod(std::move(method), std::move(self), std::move(second), std::move(third));
 
     /* don't throw exceptions if required */
-    if (isSilent)
-        return nullptr;
+    return nullptr;
 
     /* otherwise throw the exception */
+    // todo: move this
     throw Exceptions::AttributeError(Utils::Strings::format(
         "\"%s\" object doesn't support \"%s\" action",
         self->type()->name(),
@@ -260,16 +259,25 @@ ObjectRef Type::applyTernaryMethod(ObjectRef method, ObjectRef self, ObjectRef s
     return method->type()->objectInvoke(method, args, MapObject::newOrdered());
 }
 
-/*** Default Object Protocol ***/
+/***** Object System Native Interface *****/
 
-uint64_t Type::defaultObjectHash(ObjectRef self)
+#define NOT_IMPL(self, func) {                                  \
+    throw Exceptions::AttributeError(Utils::Strings::format(    \
+        "\"%s\" object doesn't support \"" #func "\" action",   \
+        self->type()->name()                                    \
+    ));                                                         \
+}
+
+/*** Native Object Protocol ***/
+
+uint64_t Type::nativeObjectHash(ObjectRef self)
 {
     /* default: hash the object pointer */
     std::hash<uintptr_t> hash;
     return hash(reinterpret_cast<uintptr_t>(self.get()));
 }
 
-StringList Type::defaultObjectDir(ObjectRef self)
+StringList Type::nativeObjectDir(ObjectRef self)
 {
     /* result name list */
     StringList result;
@@ -282,13 +290,29 @@ StringList Type::defaultObjectDir(ObjectRef self)
     for (const auto &x : self->attrs())
         result.emplace_back(x.first);
 
+    /* type object, also add all attributes from super types */
+    if (self->isInstanceOf(TypeObject))
+    {
+        /* enumerate all it's super types */
+        for (TypeRef ref = self.as<Type>()->_super; ref; ref = ref->_super)
+        {
+            /* list every key in object dict */
+            for (const auto &x : ref->dict())
+                result.emplace_back(x.first);
+
+            /* and built-in attributes */
+            for (const auto &x : ref->attrs())
+                result.emplace_back(x.first);
+        }
+    }
+
     /* sort the names, and remove duplications */
     std::sort(result.begin(), result.end());
     result.erase(std::unique(result.begin(), result.end()), result.end());
     return std::move(result);
 }
 
-std::string Type::defaultObjectRepr(ObjectRef self)
+std::string Type::nativeObjectRepr(ObjectRef self)
 {
     /* basic object representation */
     if (self->isNotInstanceOf(TypeObject))
@@ -299,27 +323,41 @@ std::string Type::defaultObjectRepr(ObjectRef self)
     return Utils::Strings::format("<type \"%s\" at %p>", type->name(), static_cast<void *>(type.get()));
 }
 
-bool Type::defaultObjectIsSubclassOf(ObjectRef self, TypeRef type)
+bool Type::nativeObjectIsSubclassOf(ObjectRef self, TypeRef type)
 {
     /* not a type at all */
-    if (self->type() != TypeObject)
+    if (self->isNotInstanceOf(TypeObject))
         return false;
 
-    /* convert to type reference */
-    TypeRef t = self.as<Type>();
+    /* search for all it's super types */
+    for (TypeRef t = self.as<Type>(); t; t = t->super())
+        if (t.isIdenticalWith(type))
+            return true;
 
-    /* search for parent classes */
-    while (t.isIdenticalWith(type) && t.isIdenticalWith(TypeObject))
-        t = t->super();
-
-    /* check for type */
-    return t.isIdenticalWith(type);
+    /* no super types match */
+    return false;
 }
 
-void Type::defaultObjectDelAttr(ObjectRef self, const std::string &name)
+bool Type::nativeObjectHasAttr(ObjectRef self, const std::string &name)
+{
+    try
+    {
+        /* try getting the attributes from object */
+        objectGetAttr(self, name);
+        return true;
+    }
+    catch (const Exceptions::AttributeError &)
+    {
+        /* attribute not found */
+        return false;
+    }
+}
+
+void Type::nativeObjectDelAttr(ObjectRef self, const std::string &name)
 {
     /* find the attribute in dict */
-    auto iter = self->dict().find(name);
+    TypeRef type = self->type();
+    decltype(self->dict().find(name)) iter = self->dict().find(name);
 
     /* found in instance dict, erase directly */
     if (iter != self->dict().end())
@@ -330,12 +368,17 @@ void Type::defaultObjectDelAttr(ObjectRef self, const std::string &name)
 
     /* built-in attributes */
     if (self->attrs().find(name) != self->attrs().end())
-        throw Exceptions::AttributeError(Utils::Strings::format("Cannot delete built-in attribute \"%s\" of \"%s\"", name, _name));
+        throw Exceptions::AttributeError(Utils::Strings::format("Cannot delete built-in attribute \"%s\" from \"%s\"", name, _name));
 
-    /* find in type dict */
-    if ((iter = this->dict().find(name)) == this->dict().end())
-        if ((iter = this->attrs().find(name)) == this->attrs().end())
-            throw Exceptions::AttributeError(Utils::Strings::format("\"%s\" object has no attribute \"%s\"", _name, name));
+    /* search this type and all of it's super types */
+    while (!(type.isNull()) &&
+           ((iter = type->dict().find(name)) == type->dict().end()) &&
+           ((iter = type->attrs().find(name)) == type->attrs().end()))
+        type = type->_super;
+
+    /* attribute not found */
+    if (type.isNull())
+        throw Exceptions::AttributeError(Utils::Strings::format("\"%s\" object has no attribute \"%s\"", _name, name));
 
     /* check for null */
     if (iter->second.isNull())
@@ -381,9 +424,10 @@ void Type::defaultObjectDelAttr(ObjectRef self, const std::string &name)
         throw Exceptions::InternalError(Utils::Strings::format("Descriptor \"%s\" of \"%s\" gives null", name, _name));
 }
 
-ObjectRef Type::defaultObjectGetAttr(ObjectRef self, const std::string &name)
+ObjectRef Type::nativeObjectGetAttr(ObjectRef self, const std::string &name)
 {
     /* attribute dictionary iterator */
+    TypeRef type = self->type();
     decltype(self->dict().find(name)) iter;
 
     /* attribute exists */
@@ -397,10 +441,34 @@ ObjectRef Type::defaultObjectGetAttr(ObjectRef self, const std::string &name)
             return iter->second;
     }
 
-    /* find in type dict and built-in type attribute dict */
-    if ((iter = this->dict().find(name)) == this->dict().end())
-        if ((iter = this->attrs().find(name)) == this->attrs().end())
-            throw Exceptions::AttributeError(Utils::Strings::format("\"%s\" object has no attribute \"%s\"", _name, name));
+    /* type object, also resolve from super types */
+    if (self->isInstanceOf(TypeObject))
+    {
+        /* search for all it's super types */
+        for (TypeRef ref = self.as<Type>()->_super; ref; ref = ref->_super)
+        {
+            /* attribute exists */
+            if (((iter = ref->dict().find(name)) != ref->dict().end()) ||
+                ((iter = ref->attrs().find(name)) != ref->attrs().end()))
+            {
+                /* check for null, and read it's value directly */
+                if (iter->second.isNull())
+                    throw Exceptions::AttributeError(Utils::Strings::format("Attribute \"%s\" of \"%s\" is not defined yet", name, _name));
+                else
+                    return iter->second;
+            }
+        }
+    }
+
+    /* search this type and all of it's super types */
+    while (!(type.isNull()) &&
+           ((iter = type->dict().find(name)) == type->dict().end()) &&
+           ((iter = type->attrs().find(name)) == type->attrs().end()))
+        type = type->_super;
+
+    /* attribute not found */
+    if (type.isNull())
+        throw Exceptions::AttributeError(Utils::Strings::format("\"%s\" object has no attribute \"%s\"", _name, name));
 
     /* check for null */
     if (iter->second.isNull())
@@ -452,14 +520,15 @@ ObjectRef Type::defaultObjectGetAttr(ObjectRef self, const std::string &name)
     return std::move(result);
 }
 
-void Type::defaultObjectSetAttr(ObjectRef self, const std::string &name, ObjectRef value)
+void Type::nativeObjectSetAttr(ObjectRef self, const std::string &name, ObjectRef value)
 {
     /* check for value */
     if (value.isNull())
         throw Exceptions::InternalError("Setting attributes to null");
 
     /* find the attribute in dict */
-    auto iter = self->dict().find(name);
+    TypeRef type = self->type();
+    decltype(self->dict().find(name)) iter = self->dict().find(name);
 
     /* update it's value if exists */
     if (iter != self->dict().end())
@@ -472,10 +541,15 @@ void Type::defaultObjectSetAttr(ObjectRef self, const std::string &name, ObjectR
     if (self->attrs().find(name) != self->attrs().end())
         throw Exceptions::AttributeError(Utils::Strings::format("Attribute \"%s\" of \"%s\" is read-only", name, _name));
 
-    /* find in type dict */
-    if ((iter = this->dict().find(name)) == this->dict().end())
-        if ((iter = this->attrs().find(name)) == this->attrs().end())
-            throw Exceptions::AttributeError(Utils::Strings::format("\"%s\" object has no attribute \"%s\"", _name, name));
+    /* search this type and all of it's super types */
+    while (!(type.isNull()) &&
+           ((iter = type->dict().find(name)) == type->dict().end()) &&
+           ((iter = type->attrs().find(name)) == type->attrs().end()))
+        type = type->_super;
+
+    /* attribute not found */
+    if (type.isNull())
+        throw Exceptions::AttributeError(Utils::Strings::format("\"%s\" object has no attribute \"%s\"", _name, name));
 
     /* not assigned yet, copy to instance dict */
     if (iter->second.isNull())
@@ -527,41 +601,144 @@ void Type::defaultObjectSetAttr(ObjectRef self, const std::string &name, ObjectR
         throw Exceptions::InternalError(Utils::Strings::format("Descriptor \"%s\" of \"%s\" gives null", name, _name));
 }
 
-/*** Default Boolean Protocol ***/
+void Type::nativeObjectDefineAttr(ObjectRef self, const std::string &name, ObjectRef value)
+{
+    /* check for value */
+    if (value.isNull())
+        throw Exceptions::InternalError("Defining attributes to null");
 
-ObjectRef Type::defaultBoolOr(ObjectRef self, ObjectRef other)
+    /* define the attribute in dict */
+    self->dict().emplace(name, value);
+}
+
+ObjectRef Type::nativeObjectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs)
+{
+    throw Exceptions::TypeError(Utils::Strings::format(
+        "\"%s\" object is not callable",
+        self->type()->name()
+    ));
+}
+
+/*** Native Boolean Protocol ***/
+
+ObjectRef Type::nativeBoolOr(ObjectRef self, ObjectRef other)
 {
     /* default: boolean or their truth value */
     return BoolObject::fromBool(self->type()->objectIsTrue(self) || other->type()->objectIsTrue(other));
 }
 
-ObjectRef Type::defaultBoolAnd(ObjectRef self, ObjectRef other)
+ObjectRef Type::nativeBoolAnd(ObjectRef self, ObjectRef other)
 {
     /* default: boolean and their truth value */
     return BoolObject::fromBool(self->type()->objectIsTrue(self) && other->type()->objectIsTrue(other));
 }
 
-ObjectRef Type::defaultBoolNot(ObjectRef self)
+ObjectRef Type::nativeBoolNot(ObjectRef self)
 {
     /* default: boolean invert it's truth value */
     return BoolObject::fromBool(!(self->type()->objectIsTrue(self)));
 }
 
-/*** Default Comparator Protocol ***/
+/*** Native Numeric Protocol ***/
 
-ObjectRef Type::defaultComparableEq(ObjectRef self, ObjectRef other)
+ObjectRef Type::nativeNumericPos(ObjectRef self)                        NOT_IMPL(self, __pos__)
+ObjectRef Type::nativeNumericNeg(ObjectRef self)                        NOT_IMPL(self, __neg__)
+
+ObjectRef Type::nativeNumericAdd  (ObjectRef self, ObjectRef other)     NOT_IMPL(self, __add__)
+ObjectRef Type::nativeNumericSub  (ObjectRef self, ObjectRef other)     NOT_IMPL(self, __sub__)
+ObjectRef Type::nativeNumericMul  (ObjectRef self, ObjectRef other)     NOT_IMPL(self, __mul__)
+ObjectRef Type::nativeNumericDiv  (ObjectRef self, ObjectRef other)     NOT_IMPL(self, __div__)
+ObjectRef Type::nativeNumericMod  (ObjectRef self, ObjectRef other)     NOT_IMPL(self, __mod__)
+ObjectRef Type::nativeNumericPower(ObjectRef self, ObjectRef other)     NOT_IMPL(self, __power__)
+
+ObjectRef Type::nativeNumericOr (ObjectRef self, ObjectRef other)       NOT_IMPL(self, __or__)
+ObjectRef Type::nativeNumericAnd(ObjectRef self, ObjectRef other)       NOT_IMPL(self, __and__)
+ObjectRef Type::nativeNumericXor(ObjectRef self, ObjectRef other)       NOT_IMPL(self, __xor__)
+ObjectRef Type::nativeNumericNot(ObjectRef self)                        NOT_IMPL(self, __not__)
+
+ObjectRef Type::nativeNumericLShift(ObjectRef self, ObjectRef other)    NOT_IMPL(self, __lshift__)
+ObjectRef Type::nativeNumericRShift(ObjectRef self, ObjectRef other)    NOT_IMPL(self, __rshift__)
+
+ObjectRef Type::nativeNumericIncAdd  (ObjectRef self, ObjectRef other)  NOT_IMPL(self, __inc_add__)
+ObjectRef Type::nativeNumericIncSub  (ObjectRef self, ObjectRef other)  NOT_IMPL(self, __inc_sub__)
+ObjectRef Type::nativeNumericIncMul  (ObjectRef self, ObjectRef other)  NOT_IMPL(self, __inc_mul__)
+ObjectRef Type::nativeNumericIncDiv  (ObjectRef self, ObjectRef other)  NOT_IMPL(self, __inc_div__)
+ObjectRef Type::nativeNumericIncMod  (ObjectRef self, ObjectRef other)  NOT_IMPL(self, __inc_mod__)
+ObjectRef Type::nativeNumericIncPower(ObjectRef self, ObjectRef other)  NOT_IMPL(self, __inc_power__)
+
+ObjectRef Type::nativeNumericIncOr (ObjectRef self, ObjectRef other)    NOT_IMPL(self, __inc_or__)
+ObjectRef Type::nativeNumericIncAnd(ObjectRef self, ObjectRef other)    NOT_IMPL(self, __inc_and__)
+ObjectRef Type::nativeNumericIncXor(ObjectRef self, ObjectRef other)    NOT_IMPL(self, __inc_xor__)
+
+ObjectRef Type::nativeNumericIncLShift(ObjectRef self, ObjectRef other) NOT_IMPL(self, __inc_lshift__)
+ObjectRef Type::nativeNumericIncRShift(ObjectRef self, ObjectRef other) NOT_IMPL(self, __inc_rshift__)
+
+/*** Native Iterator Protocol ***/
+
+ObjectRef Type::nativeIterableIter(ObjectRef self) NOT_IMPL(self, __iter__)
+ObjectRef Type::nativeIterableNext(ObjectRef self) NOT_IMPL(self, __next__)
+
+/*** Native Sequence Protocol ***/
+
+ObjectRef Type::nativeSequenceLen     (ObjectRef self)                                    NOT_IMPL(self, __len__)
+void      Type::nativeSequenceDelItem (ObjectRef self, ObjectRef other)                   NOT_IMPL(self, __delitem__)
+ObjectRef Type::nativeSequenceGetItem (ObjectRef self, ObjectRef other)                   NOT_IMPL(self, __getitem__)
+void      Type::nativeSequenceSetItem (ObjectRef self, ObjectRef second, ObjectRef third) NOT_IMPL(self, __setitem__)
+
+void Type::nativeSequenceDelSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step)
+{
+    /* avoid null objects been exported to user program */
+    if (end.isNull()) end = NullObject;
+    if (step.isNull()) step = NullObject;
+    if (begin.isNull()) begin = NullObject;
+
+    /* wrap as delete slicing item */
+    sequenceDelItem(self, Object::newObject<SliceObject>(begin, end, step));
+}
+
+ObjectRef Type::nativeSequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step)
+{
+    /* avoid null objects been exported to user program */
+    if (end.isNull()) end = NullObject;
+    if (step.isNull()) step = NullObject;
+    if (begin.isNull()) begin = NullObject;
+
+    /* wrap as get slicing item */
+    return sequenceGetItem(self, Object::newObject<SliceObject>(begin, end, step));
+}
+
+void Type::nativeSequenceSetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step, ObjectRef value)
+{
+    /* avoid null objects been exported to user program */
+    if (end.isNull()) end = NullObject;
+    if (step.isNull()) step = NullObject;
+    if (begin.isNull()) begin = NullObject;
+
+    /* wrap as set slicing item */
+    sequenceSetItem(self, Object::newObject<SliceObject>(begin, end, step), value);
+}
+
+/*** Native Comparator Protocol ***/
+
+ObjectRef Type::nativeComparableLt      (ObjectRef self, ObjectRef other) NOT_IMPL(self, __lt__)
+ObjectRef Type::nativeComparableGt      (ObjectRef self, ObjectRef other) NOT_IMPL(self, __gt__)
+ObjectRef Type::nativeComparableLeq     (ObjectRef self, ObjectRef other) NOT_IMPL(self, __leq__)
+ObjectRef Type::nativeComparableGeq     (ObjectRef self, ObjectRef other) NOT_IMPL(self, __geq__)
+ObjectRef Type::nativeComparableContains(ObjectRef self, ObjectRef other) NOT_IMPL(self, __contains__)
+
+ObjectRef Type::nativeComparableEq(ObjectRef self, ObjectRef other)
 {
     /* default: pointer comparison */
     return BoolObject::fromBool(self.isIdenticalWith(other));
 }
 
-ObjectRef Type::defaultComparableNeq(ObjectRef self, ObjectRef other)
+ObjectRef Type::nativeComparableNeq(ObjectRef self, ObjectRef other)
 {
     /* default: pointer comparison */
     return BoolObject::fromBool(self.isNotIdenticalWith(other));
 }
 
-ObjectRef Type::defaultComparableCompare(ObjectRef self, ObjectRef other)
+ObjectRef Type::nativeComparableCompare(ObjectRef self, ObjectRef other)
 {
     /* check for equality */
     if (self == other)
@@ -597,16 +774,44 @@ ObjectRef Type::defaultComparableCompare(ObjectRef self, ObjectRef other)
     ));
 }
 
+#undef NOT_IMPL
+
+/***** Object System Interface *****/
+
+#define APPLY_UNARY(name, func, self) {                                     \
+    ObjectRef m = findUserMethod(self, #name, nullptr);                     \
+    return m.isNull() ? native ## func(std::move(self))                     \
+                      : applyUnaryMethod(std::move(m), std::move(self));    \
+}
+
+#define APPLY_BINARY(name, func, self, arg1) {                                              \
+    ObjectRef m = findUserMethod(self, #name, nullptr);                                     \
+    return m.isNull() ? native ## func(std::move(self), std::move(arg1))                    \
+                      : applyBinaryMethod(std::move(m), std::move(self), std::move(arg1));  \
+}
+
+#define APPLY_BINARY_ALT(name, alt, func, self, arg1) {                                     \
+    ObjectRef m = findUserMethod(self, #name, #alt);                                        \
+    return m.isNull() ? native ## func(std::move(self), std::move(arg1))                    \
+                      : applyBinaryMethod(std::move(m), std::move(self), std::move(arg1));  \
+}
+
+#define APPLY_TERNARY(name, func, self, arg1, arg2) {                                                           \
+    ObjectRef m = findUserMethod(self, #name, nullptr);                                                         \
+    return m.isNull() ? native ## func(std::move(self), std::move(arg1), std::move(arg2))                       \
+                      : applyTernaryMethod(std::move(m), std::move(self), std::move(arg1), std::move(arg2));    \
+}
+
 /*** Object Protocol ***/
 
 uint64_t Type::objectHash(ObjectRef self)
 {
     /* apply the "__hash__" function */
-    ObjectRef ret = applyUnary("__hash__", self, true);
+    ObjectRef ret = applyUnary("__hash__", self);
 
     /* doesn't have user-defined "__hash__" function */
     if (ret.isNull())
-        return defaultObjectHash(self);
+        return nativeObjectHash(self);
 
     /* must be an integer object */
     if (ret->isNotInstanceOf(IntTypeObject))
@@ -631,12 +836,12 @@ uint64_t Type::objectHash(ObjectRef self)
 StringList Type::objectDir(ObjectRef self)
 {
     /* apply the "__dir__" function */
-    ObjectRef ret = applyUnary("__dir__", self, true);
+    ObjectRef ret = applyUnary("__dir__", self);
     StringList result;
 
     /* doesn't have user-defined "__dir__" function */
     if (ret.isNull())
-        return defaultObjectDir(self);
+        return nativeObjectDir(self);
 
     /* must be a tuple */
     if (ret->isNotInstanceOf(TupleTypeObject))
@@ -663,11 +868,11 @@ StringList Type::objectDir(ObjectRef self)
 std::string Type::objectStr(ObjectRef self)
 {
     /* apply the "__str__" function */
-    ObjectRef ret = applyUnary("__str__", self, true);
+    ObjectRef ret = applyUnary("__str__", self);
 
     /* doesn't have user-defined "__str__" function */
     if (ret.isNull())
-        return defaultObjectStr(self);
+        return nativeObjectStr(self);
 
     /* must be an integer object */
     if (ret->isNotInstanceOf(StringTypeObject))
@@ -685,11 +890,11 @@ std::string Type::objectStr(ObjectRef self)
 std::string Type::objectRepr(ObjectRef self)
 {
     /* apply the "__repr__" function */
-    ObjectRef ret = applyUnary("__repr__", self, true);
+    ObjectRef ret = applyUnary("__repr__", self);
 
     /* doesn't have user-defined "__repr__" function */
     if (ret.isNull())
-        return defaultObjectRepr(self);
+        return nativeObjectRepr(self);
 
     /* must be an integer object */
     if (ret->isNotInstanceOf(StringTypeObject))
@@ -704,42 +909,15 @@ std::string Type::objectRepr(ObjectRef self)
     return ret.as<StringObject>()->value();
 }
 
-bool Type::objectIsSubclassOf(ObjectRef self, TypeRef type)
-{
-    ObjectRef ret = applyBinary("__is_subclass_of__", self, type, nullptr, true);
-    return ret.isNull() ? defaultObjectIsSubclassOf(std::move(self), std::move(type)) : ret->type()->objectIsTrue(ret);
-}
-
-bool Type::objectIsInstanceOf(ObjectRef self, TypeRef type)
-{
-    ObjectRef ret = applyBinary("__is_instance_of__", self, type, nullptr, true);
-    return ret.isNull() ? defaultObjectIsInstanceOf(std::move(self), std::move(type)) : ret->type()->objectIsTrue(ret);
-}
-
-bool Type::objectHasAttr(ObjectRef self, const std::string &name)
-{
-    try
-    {
-        /* try getting the attributes from object */
-        objectGetAttr(self, name);
-        return true;
-    }
-    catch (const Exceptions::AttributeError &)
-    {
-        /* attribute not found */
-        return false;
-    }
-}
-
 void Type::objectDelAttr(ObjectRef self, const std::string &name)
 {
     /* find the user method */
     ObjectRef method = findUserMethod(self, "__delattr__", nullptr);
 
-    /* doesn't have one, call the default */
+    /* doesn't have one, call the native method */
     if (method.isNull())
     {
-        defaultObjectDelAttr(std::move(self), name);
+        nativeObjectDelAttr(std::move(self), name);
         return;
     }
 
@@ -756,9 +934,9 @@ ObjectRef Type::objectGetAttr(ObjectRef self, const std::string &name)
     /* find the user method */
     ObjectRef method = findUserMethod(self, "__getattr__", nullptr);
 
-    /* doesn't have one, call the default */
+    /* doesn't have one, call the native method */
     if (method.isNull())
-        return defaultObjectGetAttr(std::move(self), name);
+        return nativeObjectGetAttr(std::move(self), name);
 
     /* otherwise, apply the user method */
     return applyBinaryMethod(
@@ -773,10 +951,10 @@ void Type::objectSetAttr(ObjectRef self, const std::string &name, ObjectRef valu
     /* find the user method */
     ObjectRef method = findUserMethod(self, "__setattr__", nullptr);
 
-    /* doesn't have one, call the default */
+    /* doesn't have one, call the native method */
     if (method.isNull())
     {
-        defaultObjectSetAttr(std::move(self), name, std::move(value));
+        nativeObjectSetAttr(std::move(self), name, std::move(value));
         return;
     }
 
@@ -789,110 +967,117 @@ void Type::objectSetAttr(ObjectRef self, const std::string &name, ObjectRef valu
     );
 }
 
-void Type::objectDefineAttr(ObjectRef self, const std::string &name, ObjectRef value)
-{
-    /* check for value */
-    if (value.isNull())
-        throw Exceptions::InternalError("Defining attributes to null");
-
-    /* define the attribute in dict */
-    self->dict().emplace(name, value);
-}
-
 ObjectRef Type::objectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs)
 {
-    /* apply the user method if any */
-    ObjectRef ret = applyTernary(
-        "__invoke__",
-        std::move(self),
-        std::move(args),
-        std::move(kwargs),
-        true
-    );
-
-    /* apply successful */
-    if (!(ret.isNull()))
-        return std::move(ret);
-
-    /* otherwise, not callable */
-    throw Exceptions::TypeError(Utils::Strings::format(
-        "\"%s\" object is not callable",
-        self->type()->name()
-    ));
+    /* apply ternary operator */
+    APPLY_TERNARY(__invoke__, ObjectInvoke, self, args, kwargs)
 }
 
 /*** Boolean Protocol ***/
 
-ObjectRef Type::boolOr(ObjectRef self, ObjectRef other)
-{
-    ObjectRef ret = applyBinary("__bool_or__", self, other, nullptr, true);
-    return ret.isNull() ? defaultBoolOr(std::move(self), std::move(other)) : std::move(ret);
-}
+ObjectRef Type::boolOr (ObjectRef self, ObjectRef other)            APPLY_BINARY(__bool_or__ , BoolOr , self, other)
+ObjectRef Type::boolAnd(ObjectRef self, ObjectRef other)            APPLY_BINARY(__bool_and__, BoolAnd, self, other)
+ObjectRef Type::boolNot(ObjectRef self)                             APPLY_UNARY (__bool_not__, BoolNot, self)
 
-ObjectRef Type::boolAnd(ObjectRef self, ObjectRef other)
-{
-    ObjectRef ret = applyBinary("__bool_and__", self, other, nullptr, true);
-    return ret.isNull() ? defaultBoolAnd(std::move(self), std::move(other)) : std::move(ret);
-}
+/*** Numeric Protocol ***/
 
-ObjectRef Type::boolNot(ObjectRef self)
-{
-    ObjectRef ret = applyUnary("__bool_not__", self, true);
-    return ret.isNull() ? defaultBoolNot(std::move(self)) : std::move(ret);
-}
+ObjectRef Type::numericPos(ObjectRef self)                          APPLY_UNARY (__pos__   , NumericPos   , self)
+ObjectRef Type::numericNeg(ObjectRef self)                          APPLY_UNARY (__neg__   , NumericNeg   , self)
+
+ObjectRef Type::numericAdd  (ObjectRef self, ObjectRef other)       APPLY_BINARY(__add__   , NumericAdd   , self, other)
+ObjectRef Type::numericSub  (ObjectRef self, ObjectRef other)       APPLY_BINARY(__sub__   , NumericSub   , self, other)
+ObjectRef Type::numericMul  (ObjectRef self, ObjectRef other)       APPLY_BINARY(__mul__   , NumericMul   , self, other)
+ObjectRef Type::numericDiv  (ObjectRef self, ObjectRef other)       APPLY_BINARY(__div__   , NumericDiv   , self, other)
+ObjectRef Type::numericMod  (ObjectRef self, ObjectRef other)       APPLY_BINARY(__mod__   , NumericMod   , self, other)
+ObjectRef Type::numericPower(ObjectRef self, ObjectRef other)       APPLY_BINARY(__power__ , NumericPower , self, other)
+
+ObjectRef Type::numericOr (ObjectRef self, ObjectRef other)         APPLY_BINARY(__or__    , NumericOr    , self, other)
+ObjectRef Type::numericAnd(ObjectRef self, ObjectRef other)         APPLY_BINARY(__and__   , NumericAnd   , self, other)
+ObjectRef Type::numericXor(ObjectRef self, ObjectRef other)         APPLY_BINARY(__xor__   , NumericXor   , self, other)
+ObjectRef Type::numericNot(ObjectRef self)                          APPLY_UNARY (__not__   , NumericNot   , self)
+
+ObjectRef Type::numericLShift(ObjectRef self, ObjectRef other)      APPLY_BINARY(__lshift__, NumericLShift, self, other)
+ObjectRef Type::numericRShift(ObjectRef self, ObjectRef other)      APPLY_BINARY(__rshift__, NumericRShift, self, other)
+
+ObjectRef Type::numericIncAdd  (ObjectRef self, ObjectRef other)    APPLY_BINARY_ALT(__inc_add__   , __add__   , NumericIncAdd   , self, other)
+ObjectRef Type::numericIncSub  (ObjectRef self, ObjectRef other)    APPLY_BINARY_ALT(__inc_sub__   , __sub__   , NumericIncSub   , self, other)
+ObjectRef Type::numericIncMul  (ObjectRef self, ObjectRef other)    APPLY_BINARY_ALT(__inc_mul__   , __mul__   , NumericIncMul   , self, other)
+ObjectRef Type::numericIncDiv  (ObjectRef self, ObjectRef other)    APPLY_BINARY_ALT(__inc_div__   , __div__   , NumericIncDiv   , self, other)
+ObjectRef Type::numericIncMod  (ObjectRef self, ObjectRef other)    APPLY_BINARY_ALT(__inc_mod__   , __mod__   , NumericIncMod   , self, other)
+ObjectRef Type::numericIncPower(ObjectRef self, ObjectRef other)    APPLY_BINARY_ALT(__inc_power__ , __power__ , NumericIncPower , self, other)
+
+ObjectRef Type::numericIncOr (ObjectRef self, ObjectRef other)      APPLY_BINARY_ALT(__inc_or__    , __or__    , NumericIncOr    , self, other)
+ObjectRef Type::numericIncAnd(ObjectRef self, ObjectRef other)      APPLY_BINARY_ALT(__inc_and__   , __and__   , NumericIncAnd   , self, other)
+ObjectRef Type::numericIncXor(ObjectRef self, ObjectRef other)      APPLY_BINARY_ALT(__inc_xor__   , __xor__   , NumericIncXor   , self, other)
+
+ObjectRef Type::numericIncLShift(ObjectRef self, ObjectRef other)   APPLY_BINARY_ALT(__inc_lshift__, __lshift__, NumericIncLShift, self, other)
+ObjectRef Type::numericIncRShift(ObjectRef self, ObjectRef other)   APPLY_BINARY_ALT(__inc_rshift__, __rshift__, NumericIncRShift, self, other)
+
+/*** Iterator Protocol ***/
+
+ObjectRef Type::iterableIter(ObjectRef self)                        APPLY_UNARY (__iter__, IterableIter, self)
+ObjectRef Type::iterableNext(ObjectRef self)                        APPLY_UNARY (__next__, IterableNext, self)
 
 /*** Sequence Protocol ***/
 
-void Type::sequenceDelSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step)
-{
-    /* avoid null objects been exported to user program */
-    if (end.isNull()) end = NullObject;
-    if (step.isNull()) step = NullObject;
-    if (begin.isNull()) begin = NullObject;
+ObjectRef Type::sequenceLen(ObjectRef self)                         APPLY_UNARY (__len__    , SequenceLen, self)
+ObjectRef Type::sequenceGetItem(ObjectRef self, ObjectRef other)    APPLY_BINARY(__getitem__, SequenceGetItem, self, other)
 
-    /* wrap as delete slicing item */
-    self->type()->sequenceDelItem(self, Object::newObject<SliceObject>(begin, end, step));
+void Type::sequenceDelItem(ObjectRef self, ObjectRef other)
+{
+    /* find the user method */
+    ObjectRef method = findUserMethod(self, "__delitem__", nullptr);
+
+    /* doesn't have one, call the native method */
+    if (method.isNull())
+    {
+        nativeSequenceDelItem(std::move(self), std::move(other));
+        return;
+    }
+
+    /* otherwise, apply the user method */
+    applyBinaryMethod(
+        std::move(method),
+        std::move(self),
+        std::move(other)
+    );
 }
 
-ObjectRef Type::sequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step)
+void Type::sequenceSetItem(ObjectRef self, ObjectRef second, ObjectRef third)
 {
-    /* avoid null objects been exported to user program */
-    if (end.isNull()) end = NullObject;
-    if (step.isNull()) step = NullObject;
-    if (begin.isNull()) begin = NullObject;
+    /* find the user method */
+    ObjectRef method = findUserMethod(self, "__setitem__", nullptr);
 
-    /* wrap as get slicing item */
-    return self->type()->sequenceGetItem(self, Object::newObject<SliceObject>(begin, end, step));
-}
+    /* doesn't have one, call the native method */
+    if (method.isNull())
+    {
+        nativeSequenceSetItem(std::move(self), std::move(second), std::move(third));
+        return;
+    }
 
-void Type::sequenceSetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step, ObjectRef value)
-{
-    /* avoid null objects been exported to user program */
-    if (end.isNull()) end = NullObject;
-    if (step.isNull()) step = NullObject;
-    if (begin.isNull()) begin = NullObject;
-
-    /* wrap as set slicing item */
-    self->type()->sequenceSetItem(self, Object::newObject<SliceObject>(begin, end, step), value);
+    /* otherwise, apply the user method */
+    applyTernaryMethod(
+        std::move(method),
+        std::move(self),
+        std::move(second),
+        std::move(third)
+    );
 }
 
 /*** Comparator Protocol ***/
 
-ObjectRef Type::comparableEq(ObjectRef self, ObjectRef other)
-{
-    ObjectRef ret = applyBinary("__eq__", self, other, nullptr, true);
-    return ret.isNull() ? defaultComparableEq(std::move(self), std::move(other)) : std::move(ret);
-}
+ObjectRef Type::comparableEq      (ObjectRef self, ObjectRef other) APPLY_BINARY(__eq__      , ComparableEq      , self, other)
+ObjectRef Type::comparableLt      (ObjectRef self, ObjectRef other) APPLY_BINARY(__lt__      , ComparableLt      , self, other)
+ObjectRef Type::comparableGt      (ObjectRef self, ObjectRef other) APPLY_BINARY(__gt__      , ComparableGt      , self, other)
+ObjectRef Type::comparableNeq     (ObjectRef self, ObjectRef other) APPLY_BINARY(__neq__     , ComparableNeq     , self, other)
+ObjectRef Type::comparableLeq     (ObjectRef self, ObjectRef other) APPLY_BINARY(__leq__     , ComparableLeq     , self, other)
+ObjectRef Type::comparableGeq     (ObjectRef self, ObjectRef other) APPLY_BINARY(__geq__     , ComparableGeq     , self, other)
+ObjectRef Type::comparableCompare (ObjectRef self, ObjectRef other) APPLY_BINARY(__compare__ , ComparableCompare , self, other)
+ObjectRef Type::comparableContains(ObjectRef self, ObjectRef other) APPLY_BINARY(__contains__, ComparableContains, self, other)
 
-ObjectRef Type::comparableNeq(ObjectRef self, ObjectRef other)
-{
-    ObjectRef ret = applyBinary("__neq__", self, other, nullptr, true);
-    return ret.isNull() ? defaultComparableNeq(std::move(self), std::move(other)) : std::move(ret);
-}
+#undef APPLY_UNARY
+#undef APPLY_BINARY
+#undef APPLY_BINARY_ALT
+#undef APPLY_TERNARY
 
-ObjectRef Type::comparableCompare(ObjectRef self, ObjectRef other)
-{
-    ObjectRef ret = applyBinary("__compare__", self, other, nullptr, true);
-    return ret.isNull() ? defaultComparableCompare(std::move(self), std::move(other)) : std::move(ret);
-}
 }

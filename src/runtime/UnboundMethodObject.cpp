@@ -6,7 +6,7 @@ namespace RedScript::Runtime
 /* type object for unbound method */
 TypeRef UnboundMethodTypeObject;
 
-ObjectRef UnboundMethodType::objectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs)
+ObjectRef UnboundMethodType::nativeObjectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs)
 {
     /* check object type */
     if (self->isNotInstanceOf(UnboundMethodTypeObject))

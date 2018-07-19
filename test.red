@@ -52,6 +52,10 @@
 #}
 #}
 
-a = b = 2
-print(a, b)
+a = 2
+print(dir(a.__class__))
+print(a.__class__)
 print(a.__class__.__name__)
+print(a.__class__.__hash__)
+print(a.__class__.__super__)
+print(a.__class__.__super__.__super__)

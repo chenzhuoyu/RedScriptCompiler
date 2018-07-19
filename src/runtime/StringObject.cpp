@@ -20,35 +20,35 @@ static Reference<StringObject> _empty;
 static std::array<Reference<StringObject>, 256> _chars;
 static std::unordered_map<std::string, Reference<StringObject>> _interned;
 
-/*** Object Protocol ***/
+/*** Native Object Protocol ***/
 
-uint64_t StringType::objectHash(ObjectRef self)
+uint64_t StringType::nativeObjectHash(ObjectRef self)
 {
     static std::hash<std::string> hash;
     return hash(self.as<StringObject>()->_value);
 }
 
-std::string StringType::objectStr(ObjectRef self)
+std::string StringType::nativeObjectStr(ObjectRef self)
 {
     /* just give the string itself */
     return self.as<StringObject>()->_value;
 }
 
-std::string StringType::objectRepr(ObjectRef self)
+std::string StringType::nativeObjectRepr(ObjectRef self)
 {
     const auto &str = self.as<StringObject>()->_value;
     return Utils::Strings::repr(str.data(), str.size());
 }
 
-bool StringType::objectIsTrue(ObjectRef self)
+bool StringType::nativeObjectIsTrue(ObjectRef self)
 {
     /* non-empty string represents "true" */
     return !self.as<StringObject>()->_value.empty();
 }
 
-/*** Numeric Protocol ***/
+/*** Native Numeric Protocol ***/
 
-ObjectRef StringType::numericAdd(ObjectRef self, ObjectRef other)
+ObjectRef StringType::nativeNumericAdd(ObjectRef self, ObjectRef other)
 {
     /* type check */
     if (other->isNotInstanceOf(StringTypeObject))
@@ -66,7 +66,7 @@ ObjectRef StringType::numericAdd(ObjectRef self, ObjectRef other)
     );
 }
 
-ObjectRef StringType::numericMul(ObjectRef self, ObjectRef other)
+ObjectRef StringType::nativeNumericMul(ObjectRef self, ObjectRef other)
 {
     /* type check */
     if (other->isNotInstanceOf(IntTypeObject))
@@ -107,36 +107,36 @@ ObjectRef StringType::numericMul(ObjectRef self, ObjectRef other)
     }
 }
 
-/*** Iterator Protocol ***/
+/*** Native Iterator Protocol ***/
 
-ObjectRef StringType::iterableIter(ObjectRef self)
+ObjectRef StringType::nativeIterableIter(ObjectRef self)
 {
     /* create an iterator from string */
     return Object::newObject<StringIteratorObject>(self.as<StringObject>());
 }
 
-ObjectRef StringIteratorType::iterableNext(ObjectRef self)
+ObjectRef StringIteratorType::nativeIterableNext(ObjectRef self)
 {
     /* get the next string */
     return self.as<StringIteratorObject>()->next();
 }
 
-/*** Sequence Protocol ***/
+/*** Native Sequence Protocol ***/
 
-ObjectRef StringType::sequenceLen(ObjectRef self)
+ObjectRef StringType::nativeSequenceLen(ObjectRef self)
 {
     /* get the length, and wrap with integer */
     return IntObject::fromUInt(self.as<StringObject>()->size());
 }
 
-ObjectRef StringType::sequenceGetItem(ObjectRef self, ObjectRef other)
+ObjectRef StringType::nativeSequenceGetItem(ObjectRef self, ObjectRef other)
 {
     /* extract the item */
     Reference<StringObject> string = self.as<StringObject>();
     return StringObject::fromStringInterned(std::string(1, string->_value[Utils::Lists::indexConstraint(string, other)]));
 }
 
-ObjectRef StringType::sequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step)
+ObjectRef StringType::nativeSequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step)
 {
     /* parse the slice range */
     auto string = self.as<StringObject>();
@@ -190,16 +190,16 @@ ObjectRef StringType::sequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRe
     );                                                                          \
 }
 
-ObjectRef StringType::comparableEq (ObjectRef self, ObjectRef other) BOOL_OP(==)
-ObjectRef StringType::comparableLt (ObjectRef self, ObjectRef other) BOOL_OP(< )
-ObjectRef StringType::comparableGt (ObjectRef self, ObjectRef other) BOOL_OP(> )
-ObjectRef StringType::comparableNeq(ObjectRef self, ObjectRef other) BOOL_OP(!=)
-ObjectRef StringType::comparableLeq(ObjectRef self, ObjectRef other) BOOL_OP(<=)
-ObjectRef StringType::comparableGeq(ObjectRef self, ObjectRef other) BOOL_OP(>=)
+ObjectRef StringType::nativeComparableEq (ObjectRef self, ObjectRef other) BOOL_OP(==)
+ObjectRef StringType::nativeComparableLt (ObjectRef self, ObjectRef other) BOOL_OP(< )
+ObjectRef StringType::nativeComparableGt (ObjectRef self, ObjectRef other) BOOL_OP(> )
+ObjectRef StringType::nativeComparableNeq(ObjectRef self, ObjectRef other) BOOL_OP(!=)
+ObjectRef StringType::nativeComparableLeq(ObjectRef self, ObjectRef other) BOOL_OP(<=)
+ObjectRef StringType::nativeComparableGeq(ObjectRef self, ObjectRef other) BOOL_OP(>=)
 
 #undef BOOL_OP
 
-ObjectRef StringType::comparableCompare(ObjectRef self, ObjectRef other)
+ObjectRef StringType::nativeComparableCompare(ObjectRef self, ObjectRef other)
 {
     /* string type check */
     if (!(other->type()->objectIsInstanceOf(other, StringTypeObject)))
@@ -214,7 +214,7 @@ ObjectRef StringType::comparableCompare(ObjectRef self, ObjectRef other)
     return IntObject::fromInt(self.as<StringObject>()->_value.compare(other.as<StringObject>()->_value));
 }
 
-ObjectRef StringType::comparableContains(ObjectRef self, ObjectRef other)
+ObjectRef StringType::nativeComparableContains(ObjectRef self, ObjectRef other)
 {
     return BoolObject::fromBool(
         other->type()->objectIsInstanceOf(other, StringTypeObject) &&

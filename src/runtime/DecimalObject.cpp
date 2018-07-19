@@ -35,33 +35,33 @@ Utils::Decimal DecimalType::toDecimal(ObjectRef other)
         throw Exceptions::TypeError("Operand must be `int` or `decimal` object");
 }
 
-/*** Object Protocol ***/
+/*** Native Object Protocol ***/
 
-uint64_t    DecimalType::objectHash  (ObjectRef self) { return self.as<DecimalObject>()->_value.toHash();    }
-std::string DecimalType::objectRepr  (ObjectRef self) { return self.as<DecimalObject>()->_value.toString();  }
-bool        DecimalType::objectIsTrue(ObjectRef self) { return !(self.as<DecimalObject>()->_value.isZero()); }
+uint64_t    DecimalType::nativeObjectHash  (ObjectRef self) { return self.as<DecimalObject>()->_value.toHash();    }
+std::string DecimalType::nativeObjectRepr  (ObjectRef self) { return self.as<DecimalObject>()->_value.toString();  }
+bool        DecimalType::nativeObjectIsTrue(ObjectRef self) { return !(self.as<DecimalObject>()->_value.isZero()); }
 
-/*** Numeric Protocol ***/
+/*** Native Numeric Protocol ***/
 
-ObjectRef DecimalType::numericPos(ObjectRef self) { return DecimalObject::fromDecimal(+(self.as<DecimalObject>()->_value)); }
-ObjectRef DecimalType::numericNeg(ObjectRef self) { return DecimalObject::fromDecimal(-(self.as<DecimalObject>()->_value)); }
+ObjectRef DecimalType::nativeNumericPos(ObjectRef self) { return DecimalObject::fromDecimal(+(self.as<DecimalObject>()->_value)); }
+ObjectRef DecimalType::nativeNumericNeg(ObjectRef self) { return DecimalObject::fromDecimal(-(self.as<DecimalObject>()->_value)); }
 
-ObjectRef DecimalType::numericAdd  (ObjectRef self, ObjectRef other) { return DecimalObject::fromDecimal(self.as<DecimalObject>()->_value  +  toDecimal(other));  }
-ObjectRef DecimalType::numericSub  (ObjectRef self, ObjectRef other) { return DecimalObject::fromDecimal(self.as<DecimalObject>()->_value  -  toDecimal(other));  }
-ObjectRef DecimalType::numericMul  (ObjectRef self, ObjectRef other) { return DecimalObject::fromDecimal(self.as<DecimalObject>()->_value  *  toDecimal(other));  }
-ObjectRef DecimalType::numericDiv  (ObjectRef self, ObjectRef other) { return DecimalObject::fromDecimal(self.as<DecimalObject>()->_value  /  toDecimal(other));  }
-ObjectRef DecimalType::numericMod  (ObjectRef self, ObjectRef other) { return DecimalObject::fromDecimal(self.as<DecimalObject>()->_value  %  toDecimal(other));  }
-ObjectRef DecimalType::numericPower(ObjectRef self, ObjectRef other) { return DecimalObject::fromDecimal(self.as<DecimalObject>()->_value.pow(toDecimal(other))); }
+ObjectRef DecimalType::nativeNumericAdd  (ObjectRef self, ObjectRef other) { return DecimalObject::fromDecimal(self.as<DecimalObject>()->_value  +  toDecimal(other));  }
+ObjectRef DecimalType::nativeNumericSub  (ObjectRef self, ObjectRef other) { return DecimalObject::fromDecimal(self.as<DecimalObject>()->_value  -  toDecimal(other));  }
+ObjectRef DecimalType::nativeNumericMul  (ObjectRef self, ObjectRef other) { return DecimalObject::fromDecimal(self.as<DecimalObject>()->_value  *  toDecimal(other));  }
+ObjectRef DecimalType::nativeNumericDiv  (ObjectRef self, ObjectRef other) { return DecimalObject::fromDecimal(self.as<DecimalObject>()->_value  /  toDecimal(other));  }
+ObjectRef DecimalType::nativeNumericMod  (ObjectRef self, ObjectRef other) { return DecimalObject::fromDecimal(self.as<DecimalObject>()->_value  %  toDecimal(other));  }
+ObjectRef DecimalType::nativeNumericPower(ObjectRef self, ObjectRef other) { return DecimalObject::fromDecimal(self.as<DecimalObject>()->_value.pow(toDecimal(other))); }
 
-/*** Comparator Protocol ***/
+/*** Native Comparator Protocol ***/
 
-ObjectRef DecimalType::comparableEq     (ObjectRef self, ObjectRef other) { return BoolObject::fromBool(compare(self, other, [](int ret){ return ret == 0; })); }
-ObjectRef DecimalType::comparableLt     (ObjectRef self, ObjectRef other) { return BoolObject::fromBool(compare(self, other, [](int ret){ return ret <  0; })); }
-ObjectRef DecimalType::comparableGt     (ObjectRef self, ObjectRef other) { return BoolObject::fromBool(compare(self, other, [](int ret){ return ret >  0; })); }
-ObjectRef DecimalType::comparableNeq    (ObjectRef self, ObjectRef other) { return BoolObject::fromBool(compare(self, other, [](int ret){ return ret != 0; })); }
-ObjectRef DecimalType::comparableLeq    (ObjectRef self, ObjectRef other) { return BoolObject::fromBool(compare(self, other, [](int ret){ return ret <= 0; })); }
-ObjectRef DecimalType::comparableGeq    (ObjectRef self, ObjectRef other) { return BoolObject::fromBool(compare(self, other, [](int ret){ return ret >= 0; })); }
-ObjectRef DecimalType::comparableCompare(ObjectRef self, ObjectRef other) { return IntObject::fromInt(self.as<DecimalObject>()->_value.cmp(toDecimal(other)));  }
+ObjectRef DecimalType::nativeComparableEq     (ObjectRef self, ObjectRef other) { return BoolObject::fromBool(compare(self, other, [](int ret){ return ret == 0; })); }
+ObjectRef DecimalType::nativeComparableLt     (ObjectRef self, ObjectRef other) { return BoolObject::fromBool(compare(self, other, [](int ret){ return ret <  0; })); }
+ObjectRef DecimalType::nativeComparableGt     (ObjectRef self, ObjectRef other) { return BoolObject::fromBool(compare(self, other, [](int ret){ return ret >  0; })); }
+ObjectRef DecimalType::nativeComparableNeq    (ObjectRef self, ObjectRef other) { return BoolObject::fromBool(compare(self, other, [](int ret){ return ret != 0; })); }
+ObjectRef DecimalType::nativeComparableLeq    (ObjectRef self, ObjectRef other) { return BoolObject::fromBool(compare(self, other, [](int ret){ return ret <= 0; })); }
+ObjectRef DecimalType::nativeComparableGeq    (ObjectRef self, ObjectRef other) { return BoolObject::fromBool(compare(self, other, [](int ret){ return ret >= 0; })); }
+ObjectRef DecimalType::nativeComparableCompare(ObjectRef self, ObjectRef other) { return IntObject::fromInt(self.as<DecimalObject>()->_value.cmp(toDecimal(other)));  }
 
 void DecimalObject::initialize(void)
 {

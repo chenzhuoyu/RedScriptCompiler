@@ -13,9 +13,15 @@ class NullType : public Type
 public:
     explicit NullType() : Type("null") {}
 
+protected:
+    virtual void addBuiltins(void) override {}
+    virtual void clearBuiltins(void) override {}
+
+/*** Native Object Protocol ***/
+
 public:
-    virtual bool objectIsTrue(ObjectRef self) override { return false; }
-    virtual std::string objectRepr(ObjectRef self) override { return "null"; }
+    virtual bool nativeObjectIsTrue(ObjectRef self) override { return false; }
+    virtual std::string nativeObjectRepr(ObjectRef self) override { return "null"; }
 
 };
 

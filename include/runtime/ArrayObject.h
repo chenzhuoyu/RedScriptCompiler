@@ -18,56 +18,60 @@ class ArrayType : public Type
 public:
     explicit ArrayType() : Type("array") {}
 
-/*** Object Protocol ***/
+protected:
+    virtual void addBuiltins(void) override {}
+    virtual void clearBuiltins(void) override {}
+
+/*** Native Object Protocol ***/
 
 public:
-    virtual uint64_t    objectHash(ObjectRef self) override;
-    virtual std::string objectRepr(ObjectRef self) override;
+    virtual uint64_t    nativeObjectHash(ObjectRef self) override;
+    virtual std::string nativeObjectRepr(ObjectRef self) override;
 
 public:
-    virtual bool objectIsTrue(ObjectRef self) override;
+    virtual bool nativeObjectIsTrue(ObjectRef self) override;
 
-/*** Numeric Protocol ***/
-
-public:
-    virtual ObjectRef numericAdd   (ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef numericMul   (ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef numericIncAdd(ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef numericIncMul(ObjectRef self, ObjectRef other) override;
-
-/*** Iterator Protocol ***/
+/*** Native Numeric Protocol ***/
 
 public:
-    virtual ObjectRef iterableIter(ObjectRef self) override;
+    virtual ObjectRef nativeNumericAdd   (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeNumericMul   (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeNumericIncAdd(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeNumericIncMul(ObjectRef self, ObjectRef other) override;
 
-/*** Sequence Protocol ***/
-
-public:
-    virtual ObjectRef sequenceLen    (ObjectRef self) override;
-    virtual void      sequenceDelItem(ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef sequenceGetItem(ObjectRef self, ObjectRef other) override;
-    virtual void      sequenceSetItem(ObjectRef self, ObjectRef second, ObjectRef third) override;
+/*** Native Iterator Protocol ***/
 
 public:
-    virtual void      sequenceDelSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step) override;
-    virtual ObjectRef sequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step) override;
-    virtual void      sequenceSetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step, ObjectRef value) override;
+    virtual ObjectRef nativeIterableIter(ObjectRef self) override;
 
-/*** Comparator Protocol ***/
+/*** Native Sequence Protocol ***/
 
 public:
-    virtual ObjectRef comparableEq(ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef comparableLt(ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef comparableGt(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeSequenceLen    (ObjectRef self) override;
+    virtual void      nativeSequenceDelItem(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeSequenceGetItem(ObjectRef self, ObjectRef other) override;
+    virtual void      nativeSequenceSetItem(ObjectRef self, ObjectRef second, ObjectRef third) override;
 
 public:
-    virtual ObjectRef comparableNeq(ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef comparableLeq(ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef comparableGeq(ObjectRef self, ObjectRef other) override;
+    virtual void      nativeSequenceDelSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step) override;
+    virtual ObjectRef nativeSequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step) override;
+    virtual void      nativeSequenceSetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step, ObjectRef value) override;
+
+/*** Native Comparator Protocol ***/
 
 public:
-    virtual ObjectRef comparableCompare(ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef comparableContains(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeComparableEq(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeComparableLt(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeComparableGt(ObjectRef self, ObjectRef other) override;
+
+public:
+    virtual ObjectRef nativeComparableNeq(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeComparableLeq(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeComparableGeq(ObjectRef self, ObjectRef other) override;
+
+public:
+    virtual ObjectRef nativeComparableCompare(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeComparableContains(ObjectRef self, ObjectRef other) override;
 
 };
 
@@ -76,10 +80,14 @@ class ArrayIteratorType : public Type
 public:
     explicit ArrayIteratorType() : Type("array_iterator") {}
 
-/*** Iterator Protocol ***/
+protected:
+    virtual void addBuiltins(void) override {}
+    virtual void clearBuiltins(void) override {}
+
+/*** Native Iterator Protocol ***/
 
 public:
-    virtual ObjectRef iterableNext(ObjectRef self) override;
+    virtual ObjectRef nativeIterableNext(ObjectRef self) override;
 
 };
 

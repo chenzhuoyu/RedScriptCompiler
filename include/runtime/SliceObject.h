@@ -10,6 +10,10 @@ class SliceType : public Type
 public:
     explicit SliceType() : Type("slice") {}
 
+protected:
+    virtual void addBuiltins(void) override {}
+    virtual void clearBuiltins(void) override {}
+
 };
 
 /* type object for slice */

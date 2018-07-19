@@ -17,6 +17,10 @@ class NativeClassType : public Type
 public:
     explicit NativeClassType() : Type("native_class") {}
 
+protected:
+    virtual void addBuiltins(void) override {}
+    virtual void clearBuiltins(void) override {}
+
 };
 
 /* type object for native class */

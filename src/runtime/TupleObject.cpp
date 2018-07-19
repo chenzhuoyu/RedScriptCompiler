@@ -16,9 +16,9 @@ namespace RedScript::Runtime
 TypeRef TupleTypeObject;
 TypeRef TupleIteratorTypeObject;
 
-/*** Object Protocol ***/
+/*** Native Object Protocol ***/
 
-uint64_t TupleType::objectHash(ObjectRef self)
+uint64_t TupleType::nativeObjectHash(ObjectRef self)
 {
     /* convert to tuple object */
     uint64_t hash = 5381;
@@ -35,7 +35,7 @@ uint64_t TupleType::objectHash(ObjectRef self)
     return ~hash;
 }
 
-std::string TupleType::objectRepr(ObjectRef self)
+std::string TupleType::nativeObjectRepr(ObjectRef self)
 {
     /* scope control */
     Object::Repr repr(self);
@@ -60,15 +60,15 @@ std::string TupleType::objectRepr(ObjectRef self)
         return Utils::Strings::format("(%s)", Utils::Strings::join(items, ", "));
 }
 
-bool TupleType::objectIsTrue(ObjectRef self)
+bool TupleType::nativeObjectIsTrue(ObjectRef self)
 {
     /* non-empty tuple represents true */
     return self.as<TupleObject>()->_size != 0;
 }
 
-/*** Numeric Protocol ***/
+/*** Native Numeric Protocol ***/
 
-ObjectRef TupleType::numericAdd(ObjectRef self, ObjectRef other)
+ObjectRef TupleType::nativeNumericAdd(ObjectRef self, ObjectRef other)
 {
     /* type check */
     if (other->isNotInstanceOf(TupleTypeObject))
@@ -96,7 +96,7 @@ ObjectRef TupleType::numericAdd(ObjectRef self, ObjectRef other)
     return std::move(result);
 }
 
-ObjectRef TupleType::numericMul(ObjectRef self, ObjectRef other)
+ObjectRef TupleType::nativeNumericMul(ObjectRef self, ObjectRef other)
 {
     /* type check */
     if (other->isNotInstanceOf(IntTypeObject))
@@ -140,29 +140,29 @@ ObjectRef TupleType::numericMul(ObjectRef self, ObjectRef other)
     return std::move(result);
 }
 
-/*** Iterator Protocol ***/
+/*** Native Iterator Protocol ***/
 
-ObjectRef TupleType::iterableIter(ObjectRef self)
+ObjectRef TupleType::nativeIterableIter(ObjectRef self)
 {
     /* create an iterator from tuple */
     return Object::newObject<TupleIteratorObject>(self.as<TupleObject>());
 }
 
-ObjectRef TupleIteratorType::iterableNext(ObjectRef self)
+ObjectRef TupleIteratorType::nativeIterableNext(ObjectRef self)
 {
     /* get the next object */
     return self.as<TupleIteratorObject>()->next();
 }
 
-/*** Sequence Protocol ***/
+/*** Native Sequence Protocol ***/
 
-ObjectRef TupleType::sequenceLen(ObjectRef self)
+ObjectRef TupleType::nativeSequenceLen(ObjectRef self)
 {
     /* get the length, and wrap with integer */
     return IntObject::fromUInt(self.as<TupleObject>()->_size);
 }
 
-ObjectRef TupleType::sequenceGetItem(ObjectRef self, ObjectRef other)
+ObjectRef TupleType::nativeSequenceGetItem(ObjectRef self, ObjectRef other)
 {
     /* extract the item */
     auto tuple = self.as<TupleObject>();
@@ -176,7 +176,7 @@ ObjectRef TupleType::sequenceGetItem(ObjectRef self, ObjectRef other)
     return std::move(result);
 }
 
-ObjectRef TupleType::sequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step)
+ObjectRef TupleType::nativeSequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step)
 {
     /* parse the slice range */
     auto tuple = self.as<TupleObject>();
@@ -210,7 +210,7 @@ ObjectRef TupleType::sequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRef
     return std::move(result);
 }
 
-/*** Comparator Protocol ***/
+/*** Native Comparator Protocol ***/
 
 #define BOOL_CMP(op) {                                              \
     /* object type checking */                                      \
@@ -224,16 +224,16 @@ ObjectRef TupleType::sequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRef
     ) op 0);                                                        \
 }
 
-ObjectRef TupleType::comparableEq (ObjectRef self, ObjectRef other) BOOL_CMP(==)
-ObjectRef TupleType::comparableLt (ObjectRef self, ObjectRef other) BOOL_CMP(< )
-ObjectRef TupleType::comparableGt (ObjectRef self, ObjectRef other) BOOL_CMP(> )
-ObjectRef TupleType::comparableNeq(ObjectRef self, ObjectRef other) BOOL_CMP(!=)
-ObjectRef TupleType::comparableLeq(ObjectRef self, ObjectRef other) BOOL_CMP(<=)
-ObjectRef TupleType::comparableGeq(ObjectRef self, ObjectRef other) BOOL_CMP(>=)
+ObjectRef TupleType::nativeComparableEq (ObjectRef self, ObjectRef other) BOOL_CMP(==)
+ObjectRef TupleType::nativeComparableLt (ObjectRef self, ObjectRef other) BOOL_CMP(< )
+ObjectRef TupleType::nativeComparableGt (ObjectRef self, ObjectRef other) BOOL_CMP(> )
+ObjectRef TupleType::nativeComparableNeq(ObjectRef self, ObjectRef other) BOOL_CMP(!=)
+ObjectRef TupleType::nativeComparableLeq(ObjectRef self, ObjectRef other) BOOL_CMP(<=)
+ObjectRef TupleType::nativeComparableGeq(ObjectRef self, ObjectRef other) BOOL_CMP(>=)
 
 #undef BOOL_CMP
 
-ObjectRef TupleType::comparableCompare(ObjectRef self, ObjectRef other)
+ObjectRef TupleType::nativeComparableCompare(ObjectRef self, ObjectRef other)
 {
     /* object type checking */
     if (other->isNotInstanceOf(TupleTypeObject))
@@ -248,7 +248,7 @@ ObjectRef TupleType::comparableCompare(ObjectRef self, ObjectRef other)
     return IntObject::fromInt(Utils::Lists::totalOrderCompare(self.as<TupleObject>(), other.as<TupleObject>()));
 }
 
-ObjectRef TupleType::comparableContains(ObjectRef self, ObjectRef other)
+ObjectRef TupleType::nativeComparableContains(ObjectRef self, ObjectRef other)
 {
     Reference<TupleObject> tuple = self.as<TupleObject>();
     return BoolObject::fromBool(Utils::Lists::contains(std::move(tuple), std::move(other)));

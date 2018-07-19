@@ -16,7 +16,7 @@ namespace RedScript::Runtime
 /* type object for function */
 TypeRef FunctionTypeObject;
 
-ObjectRef FunctionType::objectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs)
+ObjectRef FunctionType::nativeObjectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs)
 {
     /* check object type */
     if (self->isNotInstanceOf(FunctionTypeObject))

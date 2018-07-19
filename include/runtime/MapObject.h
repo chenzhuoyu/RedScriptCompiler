@@ -16,6 +16,10 @@ class MapType : public Type
 public:
     explicit MapType() : Type("map") {}
 
+protected:
+    virtual void addBuiltins(void) override {}
+    virtual void clearBuiltins(void) override {}
+
 };
 
 /* type object for map */

@@ -93,6 +93,7 @@ class Type : public Object
 {
     TypeRef _super;
     std::string _name;
+    friend class Object;
 
 public:
     explicit Type(const std::string &name) : Type(name, TypeObject) {}
@@ -103,9 +104,12 @@ public:
     std::string &name(void) { return _name; }
 
 public:
-    /* for adding built-in attributes such as "__init__", internal use only! */
+    virtual void typeShutdown(void);
+    virtual void typeInitialize(void);
+
+protected:
     virtual void addBuiltins(void);
-    virtual void clearBuiltins(void);
+    virtual void clearBuiltins(void) {}
 
 private:
     enum class DescriptorType
@@ -121,152 +125,226 @@ private:
     DescriptorType resolveDescriptor(ObjectRef obj, ObjectRef *getter, ObjectRef *setter, ObjectRef *deleter);
 
 private:
-    ObjectRef applyUnary(const char *name, ObjectRef self, bool isSilent = false);
-    ObjectRef applyBinary(const char *name, ObjectRef self, ObjectRef other, const char *alt = nullptr, bool isSilent = false);
-    ObjectRef applyTernary(const char *name, ObjectRef self, ObjectRef second, ObjectRef third, bool isSilent = false);
+    ObjectRef applyUnary(const char *name, ObjectRef self);
+    ObjectRef applyBinary(const char *name, ObjectRef self, ObjectRef other, const char *alt);
+    ObjectRef applyTernary(const char *name, ObjectRef self, ObjectRef second, ObjectRef third);
 
 private:
     ObjectRef applyUnaryMethod(ObjectRef method, ObjectRef self);
     ObjectRef applyBinaryMethod(ObjectRef method, ObjectRef self, ObjectRef other);
     ObjectRef applyTernaryMethod(ObjectRef method, ObjectRef self, ObjectRef second, ObjectRef third);
 
-/*** Default Object Protocol ***/
+/*** Native Object Protocol ***/
 
 protected:
-    uint64_t    defaultObjectHash(ObjectRef self);
-    StringList  defaultObjectDir (ObjectRef self);
-    std::string defaultObjectStr (ObjectRef self) { return objectRepr(self); }
-    std::string defaultObjectRepr(ObjectRef self);
+    virtual uint64_t    nativeObjectHash(ObjectRef self);
+    virtual StringList  nativeObjectDir (ObjectRef self);
+    virtual std::string nativeObjectStr (ObjectRef self) { return objectRepr(self); }
+    virtual std::string nativeObjectRepr(ObjectRef self);
 
-public:
-    bool defaultObjectIsTrue(ObjectRef self) { return true; }
-    bool defaultObjectIsSubclassOf(ObjectRef self, TypeRef type);
-    bool defaultObjectIsInstanceOf(ObjectRef self, TypeRef type) { return objectIsSubclassOf(self->type(), type); }
+protected:
+    virtual bool nativeObjectIsTrue(ObjectRef self) { return true; }
+    virtual bool nativeObjectIsSubclassOf(ObjectRef self, TypeRef type);
+    virtual bool nativeObjectIsInstanceOf(ObjectRef self, TypeRef type) { return objectIsSubclassOf(self->type(), type); }
 
-public:
-    void      defaultObjectDelAttr(ObjectRef self, const std::string &name);
-    ObjectRef defaultObjectGetAttr(ObjectRef self, const std::string &name);
-    void      defaultObjectSetAttr(ObjectRef self, const std::string &name, ObjectRef value);
+protected:
+    virtual bool      nativeObjectHasAttr   (ObjectRef self, const std::string &name);
+    virtual void      nativeObjectDelAttr   (ObjectRef self, const std::string &name);
+    virtual ObjectRef nativeObjectGetAttr   (ObjectRef self, const std::string &name);
+    virtual void      nativeObjectSetAttr   (ObjectRef self, const std::string &name, ObjectRef value);
+    virtual void      nativeObjectDefineAttr(ObjectRef self, const std::string &name, ObjectRef value);
 
-/*** Default Boolean Protocol ***/
+protected:
+    virtual ObjectRef nativeObjectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs);
 
-public:
-    ObjectRef defaultBoolOr (ObjectRef self, ObjectRef other);
-    ObjectRef defaultBoolAnd(ObjectRef self, ObjectRef other);
-    ObjectRef defaultBoolNot(ObjectRef self);
+/*** Native Boolean Protocol ***/
 
-/*** Default Comparator Protocol ***/
+protected:
+    virtual ObjectRef nativeBoolOr (ObjectRef self, ObjectRef other);
+    virtual ObjectRef nativeBoolAnd(ObjectRef self, ObjectRef other);
+    virtual ObjectRef nativeBoolNot(ObjectRef self);
 
-public:
-    ObjectRef defaultComparableEq(ObjectRef self, ObjectRef other);
-    ObjectRef defaultComparableNeq(ObjectRef self, ObjectRef other);
-    ObjectRef defaultComparableCompare(ObjectRef self, ObjectRef other);
+/*** Native Numeric Protocol ***/
+
+protected:
+    virtual ObjectRef nativeNumericPos(ObjectRef self);
+    virtual ObjectRef nativeNumericNeg(ObjectRef self);
+
+protected:
+    virtual ObjectRef nativeNumericAdd  (ObjectRef self, ObjectRef other);
+    virtual ObjectRef nativeNumericSub  (ObjectRef self, ObjectRef other);
+    virtual ObjectRef nativeNumericMul  (ObjectRef self, ObjectRef other);
+    virtual ObjectRef nativeNumericDiv  (ObjectRef self, ObjectRef other);
+    virtual ObjectRef nativeNumericMod  (ObjectRef self, ObjectRef other);
+    virtual ObjectRef nativeNumericPower(ObjectRef self, ObjectRef other);
+
+protected:
+    virtual ObjectRef nativeNumericOr (ObjectRef self, ObjectRef other);
+    virtual ObjectRef nativeNumericAnd(ObjectRef self, ObjectRef other);
+    virtual ObjectRef nativeNumericXor(ObjectRef self, ObjectRef other);
+    virtual ObjectRef nativeNumericNot(ObjectRef self);
+
+protected:
+    virtual ObjectRef nativeNumericLShift(ObjectRef self, ObjectRef other);
+    virtual ObjectRef nativeNumericRShift(ObjectRef self, ObjectRef other);
+
+protected:
+    virtual ObjectRef nativeNumericIncAdd  (ObjectRef self, ObjectRef other);
+    virtual ObjectRef nativeNumericIncSub  (ObjectRef self, ObjectRef other);
+    virtual ObjectRef nativeNumericIncMul  (ObjectRef self, ObjectRef other);
+    virtual ObjectRef nativeNumericIncDiv  (ObjectRef self, ObjectRef other);
+    virtual ObjectRef nativeNumericIncMod  (ObjectRef self, ObjectRef other);
+    virtual ObjectRef nativeNumericIncPower(ObjectRef self, ObjectRef other);
+
+protected:
+    virtual ObjectRef nativeNumericIncOr (ObjectRef self, ObjectRef other);
+    virtual ObjectRef nativeNumericIncAnd(ObjectRef self, ObjectRef other);
+    virtual ObjectRef nativeNumericIncXor(ObjectRef self, ObjectRef other);
+
+protected:
+    virtual ObjectRef nativeNumericIncLShift(ObjectRef self, ObjectRef other);
+    virtual ObjectRef nativeNumericIncRShift(ObjectRef self, ObjectRef other);
+
+/*** Native Iterator Protocol ***/
+
+protected:
+    virtual ObjectRef nativeIterableIter(ObjectRef self);
+    virtual ObjectRef nativeIterableNext(ObjectRef self);
+
+/*** Native Sequence Protocol ***/
+
+protected:
+    virtual ObjectRef nativeSequenceLen    (ObjectRef self);
+    virtual void      nativeSequenceDelItem(ObjectRef self, ObjectRef other);
+    virtual ObjectRef nativeSequenceGetItem(ObjectRef self, ObjectRef other);
+    virtual void      nativeSequenceSetItem(ObjectRef self, ObjectRef second, ObjectRef third);
+
+protected:
+    virtual void      nativeSequenceDelSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step);
+    virtual ObjectRef nativeSequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step);
+    virtual void      nativeSequenceSetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step, ObjectRef value);
+
+/*** Native Comparator Protocol ***/
+
+protected:
+    virtual ObjectRef nativeComparableEq(ObjectRef self, ObjectRef other);
+    virtual ObjectRef nativeComparableLt(ObjectRef self, ObjectRef other);
+    virtual ObjectRef nativeComparableGt(ObjectRef self, ObjectRef other);
+
+protected:
+    virtual ObjectRef nativeComparableNeq(ObjectRef self, ObjectRef other);
+    virtual ObjectRef nativeComparableLeq(ObjectRef self, ObjectRef other);
+    virtual ObjectRef nativeComparableGeq(ObjectRef self, ObjectRef other);
+
+protected:
+    virtual ObjectRef nativeComparableCompare(ObjectRef self, ObjectRef other);
+    virtual ObjectRef nativeComparableContains(ObjectRef self, ObjectRef other);
 
 /*** Object Protocol ***/
 
 public:
-    virtual uint64_t    objectHash(ObjectRef self);
-    virtual StringList  objectDir (ObjectRef self);
-    virtual std::string objectStr (ObjectRef self);
-    virtual std::string objectRepr(ObjectRef self);
+    uint64_t    objectHash(ObjectRef self);
+    StringList  objectDir (ObjectRef self);
+    std::string objectStr (ObjectRef self);
+    std::string objectRepr(ObjectRef self);
 
 public:
-    virtual bool objectIsTrue(ObjectRef self) { return true; }
-    virtual bool objectIsSubclassOf(ObjectRef self, TypeRef type);
-    virtual bool objectIsInstanceOf(ObjectRef self, TypeRef type);
+    bool objectIsTrue(ObjectRef self) { return true; }
+    bool objectIsSubclassOf(ObjectRef self, TypeRef type) { return nativeObjectIsSubclassOf(self, type); }
+    bool objectIsInstanceOf(ObjectRef self, TypeRef type) { return nativeObjectIsInstanceOf(self, type); }
 
 public:
-    virtual bool      objectHasAttr(ObjectRef self, const std::string &name);
-    virtual void      objectDelAttr(ObjectRef self, const std::string &name);
-    virtual ObjectRef objectGetAttr(ObjectRef self, const std::string &name);
-    virtual void      objectSetAttr(ObjectRef self, const std::string &name, ObjectRef value);
-    virtual void      objectDefineAttr(ObjectRef self, const std::string &name, ObjectRef value);
+    bool      objectHasAttr   (ObjectRef self, const std::string &name) { return nativeObjectHasAttr(self, name); }
+    void      objectDelAttr   (ObjectRef self, const std::string &name);
+    ObjectRef objectGetAttr   (ObjectRef self, const std::string &name);
+    void      objectSetAttr   (ObjectRef self, const std::string &name, ObjectRef value);
+    void      objectDefineAttr(ObjectRef self, const std::string &name, ObjectRef value) { nativeObjectDefineAttr(self, name, value); }
 
 public:
-    virtual ObjectRef objectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs);
+    ObjectRef objectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs);
 
 /*** Boolean Protocol ***/
 
 public:
-    virtual ObjectRef boolOr (ObjectRef self, ObjectRef other);
-    virtual ObjectRef boolAnd(ObjectRef self, ObjectRef other);
-    virtual ObjectRef boolNot(ObjectRef self);
+    ObjectRef boolOr (ObjectRef self, ObjectRef other);
+    ObjectRef boolAnd(ObjectRef self, ObjectRef other);
+    ObjectRef boolNot(ObjectRef self);
 
 /*** Numeric Protocol ***/
 
 public:
-    virtual ObjectRef numericPos(ObjectRef self) { return applyUnary("__pos__", self); }
-    virtual ObjectRef numericNeg(ObjectRef self) { return applyUnary("__neg__", self); }
+    ObjectRef numericPos(ObjectRef self);
+    ObjectRef numericNeg(ObjectRef self);
 
 public:
-    virtual ObjectRef numericAdd  (ObjectRef self, ObjectRef other) { return applyBinary("__add__", self, other); }
-    virtual ObjectRef numericSub  (ObjectRef self, ObjectRef other) { return applyBinary("__sub__", self, other); }
-    virtual ObjectRef numericMul  (ObjectRef self, ObjectRef other) { return applyBinary("__mul__", self, other); }
-    virtual ObjectRef numericDiv  (ObjectRef self, ObjectRef other) { return applyBinary("__div__", self, other); }
-    virtual ObjectRef numericMod  (ObjectRef self, ObjectRef other) { return applyBinary("__mod__", self, other); }
-    virtual ObjectRef numericPower(ObjectRef self, ObjectRef other) { return applyBinary("__pow__", self, other); }
+    ObjectRef numericAdd  (ObjectRef self, ObjectRef other);
+    ObjectRef numericSub  (ObjectRef self, ObjectRef other);
+    ObjectRef numericMul  (ObjectRef self, ObjectRef other);
+    ObjectRef numericDiv  (ObjectRef self, ObjectRef other);
+    ObjectRef numericMod  (ObjectRef self, ObjectRef other);
+    ObjectRef numericPower(ObjectRef self, ObjectRef other);
 
 public:
-    virtual ObjectRef numericOr (ObjectRef self, ObjectRef other) { return applyBinary("__or__" , self, other); }
-    virtual ObjectRef numericAnd(ObjectRef self, ObjectRef other) { return applyBinary("__and__", self, other); }
-    virtual ObjectRef numericXor(ObjectRef self, ObjectRef other) { return applyBinary("__xor__", self, other); }
-    virtual ObjectRef numericNot(ObjectRef self)                  { return applyUnary ("__not__", self       ); }
+    ObjectRef numericOr (ObjectRef self, ObjectRef other);
+    ObjectRef numericAnd(ObjectRef self, ObjectRef other);
+    ObjectRef numericXor(ObjectRef self, ObjectRef other);
+    ObjectRef numericNot(ObjectRef self);
 
 public:
-    virtual ObjectRef numericLShift(ObjectRef self, ObjectRef other) { return applyBinary("__lshift__", self, other); }
-    virtual ObjectRef numericRShift(ObjectRef self, ObjectRef other) { return applyBinary("__rshift__", self, other); }
+    ObjectRef numericLShift(ObjectRef self, ObjectRef other);
+    ObjectRef numericRShift(ObjectRef self, ObjectRef other);
 
 public:
-    virtual ObjectRef numericIncAdd  (ObjectRef self, ObjectRef other) { return applyBinary("__inc_add__", self, other, "__add__"); }
-    virtual ObjectRef numericIncSub  (ObjectRef self, ObjectRef other) { return applyBinary("__inc_sub__", self, other, "__sub__"); }
-    virtual ObjectRef numericIncMul  (ObjectRef self, ObjectRef other) { return applyBinary("__inc_mul__", self, other, "__mul__"); }
-    virtual ObjectRef numericIncDiv  (ObjectRef self, ObjectRef other) { return applyBinary("__inc_div__", self, other, "__div__"); }
-    virtual ObjectRef numericIncMod  (ObjectRef self, ObjectRef other) { return applyBinary("__inc_mod__", self, other, "__mod__"); }
-    virtual ObjectRef numericIncPower(ObjectRef self, ObjectRef other) { return applyBinary("__inc_pow__", self, other, "__pow__"); }
+    ObjectRef numericIncAdd  (ObjectRef self, ObjectRef other);
+    ObjectRef numericIncSub  (ObjectRef self, ObjectRef other);
+    ObjectRef numericIncMul  (ObjectRef self, ObjectRef other);
+    ObjectRef numericIncDiv  (ObjectRef self, ObjectRef other);
+    ObjectRef numericIncMod  (ObjectRef self, ObjectRef other);
+    ObjectRef numericIncPower(ObjectRef self, ObjectRef other);
 
 public:
-    virtual ObjectRef numericIncOr (ObjectRef self, ObjectRef other) { return applyBinary("__inc_or__" , self, other, "__or__" ); }
-    virtual ObjectRef numericIncAnd(ObjectRef self, ObjectRef other) { return applyBinary("__inc_and__", self, other, "__and__"); }
-    virtual ObjectRef numericIncXor(ObjectRef self, ObjectRef other) { return applyBinary("__inc_xor__", self, other, "__xor__"); }
+    ObjectRef numericIncOr (ObjectRef self, ObjectRef other);
+    ObjectRef numericIncAnd(ObjectRef self, ObjectRef other);
+    ObjectRef numericIncXor(ObjectRef self, ObjectRef other);
 
 public:
-    virtual ObjectRef numericIncLShift(ObjectRef self, ObjectRef other) { return applyBinary("__inc_lshift__", self, other, "__lshift__"); }
-    virtual ObjectRef numericIncRShift(ObjectRef self, ObjectRef other) { return applyBinary("__inc_rshift__", self, other, "__rshift__"); }
+    ObjectRef numericIncLShift(ObjectRef self, ObjectRef other);
+    ObjectRef numericIncRShift(ObjectRef self, ObjectRef other);
 
 /*** Iterator Protocol ***/
 
 public:
-    virtual ObjectRef iterableIter(ObjectRef self) { return applyUnary("__iter__", self); }
-    virtual ObjectRef iterableNext(ObjectRef self) { return applyUnary("__next__", self); }
+    ObjectRef iterableIter(ObjectRef self);
+    ObjectRef iterableNext(ObjectRef self);
 
 /*** Sequence Protocol ***/
 
 public:
-    virtual ObjectRef sequenceLen    (ObjectRef self)                                    { return applyUnary  ("__len__"    , self               ); }
-    virtual void      sequenceDelItem(ObjectRef self, ObjectRef other)                   {        applyBinary ("__delitem__", self, other        ); }
-    virtual ObjectRef sequenceGetItem(ObjectRef self, ObjectRef other)                   { return applyBinary ("__getitem__", self, other        ); }
-    virtual void      sequenceSetItem(ObjectRef self, ObjectRef second, ObjectRef third) {        applyTernary("__setitem__", self, second, third); }
+    ObjectRef sequenceLen    (ObjectRef self);
+    void      sequenceDelItem(ObjectRef self, ObjectRef other);
+    ObjectRef sequenceGetItem(ObjectRef self, ObjectRef other);
+    void      sequenceSetItem(ObjectRef self, ObjectRef second, ObjectRef third);
 
 public:
-    virtual void      sequenceDelSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step);
-    virtual ObjectRef sequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step);
-    virtual void      sequenceSetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step, ObjectRef value);
+    void      sequenceDelSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step)                  {        nativeSequenceDelSlice(self, begin, end, step       ); }
+    ObjectRef sequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step)                  { return nativeSequenceGetSlice(self, begin, end, step       ); }
+    void      sequenceSetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step, ObjectRef value) {        nativeSequenceSetSlice(self, begin, end, step, value); }
 
 /*** Comparator Protocol ***/
 
 public:
-    virtual ObjectRef comparableEq(ObjectRef self, ObjectRef other);
-    virtual ObjectRef comparableLt(ObjectRef self, ObjectRef other) { return applyBinary("__lt__", self, other); }
-    virtual ObjectRef comparableGt(ObjectRef self, ObjectRef other) { return applyBinary("__gt__", self, other); }
+    ObjectRef comparableEq(ObjectRef self, ObjectRef other);
+    ObjectRef comparableLt(ObjectRef self, ObjectRef other);
+    ObjectRef comparableGt(ObjectRef self, ObjectRef other);
 
 public:
-    virtual ObjectRef comparableNeq(ObjectRef self, ObjectRef other);
-    virtual ObjectRef comparableLeq(ObjectRef self, ObjectRef other) { return applyBinary("__leq__", self, other); }
-    virtual ObjectRef comparableGeq(ObjectRef self, ObjectRef other) { return applyBinary("__geq__", self, other); }
+    ObjectRef comparableNeq(ObjectRef self, ObjectRef other);
+    ObjectRef comparableLeq(ObjectRef self, ObjectRef other);
+    ObjectRef comparableGeq(ObjectRef self, ObjectRef other);
 
 public:
-    virtual ObjectRef comparableCompare(ObjectRef self, ObjectRef other);
-    virtual ObjectRef comparableContains(ObjectRef self, ObjectRef other) { return applyBinary("__contains__", self, other); }
+    ObjectRef comparableCompare(ObjectRef self, ObjectRef other);
+    ObjectRef comparableContains(ObjectRef self, ObjectRef other);
 
 };
 }

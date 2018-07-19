@@ -16,50 +16,54 @@ class TupleType : public Type
 public:
     explicit TupleType() : Type("tuple") {}
 
-/*** Object Protocol ***/
+protected:
+    virtual void addBuiltins(void) override {}
+    virtual void clearBuiltins(void) override {}
+
+/*** Native Object Protocol ***/
 
 public:
-    virtual uint64_t    objectHash(ObjectRef self) override;
-    virtual std::string objectRepr(ObjectRef self) override;
+    virtual uint64_t    nativeObjectHash(ObjectRef self) override;
+    virtual std::string nativeObjectRepr(ObjectRef self) override;
 
 public:
-    virtual bool objectIsTrue(ObjectRef self) override;
+    virtual bool nativeObjectIsTrue(ObjectRef self) override;
 
-/*** Numeric Protocol ***/
-
-public:
-    virtual ObjectRef numericAdd   (ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef numericMul   (ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef numericIncAdd(ObjectRef self, ObjectRef other) override { return numericAdd(self, other); }
-    virtual ObjectRef numericIncMul(ObjectRef self, ObjectRef other) override { return numericMul(self, other); }
-
-/*** Iterator Protocol ***/
+/*** Native Numeric Protocol ***/
 
 public:
-    virtual ObjectRef iterableIter(ObjectRef self) override;
+    virtual ObjectRef nativeNumericAdd   (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeNumericMul   (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeNumericIncAdd(ObjectRef self, ObjectRef other) override { return nativeNumericAdd(self, other); }
+    virtual ObjectRef nativeNumericIncMul(ObjectRef self, ObjectRef other) override { return nativeNumericMul(self, other); }
 
-/*** Sequence Protocol ***/
-
-public:
-    virtual ObjectRef sequenceLen     (ObjectRef self) override;
-    virtual ObjectRef sequenceGetItem (ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef sequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step) override;
-
-/*** Comparator Protocol ***/
+/*** Native Iterator Protocol ***/
 
 public:
-    virtual ObjectRef comparableEq(ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef comparableLt(ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef comparableGt(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeIterableIter(ObjectRef self) override;
+
+/*** Native Sequence Protocol ***/
 
 public:
-    virtual ObjectRef comparableNeq(ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef comparableLeq(ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef comparableGeq(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeSequenceLen     (ObjectRef self) override;
+    virtual ObjectRef nativeSequenceGetItem (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeSequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step) override;
+
+/*** Native Comparator Protocol ***/
 
 public:
-    virtual ObjectRef comparableCompare(ObjectRef self, ObjectRef other) override;
-    virtual ObjectRef comparableContains(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeComparableEq(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeComparableLt(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeComparableGt(ObjectRef self, ObjectRef other) override;
+
+public:
+    virtual ObjectRef nativeComparableNeq(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeComparableLeq(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeComparableGeq(ObjectRef self, ObjectRef other) override;
+
+public:
+    virtual ObjectRef nativeComparableCompare(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef nativeComparableContains(ObjectRef self, ObjectRef other) override;
 
 };
 
@@ -68,10 +72,14 @@ class TupleIteratorType : public Type
 public:
     explicit TupleIteratorType() : Type("tuple_iterator") {}
 
-/*** Iterator Protocol ***/
+protected:
+    virtual void addBuiltins(void) override {}
+    virtual void clearBuiltins(void) override {}
+
+/*** Native Iterator Protocol ***/
 
 public:
-    virtual ObjectRef iterableNext(ObjectRef self);
+    virtual ObjectRef nativeIterableNext(ObjectRef self) override;
 
 };
 

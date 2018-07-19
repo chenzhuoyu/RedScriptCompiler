@@ -16,6 +16,10 @@ class CodeType : public Type
 public:
     explicit CodeType() : Type("code") {}
 
+protected:
+    virtual void addBuiltins(void) override {}
+    virtual void clearBuiltins(void) override {}
+
 };
 
 /* type object for code */

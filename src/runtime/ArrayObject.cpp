@@ -20,15 +20,15 @@ namespace RedScript::Runtime
 TypeRef ArrayTypeObject;
 TypeRef ArrayIteratorTypeObject;
 
-/*** Object Protocol ***/
+/*** Native Object Protocol ***/
 
-uint64_t ArrayType::objectHash(ObjectRef self)
+uint64_t ArrayType::nativeObjectHash(ObjectRef self)
 {
     /* arrays are not hashable */
     throw Exceptions::TypeError("Unhashable type \"array\"");
 }
 
-std::string ArrayType::objectRepr(ObjectRef self)
+std::string ArrayType::nativeObjectRepr(ObjectRef self)
 {
     /* scope control */
     Object::Repr repr(self);
@@ -50,7 +50,7 @@ std::string ArrayType::objectRepr(ObjectRef self)
     return Utils::Strings::format("[%s]", Utils::Strings::join(items, ", "));
 }
 
-bool ArrayType::objectIsTrue(ObjectRef self)
+bool ArrayType::nativeObjectIsTrue(ObjectRef self)
 {
     /* non-empty arrays represents true */
     return self.as<ArrayObject>()->size() != 0;
@@ -58,7 +58,7 @@ bool ArrayType::objectIsTrue(ObjectRef self)
 
 /*** Numeric Protocol ***/
 
-ObjectRef ArrayType::numericAdd(ObjectRef self, ObjectRef other)
+ObjectRef ArrayType::nativeNumericAdd(ObjectRef self, ObjectRef other)
 {
     /* type check */
     if (other->isNotInstanceOf(ArrayTypeObject))
@@ -73,7 +73,7 @@ ObjectRef ArrayType::numericAdd(ObjectRef self, ObjectRef other)
     return self.as<ArrayObject>()->concatCopy(other.as<ArrayObject>());
 }
 
-ObjectRef ArrayType::numericMul(ObjectRef self, ObjectRef other)
+ObjectRef ArrayType::nativeNumericMul(ObjectRef self, ObjectRef other)
 {
     /* type check */
     if (other->isNotInstanceOf(IntTypeObject))
@@ -96,7 +96,7 @@ ObjectRef ArrayType::numericMul(ObjectRef self, ObjectRef other)
     return array->repeatCopy(val->toUInt());
 }
 
-ObjectRef ArrayType::numericIncAdd(ObjectRef self, ObjectRef other)
+ObjectRef ArrayType::nativeNumericIncAdd(ObjectRef self, ObjectRef other)
 {
     /* type check */
     if (other->isNotInstanceOf(ArrayTypeObject))
@@ -112,7 +112,7 @@ ObjectRef ArrayType::numericIncAdd(ObjectRef self, ObjectRef other)
     return self;
 }
 
-ObjectRef ArrayType::numericIncMul(ObjectRef self, ObjectRef other)
+ObjectRef ArrayType::nativeNumericIncMul(ObjectRef self, ObjectRef other)
 {
     /* type check */
     if (other->isNotInstanceOf(IntTypeObject))
@@ -136,71 +136,71 @@ ObjectRef ArrayType::numericIncMul(ObjectRef self, ObjectRef other)
     return self;
 }
 
-/*** Iterator Protocol ***/
+/*** Native Iterator Protocol ***/
 
-ObjectRef ArrayType::iterableIter(ObjectRef self)
+ObjectRef ArrayType::nativeIterableIter(ObjectRef self)
 {
     /* create an iterator from array */
     return Object::newObject<ArrayIteratorObject>(self.as<ArrayObject>());
 }
 
-ObjectRef ArrayIteratorType::iterableNext(ObjectRef self)
+ObjectRef ArrayIteratorType::nativeIterableNext(ObjectRef self)
 {
     /* get the next object */
     return self.as<ArrayIteratorObject>()->next();
 }
 
-/*** Sequence Protocol ***/
+/*** Native Sequence Protocol ***/
 
-ObjectRef ArrayType::sequenceLen(ObjectRef self)
+ObjectRef ArrayType::nativeSequenceLen(ObjectRef self)
 {
     /* get the length, and wrap with integer */
     return IntObject::fromUInt(self.as<ArrayObject>()->size());
 }
 
-void ArrayType::sequenceDelItem(ObjectRef self, ObjectRef other)
+void ArrayType::nativeSequenceDelItem(ObjectRef self, ObjectRef other)
 {
     /* remove item from array */
     auto array = self.as<ArrayObject>();
     array->removeItemAt(Utils::Lists::indexConstraint(array, other));
 }
 
-ObjectRef ArrayType::sequenceGetItem(ObjectRef self, ObjectRef other)
+ObjectRef ArrayType::nativeSequenceGetItem(ObjectRef self, ObjectRef other)
 {
     /* get item from array */
     auto array = self.as<ArrayObject>();
     return array->itemAt(Utils::Lists::indexConstraint(array, other));
 }
 
-void ArrayType::sequenceSetItem(ObjectRef self, ObjectRef second, ObjectRef third)
+void ArrayType::nativeSequenceSetItem(ObjectRef self, ObjectRef second, ObjectRef third)
 {
     /* set item in array */
     auto array = self.as<ArrayObject>();
     array->setItemAt(Utils::Lists::indexConstraint(array, second), std::move(third));
 }
 
-void ArrayType::sequenceDelSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step)
+void ArrayType::nativeSequenceDelSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step)
 {
     auto array = self.as<ArrayObject>();
     auto slice = Utils::Lists::sliceConstraint(array, begin, end, step);
     array->removeSlice(slice.begin, slice.count, slice.step);
 }
 
-ObjectRef ArrayType::sequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step)
+ObjectRef ArrayType::nativeSequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step)
 {
     auto array = self.as<ArrayObject>();
     auto slice = Utils::Lists::sliceConstraint(array, begin, end, step);
     return array->slice(slice.begin, slice.count, slice.step);
 }
 
-void ArrayType::sequenceSetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step, ObjectRef value)
+void ArrayType::nativeSequenceSetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step, ObjectRef value)
 {
     auto array = self.as<ArrayObject>();
     auto slice = Utils::Lists::sliceConstraint(array, begin, end, step);
     array->setSlice(slice.begin, slice.count, slice.step, std::move(value));
 }
 
-/*** Comparator Protocol ***/
+/*** Native Comparator Protocol ***/
 
 #define BOOL_CMP(op) {                                              \
     /* object type checking */                                      \
@@ -214,16 +214,16 @@ void ArrayType::sequenceSetSlice(ObjectRef self, ObjectRef begin, ObjectRef end,
     ) op 0);                                                        \
 }
 
-ObjectRef ArrayType::comparableEq (ObjectRef self, ObjectRef other) BOOL_CMP(==)
-ObjectRef ArrayType::comparableLt (ObjectRef self, ObjectRef other) BOOL_CMP(< )
-ObjectRef ArrayType::comparableGt (ObjectRef self, ObjectRef other) BOOL_CMP(> )
-ObjectRef ArrayType::comparableNeq(ObjectRef self, ObjectRef other) BOOL_CMP(!=)
-ObjectRef ArrayType::comparableLeq(ObjectRef self, ObjectRef other) BOOL_CMP(<=)
-ObjectRef ArrayType::comparableGeq(ObjectRef self, ObjectRef other) BOOL_CMP(>=)
+ObjectRef ArrayType::nativeComparableEq (ObjectRef self, ObjectRef other) BOOL_CMP(==)
+ObjectRef ArrayType::nativeComparableLt (ObjectRef self, ObjectRef other) BOOL_CMP(< )
+ObjectRef ArrayType::nativeComparableGt (ObjectRef self, ObjectRef other) BOOL_CMP(> )
+ObjectRef ArrayType::nativeComparableNeq(ObjectRef self, ObjectRef other) BOOL_CMP(!=)
+ObjectRef ArrayType::nativeComparableLeq(ObjectRef self, ObjectRef other) BOOL_CMP(<=)
+ObjectRef ArrayType::nativeComparableGeq(ObjectRef self, ObjectRef other) BOOL_CMP(>=)
 
 #undef BOOL_CMP
 
-ObjectRef ArrayType::comparableCompare(ObjectRef self, ObjectRef other)
+ObjectRef ArrayType::nativeComparableCompare(ObjectRef self, ObjectRef other)
 {
     /* object type checking */
     if (other->isNotInstanceOf(ArrayTypeObject))
@@ -238,7 +238,7 @@ ObjectRef ArrayType::comparableCompare(ObjectRef self, ObjectRef other)
     return IntObject::fromInt(Utils::Lists::totalOrderCompare(self.as<ArrayObject>(), other.as<ArrayObject>()));
 }
 
-ObjectRef ArrayType::comparableContains(ObjectRef self, ObjectRef other)
+ObjectRef ArrayType::nativeComparableContains(ObjectRef self, ObjectRef other)
 {
     Reference<ArrayObject> array = self.as<ArrayObject>();
     return BoolObject::fromBool(Utils::Lists::contains(std::move(array), std::move(other)));

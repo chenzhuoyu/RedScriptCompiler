@@ -5,7 +5,7 @@ namespace RedScript::Runtime
 /* type object for bound method */
 TypeRef BoundMethodTypeObject;
 
-ObjectRef BoundMethodType::objectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs)
+ObjectRef BoundMethodType::nativeObjectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs)
 {
     /* check object type */
     if (self->isNotInstanceOf(BoundMethodTypeObject))

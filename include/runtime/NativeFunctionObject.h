@@ -15,8 +15,14 @@ class NativeFunctionType : public Type
 public:
     explicit NativeFunctionType() : Type("native_function") {}
 
+protected:
+    virtual void addBuiltins(void) override {}
+    virtual void clearBuiltins(void) override {}
+
+/*** Native Object Protocol ***/
+
 public:
-    virtual ObjectRef objectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs) override;
+    virtual ObjectRef nativeObjectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs) override;
 
 };
 

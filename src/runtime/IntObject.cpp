@@ -2,6 +2,7 @@
 
 #include "runtime/IntObject.h"
 #include "runtime/BoolObject.h"
+#include "runtime/StringObject.h"
 #include "runtime/DecimalObject.h"
 
 #include "utils/Strings.h"
@@ -20,17 +21,17 @@ static const int64_t POOL_LOWER = -32;
 static const int64_t POOL_UPPER = 255;
 static std::array<ObjectRef, POOL_UPPER - POOL_LOWER + 1> _pool;
 
-/*** Object Protocol ***/
+/*** Native Object Protocol ***/
 
-uint64_t    IntType::objectHash  (ObjectRef self) { return self.as<IntObject>()->_value.toHash();    }
-std::string IntType::objectRepr  (ObjectRef self) { return self.as<IntObject>()->_value.toString();  }
-bool        IntType::objectIsTrue(ObjectRef self) { return !(self.as<IntObject>()->_value.isZero()); }
+uint64_t    IntType::nativeObjectHash  (ObjectRef self) { return self.as<IntObject>()->_value.toHash();    }
+std::string IntType::nativeObjectRepr  (ObjectRef self) { return self.as<IntObject>()->_value.toString();  }
+bool        IntType::nativeObjectIsTrue(ObjectRef self) { return !(self.as<IntObject>()->_value.isZero()); }
 
-/*** Numeric Protocol ***/
+/*** Native Numeric Protocol ***/
 
-ObjectRef IntType::numericPos(ObjectRef self) { return IntObject::fromInteger(+(self.as<IntObject>()->value())); }
-ObjectRef IntType::numericNeg(ObjectRef self) { return IntObject::fromInteger(-(self.as<IntObject>()->value())); }
-ObjectRef IntType::numericNot(ObjectRef self) { return IntObject::fromInteger(~(self.as<IntObject>()->value())); }
+ObjectRef IntType::nativeNumericPos(ObjectRef self) { return IntObject::fromInteger(+(self.as<IntObject>()->value())); }
+ObjectRef IntType::nativeNumericNeg(ObjectRef self) { return IntObject::fromInteger(-(self.as<IntObject>()->value())); }
+ObjectRef IntType::nativeNumericNot(ObjectRef self) { return IntObject::fromInteger(~(self.as<IntObject>()->value())); }
 
 #define NUM_OP_I(op) {                                                                                  \
     if (other->isNotInstanceOf(IntTypeObject))                                                          \
@@ -57,13 +58,13 @@ ObjectRef IntType::numericNot(ObjectRef self) { return IntObject::fromInteger(~(
         return FalseObject;                                                                                                 \
 }
 
-ObjectRef IntType::numericAdd(ObjectRef self, ObjectRef other) NUM_OP_F(+)
-ObjectRef IntType::numericSub(ObjectRef self, ObjectRef other) NUM_OP_F(-)
-ObjectRef IntType::numericMul(ObjectRef self, ObjectRef other) NUM_OP_F(*)
-ObjectRef IntType::numericDiv(ObjectRef self, ObjectRef other) NUM_OP_F(/)
-ObjectRef IntType::numericMod(ObjectRef self, ObjectRef other) NUM_OP_F(%)
+ObjectRef IntType::nativeNumericAdd(ObjectRef self, ObjectRef other) NUM_OP_F(+)
+ObjectRef IntType::nativeNumericSub(ObjectRef self, ObjectRef other) NUM_OP_F(-)
+ObjectRef IntType::nativeNumericMul(ObjectRef self, ObjectRef other) NUM_OP_F(*)
+ObjectRef IntType::nativeNumericDiv(ObjectRef self, ObjectRef other) NUM_OP_F(/)
+ObjectRef IntType::nativeNumericMod(ObjectRef self, ObjectRef other) NUM_OP_F(%)
 
-ObjectRef IntType::numericPower(ObjectRef self, ObjectRef other)
+ObjectRef IntType::nativeNumericPower(ObjectRef self, ObjectRef other)
 {
     /* int ** decimal */
     if (other->isInstanceOf(DecimalTypeObject))
@@ -84,22 +85,22 @@ ObjectRef IntType::numericPower(ObjectRef self, ObjectRef other)
         return DecimalObject::fromDecimal(Utils::Decimal(val).pow(exp).toInt());
 }
 
-ObjectRef IntType::numericOr    (ObjectRef self, ObjectRef other) NUM_OP_I(|)
-ObjectRef IntType::numericAnd   (ObjectRef self, ObjectRef other) NUM_OP_I(&)
-ObjectRef IntType::numericXor   (ObjectRef self, ObjectRef other) NUM_OP_I(^)
-ObjectRef IntType::numericLShift(ObjectRef self, ObjectRef other) NUM_OP_I(<<)
-ObjectRef IntType::numericRShift(ObjectRef self, ObjectRef other) NUM_OP_I(>>)
+ObjectRef IntType::nativeNumericOr    (ObjectRef self, ObjectRef other) NUM_OP_I(|)
+ObjectRef IntType::nativeNumericAnd   (ObjectRef self, ObjectRef other) NUM_OP_I(&)
+ObjectRef IntType::nativeNumericXor   (ObjectRef self, ObjectRef other) NUM_OP_I(^)
+ObjectRef IntType::nativeNumericLShift(ObjectRef self, ObjectRef other) NUM_OP_I(<<)
+ObjectRef IntType::nativeNumericRShift(ObjectRef self, ObjectRef other) NUM_OP_I(>>)
 
-/*** Comparator Protocol ***/
+/*** Native Comparator Protocol ***/
 
-ObjectRef IntType::comparableEq (ObjectRef self, ObjectRef other) BOOL_OP_F(==)
-ObjectRef IntType::comparableLt (ObjectRef self, ObjectRef other) BOOL_OP_F(<)
-ObjectRef IntType::comparableGt (ObjectRef self, ObjectRef other) BOOL_OP_F(>)
-ObjectRef IntType::comparableNeq(ObjectRef self, ObjectRef other) BOOL_OP_F(!=)
-ObjectRef IntType::comparableLeq(ObjectRef self, ObjectRef other) BOOL_OP_F(<=)
-ObjectRef IntType::comparableGeq(ObjectRef self, ObjectRef other) BOOL_OP_F(>=)
+ObjectRef IntType::nativeComparableEq (ObjectRef self, ObjectRef other) BOOL_OP_F(==)
+ObjectRef IntType::nativeComparableLt (ObjectRef self, ObjectRef other) BOOL_OP_F(<)
+ObjectRef IntType::nativeComparableGt (ObjectRef self, ObjectRef other) BOOL_OP_F(>)
+ObjectRef IntType::nativeComparableNeq(ObjectRef self, ObjectRef other) BOOL_OP_F(!=)
+ObjectRef IntType::nativeComparableLeq(ObjectRef self, ObjectRef other) BOOL_OP_F(<=)
+ObjectRef IntType::nativeComparableGeq(ObjectRef self, ObjectRef other) BOOL_OP_F(>=)
 
-ObjectRef IntType::comparableCompare(ObjectRef self, ObjectRef other)
+ObjectRef IntType::nativeComparableCompare(ObjectRef self, ObjectRef other)
 {
     if (other->isInstanceOf(IntTypeObject))
         return IntObject::fromInt(self.as<IntObject>()->_value.cmp(other.as<IntObject>()->_value));

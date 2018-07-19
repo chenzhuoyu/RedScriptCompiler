@@ -9,13 +9,15 @@ TypeRef BoolTypeObject;
 ObjectRef TrueObject;
 ObjectRef FalseObject;
 
-uint64_t BoolType::objectHash(ObjectRef self)
+/*** Native Object Protocol ***/
+
+uint64_t BoolType::nativeObjectHash(ObjectRef self)
 {
     std::hash<bool> hash;
     return hash(self.as<BoolObject>()->_value);
 }
 
-std::string BoolType::objectRepr(ObjectRef self)
+std::string BoolType::nativeObjectRepr(ObjectRef self)
 {
     if (self.as<BoolObject>()->_value)
         return "true";
@@ -23,7 +25,7 @@ std::string BoolType::objectRepr(ObjectRef self)
         return "false";
 }
 
-bool BoolType::objectIsTrue(ObjectRef self)
+bool BoolType::nativeObjectIsTrue(ObjectRef self)
 {
     /* get the bool value */
     return self.as<BoolObject>()->_value;
