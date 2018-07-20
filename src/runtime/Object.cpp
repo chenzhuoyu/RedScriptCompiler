@@ -909,6 +909,28 @@ std::string Type::objectRepr(ObjectRef self)
     return ret.as<StringObject>()->value();
 }
 
+bool Type::objectIsTrue(ObjectRef self)
+{
+    /* apply the "__bool__" function */
+    ObjectRef ret = applyUnary("__bool__", self);
+
+    /* doesn't have user-defined "__bool__" function */
+    if (ret.isNull())
+        return nativeObjectIsTrue(self);
+
+    /* must be a boolean object */
+    if (ret->isNotInstanceOf(BoolTypeObject))
+    {
+        throw Exceptions::TypeError(Utils::Strings::format(
+            "\"__bool__\" function must return a boolean, not \"%s\"",
+            ret->type()->name()
+        ));
+    }
+
+    /* get it's value */
+    return ret.as<BoolObject>()->value();
+}
+
 void Type::objectDelAttr(ObjectRef self, const std::string &name)
 {
     /* find the user method */

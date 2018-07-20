@@ -249,7 +249,7 @@ public:
     std::string objectRepr(ObjectRef self);
 
 public:
-    bool objectIsTrue(ObjectRef self) { return true; }
+    bool objectIsTrue(ObjectRef self);
     bool objectIsSubclassOf(ObjectRef self, TypeRef type) { return nativeObjectIsSubclassOf(self, type); }
     bool objectIsInstanceOf(ObjectRef self, TypeRef type) { return nativeObjectIsInstanceOf(self, type); }
 

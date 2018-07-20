@@ -41,6 +41,9 @@ public:
     explicit BoolObject(bool value) : Object(BoolTypeObject), _value(value) {}
 
 public:
+    bool value(void) { return _value; }
+
+public:
     static ObjectRef fromBool(bool value);
 
 public:
