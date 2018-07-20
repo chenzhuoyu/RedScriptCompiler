@@ -13,7 +13,7 @@ public:
     explicit BoundMethodType() : Type("bound_method") {}
 
 protected:
-    virtual void addBuiltins(void) override {}
+    virtual void addBuiltins(void) override;
     virtual void clearBuiltins(void) override {}
 
 /*** Native Object Protocol ***/
@@ -33,7 +33,7 @@ class BoundMethodObject : public Object
 
 public:
     virtual ~BoundMethodObject() = default;
-    explicit BoundMethodObject(ObjectRef self, ObjectRef func) : Object(BoundMethodTypeObject), _self(self), _func(func) {}
+    explicit BoundMethodObject(ObjectRef self, ObjectRef func);
 
 public:
     ObjectRef invoke(Reference<TupleObject> args, Reference<MapObject> kwargs);

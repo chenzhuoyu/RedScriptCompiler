@@ -39,29 +39,9 @@ public:
 
 public:
     Runtime::ObjectRef eval(void);
+    Runtime::ObjectRef &locals(size_t id) { return _locals.at(id); }
+    Runtime::ObjectRef &locals(const std::string &name) { return _locals[_code->localMap().at(name)]; }
 
-public:
-    void setLocal(uint32_t id, Runtime::ObjectRef value)
-    {
-        /* check for ID range */
-        if (id < _locals.size())
-            _locals[id] = value;
-        else
-            throw Exceptions::InternalError(Utils::Strings::format("Invalid local ID %u", id));
-    }
-
-public:
-    void setLocal(const std::string &name, Runtime::ObjectRef value)
-    {
-        /* find the local variable ID */
-        auto iter = _code->localMap().find(name);
-
-        /* check for existence */
-        if (iter != _code->localMap().end())
-            _locals[iter->second] = value;
-        else
-            throw Exceptions::InternalError(Utils::Strings::format("Invalid local name \"%s\"", name));
-    }
 };
 }
 

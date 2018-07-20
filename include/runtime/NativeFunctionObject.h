@@ -16,7 +16,7 @@ public:
     explicit NativeFunctionType() : Type("native_function") {}
 
 protected:
-    virtual void addBuiltins(void) override {}
+    virtual void addBuiltins(void) override;
     virtual void clearBuiltins(void) override {}
 
 /*** Native Object Protocol ***/

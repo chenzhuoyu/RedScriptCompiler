@@ -14,7 +14,7 @@ public:
     explicit UnboundMethodType() : Type("unbound_method") {}
 
 protected:
-    virtual void addBuiltins(void) override {}
+    virtual void addBuiltins(void) override;
     virtual void clearBuiltins(void) override {}
 
 /*** Native Object Protocol ***/
@@ -33,7 +33,7 @@ class UnboundMethodObject : public Object
 
 public:
     virtual ~UnboundMethodObject() = default;
-    explicit UnboundMethodObject(ObjectRef func) : Object(UnboundMethodTypeObject), _func(func) {}
+    explicit UnboundMethodObject(ObjectRef func) : Object(UnboundMethodTypeObject), _func(func) { attrs().emplace("um_func", _func); }
 
 public:
     bool isNative(void) { return _func->isInstanceOf(NativeFunctionTypeObject); }
@@ -42,6 +42,12 @@ public:
 public:
     ObjectRef bind(ObjectRef self);
     ObjectRef invoke(Reference<TupleObject> args, Reference<MapObject> kwargs);
+
+public:
+    static ObjectRef newUnary(UnaryFunction   function) { return fromCallable(NativeFunctionObject::newUnary(function)); }
+    static ObjectRef newBinary(BinaryFunction  function) { return fromCallable(NativeFunctionObject::newBinary(function)); }
+    static ObjectRef newTernary(TernaryFunction function) { return fromCallable(NativeFunctionObject::newTernary(function)); }
+    static ObjectRef newVariadic(NativeFunction  function) { return fromCallable(NativeFunctionObject::newVariadic(function)); }
 
 public:
     template <typename Func>

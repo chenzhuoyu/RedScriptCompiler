@@ -16,7 +16,7 @@ public:
     explicit IntType() : Type("int") {}
 
 protected:
-    virtual void addBuiltins(void) override {}
+    virtual void addBuiltins(void) override;
     virtual void clearBuiltins(void) override {}
 
 /*** Native Object Protocol ***/

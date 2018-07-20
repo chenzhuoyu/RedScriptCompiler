@@ -52,10 +52,9 @@
 #}
 #}
 
-a = 2
-print(dir(a.__class__))
+a = 1
 print(a.__class__)
-print(a.__class__.__name__)
-print(a.__class__.__hash__)
-print(a.__class__.__super__)
-print(a.__class__.__super__.__super__)
+print(dir(a.__class__))
+print(a.__class__.__add__)
+print(dir(a.__class__.__add__))
+print(a.__class__.__add__.um_func)

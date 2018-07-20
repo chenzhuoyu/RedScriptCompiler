@@ -6,6 +6,20 @@ namespace RedScript::Runtime
 /* type object for unbound method */
 TypeRef UnboundMethodTypeObject;
 
+void UnboundMethodType::addBuiltins(void)
+{
+    attrs().emplace(
+        "__invoke__",
+        UnboundMethodObject::newTernary([](ObjectRef self, ObjectRef args, ObjectRef kwargs)
+        {
+            /* invoke the object protocol */
+            return self->type()->nativeObjectInvoke(self, args, kwargs);
+        })
+    );
+}
+
+/*** Native Object Protocol ***/
+
 ObjectRef UnboundMethodType::nativeObjectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs)
 {
     /* check object type */

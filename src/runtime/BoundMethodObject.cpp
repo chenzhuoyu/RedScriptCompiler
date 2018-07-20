@@ -1,9 +1,24 @@
 #include "runtime/BoundMethodObject.h"
+#include "runtime/UnboundMethodObject.h"
 
 namespace RedScript::Runtime
 {
 /* type object for bound method */
 TypeRef BoundMethodTypeObject;
+
+void BoundMethodType::addBuiltins(void)
+{
+    attrs().emplace(
+        "__invoke__",
+        UnboundMethodObject::newTernary([](ObjectRef self, ObjectRef args, ObjectRef kwargs)
+        {
+            /* invoke the object protocol */
+            return self->type()->nativeObjectInvoke(self, args, kwargs);
+        })
+    );
+}
+
+/*** Native Object Protocol ***/
 
 ObjectRef BoundMethodType::nativeObjectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs)
 {
@@ -21,6 +36,15 @@ ObjectRef BoundMethodType::nativeObjectInvoke(ObjectRef self, ObjectRef args, Ob
 
     /* call the method handler */
     return self.as<BoundMethodObject>()->invoke(args.as<TupleObject>(), kwargs.as<MapObject>());
+}
+
+BoundMethodObject::BoundMethodObject(ObjectRef self, ObjectRef func) :
+    Object(BoundMethodTypeObject),
+    _self(self),
+    _func(func)
+{
+    attrs().emplace("bm_func", _func);
+    attrs().emplace("bm_self", _self);
 }
 
 ObjectRef BoundMethodObject::invoke(Reference<TupleObject> args, Reference<MapObject> kwargs)

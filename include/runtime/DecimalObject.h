@@ -15,7 +15,7 @@ public:
     explicit DecimalType() : Type("decimal") {}
 
 protected:
-    virtual void addBuiltins(void) override {}
+    virtual void addBuiltins(void) override;
     virtual void clearBuiltins(void) override {}
 
 private:

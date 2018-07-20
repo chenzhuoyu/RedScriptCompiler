@@ -2,10 +2,9 @@
 
 #include "runtime/IntObject.h"
 #include "runtime/BoolObject.h"
-#include "runtime/StringObject.h"
 #include "runtime/DecimalObject.h"
+#include "runtime/UnboundMethodObject.h"
 
-#include "utils/Strings.h"
 #include "exceptions/TypeError.h"
 #include "exceptions/ValueError.h"
 
@@ -20,6 +19,50 @@ TypeRef IntTypeObject;
 static const int64_t POOL_LOWER = -32;
 static const int64_t POOL_UPPER = 255;
 static std::array<ObjectRef, POOL_UPPER - POOL_LOWER + 1> _pool;
+
+#define UM_UNARY(func)  UnboundMethodObject::newUnary([](ObjectRef self){ return func; })
+#define UM_BINARY(func) UnboundMethodObject::newBinary([](ObjectRef self, ObjectRef other){ return func; })
+
+#define ADD_UNARY(name, func)  attrs().emplace(#name, UM_UNARY(self->type()->native ## func(self)))
+#define ADD_BINARY(name, func) attrs().emplace(#name, UM_BINARY(self->type()->native ## func(self, other)))
+
+void IntType::addBuiltins(void)
+{
+    /* unary operators */
+    ADD_UNARY(__pos__, NumericPos);
+    ADD_UNARY(__neg__, NumericNeg);
+    ADD_UNARY(__not__, NumericNot);
+
+    /* binary arithmetic operators */
+    ADD_BINARY(__add__  , NumericAdd  );
+    ADD_BINARY(__sub__  , NumericSub  );
+    ADD_BINARY(__mul__  , NumericMul  );
+    ADD_BINARY(__div__  , NumericDiv  );
+    ADD_BINARY(__mod__  , NumericMod  );
+    ADD_BINARY(__power__, NumericPower);
+
+    /* binary bitwise operators */
+    ADD_BINARY(__or__    , NumericOr    );
+    ADD_BINARY(__and__   , NumericAnd   );
+    ADD_BINARY(__xor__   , NumericXor   );
+    ADD_BINARY(__lshift__, NumericLShift);
+    ADD_BINARY(__rshift__, NumericRShift);
+
+    /* binary comparsion operators */
+    ADD_BINARY(__eq__     , ComparableEq     );
+    ADD_BINARY(__lt__     , ComparableLt     );
+    ADD_BINARY(__gt__     , ComparableGt     );
+    ADD_BINARY(__neq__    , ComparableNeq    );
+    ADD_BINARY(__leq__    , ComparableLeq    );
+    ADD_BINARY(__geq__    , ComparableGeq    );
+    ADD_BINARY(__compare__, ComparableCompare);
+}
+
+#undef UM_UNARY
+#undef UM_BINARY
+
+#undef ADD_UNARY
+#undef ADD_BINARY
 
 /*** Native Object Protocol ***/
 

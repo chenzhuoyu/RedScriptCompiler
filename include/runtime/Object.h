@@ -131,41 +131,41 @@ private:
 
 /*** Native Object Protocol ***/
 
-protected:
+public:
     virtual uint64_t    nativeObjectHash(ObjectRef self);
     virtual StringList  nativeObjectDir (ObjectRef self);
     virtual std::string nativeObjectStr (ObjectRef self) { return objectRepr(self); }
     virtual std::string nativeObjectRepr(ObjectRef self);
 
-protected:
+public:
     virtual bool nativeObjectIsTrue(ObjectRef self) { return true; }
     virtual bool nativeObjectIsSubclassOf(ObjectRef self, TypeRef type);
     virtual bool nativeObjectIsInstanceOf(ObjectRef self, TypeRef type) { return objectIsSubclassOf(self->type(), type); }
 
-protected:
+public:
     virtual bool      nativeObjectHasAttr   (ObjectRef self, const std::string &name);
     virtual void      nativeObjectDelAttr   (ObjectRef self, const std::string &name);
     virtual ObjectRef nativeObjectGetAttr   (ObjectRef self, const std::string &name);
     virtual void      nativeObjectSetAttr   (ObjectRef self, const std::string &name, ObjectRef value);
     virtual void      nativeObjectDefineAttr(ObjectRef self, const std::string &name, ObjectRef value);
 
-protected:
+public:
     virtual ObjectRef nativeObjectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs);
 
 /*** Native Boolean Protocol ***/
 
-protected:
+public:
     virtual ObjectRef nativeBoolOr (ObjectRef self, ObjectRef other);
     virtual ObjectRef nativeBoolAnd(ObjectRef self, ObjectRef other);
     virtual ObjectRef nativeBoolNot(ObjectRef self);
 
 /*** Native Numeric Protocol ***/
 
-protected:
+public:
     virtual ObjectRef nativeNumericPos(ObjectRef self);
     virtual ObjectRef nativeNumericNeg(ObjectRef self);
 
-protected:
+public:
     virtual ObjectRef nativeNumericAdd  (ObjectRef self, ObjectRef other);
     virtual ObjectRef nativeNumericSub  (ObjectRef self, ObjectRef other);
     virtual ObjectRef nativeNumericMul  (ObjectRef self, ObjectRef other);
@@ -173,17 +173,17 @@ protected:
     virtual ObjectRef nativeNumericMod  (ObjectRef self, ObjectRef other);
     virtual ObjectRef nativeNumericPower(ObjectRef self, ObjectRef other);
 
-protected:
+public:
     virtual ObjectRef nativeNumericOr (ObjectRef self, ObjectRef other);
     virtual ObjectRef nativeNumericAnd(ObjectRef self, ObjectRef other);
     virtual ObjectRef nativeNumericXor(ObjectRef self, ObjectRef other);
     virtual ObjectRef nativeNumericNot(ObjectRef self);
 
-protected:
+public:
     virtual ObjectRef nativeNumericLShift(ObjectRef self, ObjectRef other);
     virtual ObjectRef nativeNumericRShift(ObjectRef self, ObjectRef other);
 
-protected:
+public:
     virtual ObjectRef nativeNumericIncAdd  (ObjectRef self, ObjectRef other);
     virtual ObjectRef nativeNumericIncSub  (ObjectRef self, ObjectRef other);
     virtual ObjectRef nativeNumericIncMul  (ObjectRef self, ObjectRef other);
@@ -191,47 +191,47 @@ protected:
     virtual ObjectRef nativeNumericIncMod  (ObjectRef self, ObjectRef other);
     virtual ObjectRef nativeNumericIncPower(ObjectRef self, ObjectRef other);
 
-protected:
+public:
     virtual ObjectRef nativeNumericIncOr (ObjectRef self, ObjectRef other);
     virtual ObjectRef nativeNumericIncAnd(ObjectRef self, ObjectRef other);
     virtual ObjectRef nativeNumericIncXor(ObjectRef self, ObjectRef other);
 
-protected:
+public:
     virtual ObjectRef nativeNumericIncLShift(ObjectRef self, ObjectRef other);
     virtual ObjectRef nativeNumericIncRShift(ObjectRef self, ObjectRef other);
 
 /*** Native Iterator Protocol ***/
 
-protected:
+public:
     virtual ObjectRef nativeIterableIter(ObjectRef self);
     virtual ObjectRef nativeIterableNext(ObjectRef self);
 
 /*** Native Sequence Protocol ***/
 
-protected:
+public:
     virtual ObjectRef nativeSequenceLen    (ObjectRef self);
     virtual void      nativeSequenceDelItem(ObjectRef self, ObjectRef other);
     virtual ObjectRef nativeSequenceGetItem(ObjectRef self, ObjectRef other);
     virtual void      nativeSequenceSetItem(ObjectRef self, ObjectRef second, ObjectRef third);
 
-protected:
+public:
     virtual void      nativeSequenceDelSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step);
     virtual ObjectRef nativeSequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step);
     virtual void      nativeSequenceSetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step, ObjectRef value);
 
 /*** Native Comparator Protocol ***/
 
-protected:
+public:
     virtual ObjectRef nativeComparableEq(ObjectRef self, ObjectRef other);
     virtual ObjectRef nativeComparableLt(ObjectRef self, ObjectRef other);
     virtual ObjectRef nativeComparableGt(ObjectRef self, ObjectRef other);
 
-protected:
+public:
     virtual ObjectRef nativeComparableNeq(ObjectRef self, ObjectRef other);
     virtual ObjectRef nativeComparableLeq(ObjectRef self, ObjectRef other);
     virtual ObjectRef nativeComparableGeq(ObjectRef self, ObjectRef other);
 
-protected:
+public:
     virtual ObjectRef nativeComparableCompare(ObjectRef self, ObjectRef other);
     virtual ObjectRef nativeComparableContains(ObjectRef self, ObjectRef other);
 

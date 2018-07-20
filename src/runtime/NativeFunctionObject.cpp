@@ -1,9 +1,24 @@
+#include "runtime/UnboundMethodObject.h"
 #include "runtime/NativeFunctionObject.h"
 
 namespace RedScript::Runtime
 {
 /* type object for native function */
 TypeRef NativeFunctionTypeObject;
+
+void NativeFunctionType::addBuiltins(void)
+{
+    attrs().emplace(
+        "__invoke__",
+        UnboundMethodObject::newTernary([](ObjectRef self, ObjectRef args, ObjectRef kwargs)
+        {
+            /* invoke the object protocol */
+            return self->type()->nativeObjectInvoke(self, args, kwargs);
+        })
+    );
+}
+
+/*** Native Object Protocol ***/
 
 ObjectRef NativeFunctionType::nativeObjectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs)
 {

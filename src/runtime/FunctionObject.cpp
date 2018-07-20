@@ -1,9 +1,8 @@
-#include <algorithm>
-
 #include "runtime/MapObject.h"
 #include "runtime/NullObject.h"
 #include "runtime/StringObject.h"
 #include "runtime/FunctionObject.h"
+#include "runtime/UnboundMethodObject.h"
 
 #include "exceptions/TypeError.h"
 #include "exceptions/InternalError.h"
@@ -15,6 +14,20 @@ namespace RedScript::Runtime
 {
 /* type object for function */
 TypeRef FunctionTypeObject;
+
+void FunctionType::addBuiltins(void)
+{
+    attrs().emplace(
+        "__invoke__",
+        UnboundMethodObject::newTernary([](ObjectRef self, ObjectRef args, ObjectRef kwargs)
+        {
+            /* invoke the object protocol */
+            return self->type()->nativeObjectInvoke(self, args, kwargs);
+        })
+    );
+}
+
+/*** Native Object Protocol ***/
 
 ObjectRef FunctionType::nativeObjectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs)
 {
@@ -45,7 +58,7 @@ ObjectRef FunctionObject::invoke(Reference<TupleObject> args, Reference<MapObjec
         throw Exceptions::TypeError("Too many default values");
 
     /* create a new interpreter */
-    Engine::Interpreter intp(_code, _closure);
+    Engine::Interpreter vm(_code, _closure);
     std::vector<ObjectRef> argv(_code->args().size());
 
     /* check positional arguments */
@@ -72,11 +85,11 @@ ObjectRef FunctionObject::invoke(Reference<TupleObject> args, Reference<MapObjec
     /* calculate positional argument count */
     size_t n = 0;
     size_t argc = 0;
-    size_t count = std::min(argv.size(), args->size());
+    size_t count = argv.size() < args->size() ? argv.size() : args->size();
 
     /* extra positional arguments and keyword arguments */
-    auto argsMap = MapObject::newOrdered();
-    auto argsTuple = TupleObject::fromSize(args->size() <= argv.size() ? 0 : args->size() - argv.size());
+    auto namedArgs = MapObject::newOrdered();
+    auto indexArgs = TupleObject::fromSize(args->size() <= argv.size() ? 0 : args->size() - argv.size());
 
     /* fill positional arguments */
     while (argc < count)
@@ -85,7 +98,7 @@ ObjectRef FunctionObject::invoke(Reference<TupleObject> args, Reference<MapObjec
     /* fill extra positional arguments, if needed */
     if (!(_code->vargs().empty()))
         for (size_t i = count; i < args->size(); i++)
-            argsTuple->items()[i - count] = args->items()[i];
+            indexArgs->items()[i - count] = args->items()[i];
 
     /* fill named arguments */
     kwargs->enumerate([&](ObjectRef key, ObjectRef value)
@@ -111,7 +124,7 @@ ObjectRef FunctionObject::invoke(Reference<TupleObject> args, Reference<MapObjec
             }
 
             /* add to keyword arguments list */
-            argsMap->insert(key, value);
+            namedArgs->insert(key, value);
             return true;
         }
         else
@@ -166,18 +179,18 @@ ObjectRef FunctionObject::invoke(Reference<TupleObject> args, Reference<MapObjec
 
     /* set into locals, arguments start from ID 0 */
     for (uint32_t id = 0; id < argv.size(); id++)
-        intp.setLocal(id, argv[id]);
+        vm.locals(id) = argv[id];
 
     /* set variadic arguments if any */
     if (!(_code->vargs().empty()))
-        intp.setLocal(_code->vargs(), argsTuple);
+        vm.locals(_code->vargs()) = std::move(indexArgs);
 
     /* set keyword arguments if any */
     if (!(_code->kwargs().empty()))
-        intp.setLocal(_code->kwargs(), argsMap);
+        vm.locals(_code->kwargs()) = std::move(namedArgs);
 
     /* run the bytecodes */
-    return intp.eval();
+    return vm.eval();
 }
 
 void FunctionObject::referenceClear(void)

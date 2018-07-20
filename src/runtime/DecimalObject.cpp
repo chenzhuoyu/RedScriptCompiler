@@ -1,6 +1,7 @@
 #include "runtime/IntObject.h"
 #include "runtime/BoolObject.h"
 #include "runtime/DecimalObject.h"
+#include "runtime/UnboundMethodObject.h"
 
 #include "exceptions/TypeError.h"
 #include "exceptions/InternalError.h"
@@ -9,6 +10,42 @@ namespace RedScript::Runtime
 {
 /* type object for decimal */
 TypeRef DecimalTypeObject;
+
+#define UM_UNARY(func)  UnboundMethodObject::newUnary([](ObjectRef self){ return func; })
+#define UM_BINARY(func) UnboundMethodObject::newBinary([](ObjectRef self, ObjectRef other){ return func; })
+
+#define ADD_UNARY(name, func)  attrs().emplace(#name, UM_UNARY(self->type()->native ## func(self)))
+#define ADD_BINARY(name, func) attrs().emplace(#name, UM_BINARY(self->type()->native ## func(self, other)))
+
+void DecimalType::addBuiltins(void)
+{
+    /* unary operators */
+    ADD_UNARY(__pos__, NumericPos);
+    ADD_UNARY(__neg__, NumericNeg);
+
+    /* binary arithmetic operators */
+    ADD_BINARY(__add__  , NumericAdd  );
+    ADD_BINARY(__sub__  , NumericSub  );
+    ADD_BINARY(__mul__  , NumericMul  );
+    ADD_BINARY(__div__  , NumericDiv  );
+    ADD_BINARY(__mod__  , NumericMod  );
+    ADD_BINARY(__power__, NumericPower);
+
+    /* binary comparsion operators */
+    ADD_BINARY(__eq__     , ComparableEq     );
+    ADD_BINARY(__lt__     , ComparableLt     );
+    ADD_BINARY(__gt__     , ComparableGt     );
+    ADD_BINARY(__neq__    , ComparableNeq    );
+    ADD_BINARY(__leq__    , ComparableLeq    );
+    ADD_BINARY(__geq__    , ComparableGeq    );
+    ADD_BINARY(__compare__, ComparableCompare);
+}
+
+#undef UM_UNARY
+#undef UM_BINARY
+
+#undef ADD_UNARY
+#undef ADD_BINARY
 
 bool DecimalType::compare(ObjectRef self, ObjectRef other, bool (*ret)(int))
 {
@@ -28,7 +65,7 @@ Utils::Decimal DecimalType::toDecimal(ObjectRef other)
 
     /* integer objects */
     else if (other->isInstanceOf(IntTypeObject))
-        return Utils::Decimal(other.as<IntObject>()->value().toString());
+        return Utils::Decimal(other.as<IntObject>()->value());
 
     /* otherwise it's an error */
     else
