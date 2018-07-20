@@ -186,61 +186,6 @@ Type::DescriptorType Type::resolveDescriptor(ObjectRef obj, ObjectRef *getter, O
     return ret ? DescriptorType::UserDefined : DescriptorType::NotADescriptor;
 }
 
-ObjectRef Type::applyUnary(const char *name, ObjectRef self)
-{
-    /* find the user method */
-    ObjectRef method = findUserMethod(self, name, nullptr);
-
-    /* found, apply the method */
-    if (!(method.isNull()))
-        return applyUnaryMethod(std::move(method), std::move(self));
-
-    /* don't throw exceptions if required */
-    return nullptr;
-}
-
-ObjectRef Type::applyBinary(const char *name, ObjectRef self, ObjectRef other, const char *alt)
-{
-    /* find the user method */
-    ObjectRef method = findUserMethod(self, name, alt);
-
-    /* found, apply the method */
-    if (!(method.isNull()))
-        return applyBinaryMethod(std::move(method), std::move(self), std::move(other));
-
-    /* don't throw exceptions if required */
-    return nullptr;
-
-    /* otherwise throw the exception */
-    // todo: move this
-    throw Exceptions::AttributeError(Utils::Strings::format(
-        "\"%s\" object doesn't support \"%s\" action",
-        self->type()->name(),
-        name
-    ));
-}
-
-ObjectRef Type::applyTernary(const char *name, ObjectRef self, ObjectRef second, ObjectRef third)
-{
-    /* find the user method */
-    ObjectRef method = findUserMethod(self, name, nullptr);
-
-    /* found, apply the method */
-    if (!(method.isNull()))
-        return applyTernaryMethod(std::move(method), std::move(self), std::move(second), std::move(third));
-
-    /* don't throw exceptions if required */
-    return nullptr;
-
-    /* otherwise throw the exception */
-    // todo: move this
-    throw Exceptions::AttributeError(Utils::Strings::format(
-        "\"%s\" object doesn't support \"%s\" action",
-        self->type()->name(),
-        name
-    ));
-}
-
 ObjectRef Type::applyUnaryMethod(ObjectRef method, ObjectRef self)
 {
     auto args = TupleObject::fromObjects(self);
@@ -806,12 +751,16 @@ ObjectRef Type::nativeComparableCompare(ObjectRef self, ObjectRef other)
 
 uint64_t Type::objectHash(ObjectRef self)
 {
-    /* apply the "__hash__" function */
-    ObjectRef ret = applyUnary("__hash__", self);
+    /* find the "__hash__" function */
+    ObjectRef ret = findUserMethod(self, "__hash__", nullptr);
 
     /* doesn't have user-defined "__hash__" function */
     if (ret.isNull())
         return nativeObjectHash(self);
+
+    /* apply the user method */
+    if ((ret = applyUnaryMethod(std::move(ret), std::move(self))).isNull())
+        throw Exceptions::InternalError("User method \"__hash__\" gives null");
 
     /* must be an integer object */
     if (ret->isNotInstanceOf(IntTypeObject))
@@ -836,12 +785,16 @@ uint64_t Type::objectHash(ObjectRef self)
 StringList Type::objectDir(ObjectRef self)
 {
     /* apply the "__dir__" function */
-    ObjectRef ret = applyUnary("__dir__", self);
+    ObjectRef ret = findUserMethod(self, "__dir__", nullptr);
     StringList result;
 
     /* doesn't have user-defined "__dir__" function */
     if (ret.isNull())
         return nativeObjectDir(self);
+
+    /* apply the user method */
+    if ((ret = applyUnaryMethod(std::move(ret), std::move(self))).isNull())
+        throw Exceptions::InternalError("User method \"__dir__\" gives null");
 
     /* must be a tuple */
     if (ret->isNotInstanceOf(TupleTypeObject))
@@ -868,11 +821,15 @@ StringList Type::objectDir(ObjectRef self)
 std::string Type::objectStr(ObjectRef self)
 {
     /* apply the "__str__" function */
-    ObjectRef ret = applyUnary("__str__", self);
+    ObjectRef ret = findUserMethod(self, "__str__", nullptr);
 
     /* doesn't have user-defined "__str__" function */
     if (ret.isNull())
         return nativeObjectStr(self);
+
+    /* apply the user method */
+    if ((ret = applyUnaryMethod(std::move(ret), std::move(self))).isNull())
+        throw Exceptions::InternalError("User method \"__str__\" gives null");
 
     /* must be an integer object */
     if (ret->isNotInstanceOf(StringTypeObject))
@@ -890,11 +847,15 @@ std::string Type::objectStr(ObjectRef self)
 std::string Type::objectRepr(ObjectRef self)
 {
     /* apply the "__repr__" function */
-    ObjectRef ret = applyUnary("__repr__", self);
+    ObjectRef ret = findUserMethod(self, "__repr__", nullptr);
 
     /* doesn't have user-defined "__repr__" function */
     if (ret.isNull())
         return nativeObjectRepr(self);
+
+    /* apply the user method */
+    if ((ret = applyUnaryMethod(std::move(ret), std::move(self))).isNull())
+        throw Exceptions::InternalError("User method \"__repr__\" gives null");
 
     /* must be an integer object */
     if (ret->isNotInstanceOf(StringTypeObject))
@@ -912,11 +873,15 @@ std::string Type::objectRepr(ObjectRef self)
 bool Type::objectIsTrue(ObjectRef self)
 {
     /* apply the "__bool__" function */
-    ObjectRef ret = applyUnary("__bool__", self);
+    ObjectRef ret = findUserMethod(self, "__bool__", nullptr);
 
     /* doesn't have user-defined "__bool__" function */
     if (ret.isNull())
         return nativeObjectIsTrue(self);
+
+    /* apply the user method */
+    if ((ret = applyUnaryMethod(std::move(ret), std::move(self))).isNull())
+        throw Exceptions::InternalError("User method \"__bool__\" gives null");
 
     /* must be a boolean object */
     if (ret->isNotInstanceOf(BoolTypeObject))

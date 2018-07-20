@@ -125,11 +125,6 @@ private:
     DescriptorType resolveDescriptor(ObjectRef obj, ObjectRef *getter, ObjectRef *setter, ObjectRef *deleter);
 
 private:
-    ObjectRef applyUnary(const char *name, ObjectRef self);
-    ObjectRef applyBinary(const char *name, ObjectRef self, ObjectRef other, const char *alt);
-    ObjectRef applyTernary(const char *name, ObjectRef self, ObjectRef second, ObjectRef third);
-
-private:
     ObjectRef applyUnaryMethod(ObjectRef method, ObjectRef self);
     ObjectRef applyBinaryMethod(ObjectRef method, ObjectRef self, ObjectRef other);
     ObjectRef applyTernaryMethod(ObjectRef method, ObjectRef self, ObjectRef second, ObjectRef third);
