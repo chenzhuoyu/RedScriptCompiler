@@ -123,7 +123,7 @@ static const uint32_t FI_KWARGS     = 0x00000008;    /* have keyword arguments *
 static const uint32_t FI_DECORATOR  = 0x00000010;    /* decorator invocation, exclusive flag */
 
 /* flags for each opcode */
-static uint32_t OpCodeFlags[256] = {
+static const uint32_t OpCodeFlags[256] = {
     0,                  /* 0x00 :: LOAD_NULL     */
     0,                  /* 0x01 :: LOAD_TRUE     */
     0,                  /* 0x02 :: LOAD_FALSE    */
