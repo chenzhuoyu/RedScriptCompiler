@@ -558,10 +558,65 @@ void Type::nativeObjectDefineAttr(ObjectRef self, const std::string &name, Objec
 
 ObjectRef Type::nativeObjectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs)
 {
-    throw Exceptions::TypeError(Utils::Strings::format(
-        "\"%s\" object is not callable",
-        self->type()->name()
-    ));
+    /* tuple type check */
+    if (args->isNotInstanceOf(TupleTypeObject))
+        throw Exceptions::InternalError("Invalid function call: args");
+
+    /* map type check */
+    if (kwargs->isNotInstanceOf(MapTypeObject))
+        throw Exceptions::InternalError("Invalid function call: kwargs");
+
+    /* convert to correct types */
+    Reference<MapObject> namedArgs = kwargs.as<MapObject>();
+    Reference<TupleObject> indexArgs = args.as<TupleObject>();
+
+    /* type(<name>, [super], [attrs]) */
+    if (self.isIdenticalWith(TypeObject))
+    {
+        /* class name, attributes and super class */
+        ObjectRef name;
+        ObjectRef attrs;
+        ObjectRef super;
+
+        /* have first argument (class name) */
+        if (indexArgs->size() >= 1)
+            name = indexArgs->items()[0];
+
+        /* have second argument (super class) */
+        if (indexArgs->size() >= 2)
+            super = indexArgs->items()[1];
+
+        /* have third argument (class attributes) */
+        if (indexArgs->size() == 3)
+            args = indexArgs->items()[2];
+
+        /* should have no more positional arguments */
+        if (indexArgs->size() > 3)
+        {
+            throw Exceptions::TypeError(Utils::Strings::format(
+                "\"type\" takes at most 3 arguments but %zu given",
+                indexArgs->size()
+            ));
+        }
+
+        // TODO: create new type
+        return nullptr;
+    }
+
+    /* object() */
+    else if (self->isInstanceOf(TypeObject))
+    {
+        throw Exceptions::InternalError("not implemented");
+    }
+
+    /* otherwise, it's an error */
+    else
+    {
+        throw Exceptions::TypeError(Utils::Strings::format(
+            "\"%s\" object is not callable",
+            self->type()->name()
+        ));
+    }
 }
 
 /*** Native Boolean Protocol ***/
@@ -956,7 +1011,7 @@ void Type::objectSetAttr(ObjectRef self, const std::string &name, ObjectRef valu
 
 ObjectRef Type::objectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs)
 {
-    /* apply ternary operator */
+    /* apply invocations as ternary operator */
     APPLY_TERNARY(__invoke__, ObjectInvoke, self, args, kwargs)
 }
 
