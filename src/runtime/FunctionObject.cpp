@@ -22,6 +22,12 @@ void FunctionType::addBuiltins(void)
 
 /*** Native Object Protocol ***/
 
+std::string FunctionType::nativeObjectRepr(ObjectRef self)
+{
+    auto func = self.as<FunctionObject>();
+    return Utils::Strings::format("<function \"%s\" at %p>", func->name(), static_cast<void *>(func.get()));
+}
+
 ObjectRef FunctionType::nativeObjectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
 {
     if (self->isNotInstanceOf(FunctionTypeObject))

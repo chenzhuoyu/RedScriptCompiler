@@ -60,9 +60,9 @@ class Test
         print('self is', self)
     }
 
-    def func(self)
+    def test_func(self)
     {
-        print('in func')
+        print('in test_func')
         print('self.x is', self.x)
     }
 }
@@ -72,5 +72,6 @@ class Foo : Test {}
 print(Test)
 test = Foo(999)
 print(test)
-print(test.func)
-test.func()
+print(test.test_func)
+print(test.test_func.bm_func)
+test.test_func()
