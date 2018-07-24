@@ -101,8 +101,8 @@ std::unordered_map<std::string, Engine::ClosureRef> Interpreter::closureCreate(R
     std::unordered_map<std::string, uint32_t> &locals = _code->localMap();
     std::unordered_map<std::string, Engine::ClosureRef> closure;
 
-    /* build class closure */
-    for (const auto &item : code->names())
+    /* build class closure only from free variables to reduce closure size */
+    for (const auto &item : code->freeVars())
     {
         /* find from local variables first */
         auto iter = locals.find(item);
@@ -1262,7 +1262,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                     auto def = std::move(_stack.back());
 
                     /* check name ID */
-                    if (nid >= _code->locals().size())
+                    if (nid >= _code->names().size())
                         throw Exceptions::InternalError(Utils::Strings::format("Name ID %u out of range", cid));
 
                     /* check code ID */
@@ -1274,8 +1274,8 @@ Runtime::ObjectRef Interpreter::eval(void)
                         throw Exceptions::InternalError("Invalid tuple object");
 
                     /* get function code and name */
+                    auto &name = _code->names()[nid];
                     auto &code = _code->consts()[cid];
-                    auto &name = _code->locals()[nid];
 
                     /* check for code object */
                     if (code->isNotInstanceOf(Runtime::CodeTypeObject))
@@ -1304,7 +1304,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                     auto super = std::move(_stack.back());
 
                     /* check name ID range */
-                    if (nid >= _code->locals().size())
+                    if (nid >= _code->names().size())
                         throw Exceptions::InternalError("Name ID out of range");
 
                     /* check code ID range */
@@ -1321,8 +1321,8 @@ Runtime::ObjectRef Interpreter::eval(void)
                     }
 
                     /* get function code and name */
+                    auto &name = _code->names()[nid];
                     auto &code = _code->consts()[cid];
-                    auto &name = _code->locals()[nid];
 
                     /* check for code object */
                     if (code->isNotInstanceOf(Runtime::CodeTypeObject))

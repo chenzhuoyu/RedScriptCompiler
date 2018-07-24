@@ -51,6 +51,10 @@ static void dis(RedScript::Runtime::Reference<RedScript::Runtime::CodeObject> co
     for (size_t i = 0; i < code->locals().size(); i++)
         printf("%zu : %s\n", i, code->locals()[i].c_str());
 
+    std::cout << "--------------------- FREEVARS ---------------------" << std::endl;
+    for (const auto &freeVar : code->freeVars())
+        printf("%u : %s\n", code->nameMap()[freeVar], freeVar.c_str());
+
     std::cout << "--------------------- CODE ---------------------" << std::endl;
     const char *s = code->buffer().data();
     const char *p = code->buffer().data();

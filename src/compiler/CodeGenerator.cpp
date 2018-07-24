@@ -75,15 +75,17 @@ void CodeGenerator::buildClassObject(const std::string &name, const std::unique_
 
     /* pop the code object out of frame */
     auto code = cls.leave();
-    auto codeId = addConst(code);
-    auto nameId = addLocal(name);
+    auto &freeVars = code->freeVars();
 
     /* merge it's free variables with ours, if we don't have them */
-    for (const auto &var : code->names())
-        addName(var);
+    for (const auto &item : freeVars)
+    {
+        addName(item);
+        markFreeVar(item);
+    }
 
     /* make it a class */
-    emitOperand2(node, Engine::OpCode::MAKE_CLASS, nameId, codeId);
+    emitOperand2(node, Engine::OpCode::MAKE_CLASS, addName(name), addConst(code));
 }
 
 void CodeGenerator::buildFunctionObject(const std::string &name, const std::unique_ptr<AST::Function> &node)
@@ -135,15 +137,17 @@ void CodeGenerator::buildFunctionObject(const std::string &name, const std::uniq
 
     /* pop the code object out of frame */
     auto code = func.leave();
-    auto codeId = addConst(code);
-    auto nameId = addLocal(name);
+    auto &freeVars = code->freeVars();
 
     /* merge it's free variables with ours, if we don't have them */
-    for (const auto &var : code->names())
-        addName(var);
+    for (const auto &item : freeVars)
+    {
+        addName(item);
+        markFreeVar(item);
+    }
 
     /* make it a function */
-    emitOperand2(node, Engine::OpCode::MAKE_FUNCTION, nameId, codeId);
+    emitOperand2(node, Engine::OpCode::MAKE_FUNCTION, addName(name), addConst(code));
 }
 
 void CodeGenerator::visitIf(const std::unique_ptr<AST::If> &node)
@@ -972,16 +976,28 @@ void CodeGenerator::visitTuple(const std::unique_ptr<AST::Tuple> &node)
 
 void CodeGenerator::visitName(const std::unique_ptr<AST::Name> &node)
 {
+    /* load constant "null" */
     if (node->name == "null")
         emit(node, Engine::OpCode::LOAD_NULL);
+
+    /* load constant "true" */
     else if (node->name == "true")
         emit(node, Engine::OpCode::LOAD_TRUE);
+
+    /* load constant "false" */
     else if (node->name == "false")
         emit(node, Engine::OpCode::LOAD_FALSE);
-    else if (!isLocal(node->name))
-        emitOperand(node, Engine::OpCode::LOAD_NAME, addName(node->name));
-    else
+
+    /* load local variables */
+    else if (isLocal(node->name))
         emitOperand(node, Engine::OpCode::LOAD_LOCAL, addLocal(node->name));
+
+    /* load free variables by name */
+    else
+    {
+        markFreeVar(node->name);
+        emitOperand(node, Engine::OpCode::LOAD_NAME, addName(node->name));
+    }
 }
 
 void CodeGenerator::visitUnpack(const std::unique_ptr<AST::Unpack> &node)

@@ -69,6 +69,7 @@ private:
 private:
     inline void setVargs(const std::string &vargs) { code()->setVargs(vargs); }
     inline void setKwargs(const std::string &kwargs) { code()->setKwargs(kwargs); }
+    inline void markFreeVar(const std::string &freeVar) { code()->markFreeVar(freeVar); }
 
 private:
     inline uint32_t addName(const std::string &name) { return code()->addName(name); }

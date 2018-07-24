@@ -5,6 +5,7 @@
 #include <string>
 #include <cstdint>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "engine/Bytecode.h"
 #include "runtime/Object.h"
@@ -35,16 +36,17 @@ private:
 
 private:
     std::vector<char> _buffer;
-    std::vector<std::string> _argTable;
-    std::vector<std::string> _nameTable;
-    std::vector<std::string> _localTable;
-    std::vector<Runtime::ObjectRef> _constTable;
-    std::vector<std::pair<int, int>> _lineNumTable;
+    std::vector<std::string> _args;
+    std::vector<std::string> _names;
+    std::vector<std::string> _locals;
+    std::vector<Runtime::ObjectRef> _consts;
+    std::vector<std::pair<int, int>> _lineNums;
 
 private:
-    std::unordered_map<std::string, uint32_t> _names;
-    std::unordered_map<std::string, uint32_t> _locals;
-    std::unordered_map<Runtime::ObjectRef, uint32_t> _consts;
+    std::unordered_set<std::string> _freeVars;
+    std::unordered_map<std::string, uint32_t> _nameMap;
+    std::unordered_map<std::string, uint32_t> _localMap;
+    std::unordered_map<Runtime::ObjectRef, uint32_t> _constMap;
 
 public:
     virtual ~CodeObject() = default;
@@ -56,19 +58,21 @@ public:
 
 public:
     std::vector<char> &buffer(void) { return _buffer; }
-    std::vector<std::string> &args(void) { return _argTable; }
-    std::vector<std::string> &names(void) { return _nameTable; }
-    std::vector<std::string> &locals(void) { return _localTable; }
-    std::vector<Runtime::ObjectRef> &consts(void) { return _constTable; }
-    std::vector<std::pair<int, int>> &lineNums(void) { return _lineNumTable; }
+    std::vector<std::string> &args(void) { return _args; }
+    std::vector<std::string> &names(void) { return _names; }
+    std::vector<std::string> &locals(void) { return _locals; }
+    std::vector<Runtime::ObjectRef> &consts(void) { return _consts; }
+    std::vector<std::pair<int, int>> &lineNums(void) { return _lineNums; }
 
 public:
-    std::unordered_map<std::string, uint32_t> &nameMap(void) { return _names; }
-    std::unordered_map<std::string, uint32_t> &localMap(void) { return _locals; }
+    std::unordered_set<std::string> &freeVars(void) { return _freeVars; }
+    std::unordered_map<std::string, uint32_t> &nameMap(void) { return _nameMap; }
+    std::unordered_map<std::string, uint32_t> &localMap(void) { return _localMap; }
 
 public:
     void setVargs(const std::string &vargs) { _vargs = vargs; }
     void setKwargs(const std::string &kwargs) { _kwargs = kwargs; }
+    void markFreeVar(const std::string &freeVar) { _freeVars.emplace(freeVar); }
 
 public:
     uint32_t addName(const std::string &name);
@@ -82,7 +86,7 @@ public:
     uint32_t emitOperand2(int row, int col, Engine::OpCode op, int32_t v1, int32_t v2);
 
 public:
-    bool isLocal(const std::string &value) const { return _locals.find(value) != _locals.end(); }
+    bool isLocal(const std::string &value) const { return _localMap.find(value) != _localMap.end(); }
     void patchBranch(uint32_t offset, uint32_t address) { *(uint32_t *)(&_buffer[offset]) = address - offset + 1; }
 
 public:
