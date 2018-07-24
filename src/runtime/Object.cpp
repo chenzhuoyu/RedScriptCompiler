@@ -1266,7 +1266,7 @@ TypeRef Type::create(const std::string &name, Reference<MapObject> dict, TypeRef
             /* if it's a function or native function, wrap with unbound method */
             if (value->isInstanceOf(FunctionTypeObject) ||
                 value->isInstanceOf(NativeFunctionTypeObject))
-                value = UnboundMethodObject::fromCallable(std::move(value));
+                value = UnboundMethodObject::fromCallableObject(std::move(value));
 
             /* add to class dict, and continue enumerating */
             type->dict().emplace(key.as<StringObject>()->value(), std::move(value));

@@ -1,6 +1,8 @@
 #ifndef REDSCRIPT_RUNTIME_UNBOUNDMETHODOBJECT_H
 #define REDSCRIPT_RUNTIME_UNBOUNDMETHODOBJECT_H
 
+#include <functional>
+
 #include "runtime/Object.h"
 #include "runtime/MapObject.h"
 #include "runtime/TupleObject.h"
@@ -26,6 +28,7 @@ public:
 
 /* type object for unbound method */
 extern TypeRef UnboundMethodTypeObject;
+typedef std::function<ObjectRef(ObjectRef, Reference<TupleObject>, Reference<MapObject>)> UnboundVariadicFunction;
 
 class UnboundMethodObject : public Object
 {
@@ -44,15 +47,16 @@ public:
     ObjectRef invoke(Reference<TupleObject> args, Reference<MapObject> kwargs);
 
 public:
-    static ObjectRef newUnary(UnaryFunction function) { return fromCallable(NativeFunctionObject::newUnary(function)); }
-    static ObjectRef newBinary(BinaryFunction function) { return fromCallable(NativeFunctionObject::newBinary(function)); }
-    static ObjectRef newTernary(TernaryFunction function) { return fromCallable(NativeFunctionObject::newTernary(function)); }
-    static ObjectRef newVariadic(NativeFunction function) { return fromCallable(NativeFunctionObject::newVariadic(function)); }
+    static ObjectRef newUnary(UnaryFunction function) { return fromCallableObject(NativeFunctionObject::newUnary(function)); }
+    static ObjectRef newBinary(BinaryFunction function) { return fromCallableObject(NativeFunctionObject::newBinary(function)); }
+    static ObjectRef newTernary(TernaryFunction function) { return fromCallableObject(NativeFunctionObject::newTernary(function)); }
+    static ObjectRef newVariadic(NativeFunction function) { return fromCallableObject(NativeFunctionObject::newVariadic(function)); }
+    static ObjectRef newUnboundVariadic(UnboundVariadicFunction function);
 
 public:
-    template <typename Func>
-    static ObjectRef fromFunction(Func &&func) { return fromCallable(NativeFunctionObject::fromFunction(std::forward<Func>(func))); }
-    static ObjectRef fromCallable(ObjectRef func) { return Object::newObject<UnboundMethodObject>(func); }
+    template <typename ... Args>
+    static ObjectRef fromFunction(Args && ... args) { return fromCallableObject(NativeFunctionObject::fromFunction(std::forward<Args>(args) ...)); }
+    static ObjectRef fromCallableObject(ObjectRef func) { return Object::newObject<UnboundMethodObject>(func); }
 
 public:
     static void shutdown(void) {}

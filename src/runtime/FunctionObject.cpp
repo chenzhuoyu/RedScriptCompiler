@@ -17,7 +17,14 @@ TypeRef FunctionTypeObject;
 
 void FunctionType::addBuiltins(void)
 {
-    // TODO: add __invoke__
+    attrs().emplace(
+        "__invoke__",
+        UnboundMethodObject::newUnboundVariadic([](ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
+        {
+            /* invoke the object protocol */
+            return self->type()->objectInvoke(self, args, kwargs);
+        })
+    );
 }
 
 /*** Native Object Protocol ***/

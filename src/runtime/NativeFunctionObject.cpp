@@ -1,3 +1,5 @@
+#include "runtime/MapObject.h"
+#include "runtime/TupleObject.h"
 #include "runtime/UnboundMethodObject.h"
 #include "runtime/NativeFunctionObject.h"
 
@@ -8,7 +10,14 @@ TypeRef NativeFunctionTypeObject;
 
 void NativeFunctionType::addBuiltins(void)
 {
-    // TODO: add __invoke__
+    attrs().emplace(
+        "__invoke__",
+        UnboundMethodObject::newUnboundVariadic([](ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
+        {
+            /* invoke the object protocol */
+            return self->type()->objectInvoke(self, args, kwargs);
+        })
+    );
 }
 
 /*** Native Object Protocol ***/
