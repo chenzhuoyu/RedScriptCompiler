@@ -36,11 +36,11 @@ Runtime::ObjectRef Interpreter::tupleConcat(Runtime::ObjectRef a, Runtime::Objec
         return Runtime::TupleObject::newEmpty();
 
     /* a == null, b != null */
-    if (a.isNull() && !(b.isNull()))
+    if (a.isNull() && b.isNotNull())
         return b;
 
     /* b == null, a != null */
-    if (b.isNull() && !(a.isNull()))
+    if (b.isNull() && a.isNotNull())
         return a;
 
     /* check for left tuple, right tuple already checked before */
@@ -71,11 +71,11 @@ Runtime::ObjectRef Interpreter::hashmapConcat(Runtime::ObjectRef a, Runtime::Obj
         return Runtime::MapObject::newOrdered();
 
     /* a == null, b != null */
-    if (a.isNull() && !(b.isNull()))
+    if (a.isNull() && b.isNotNull())
         return b;
 
     /* b == null, a != null */
-    if (b.isNull() && !(a.isNull()))
+    if (b.isNull() && a.isNotNull())
         return a;
 
     /* check for left map, right map already checked before */
@@ -93,6 +93,44 @@ Runtime::ObjectRef Interpreter::hashmapConcat(Runtime::ObjectRef a, Runtime::Obj
 
     /* move to prevent copy */
     return std::move(result);
+}
+
+std::unordered_map<std::string, Engine::ClosureRef> Interpreter::closureCreate(Runtime::Reference<Runtime::CodeObject> &code)
+{
+    /* locals map and result closure */
+    auto &locals = _code->localMap();
+    std::unordered_map<std::string, Engine::ClosureRef> closure;
+
+    /* build class closure */
+    for (const auto &item : code->names())
+    {
+        /* find from local variables first */
+        auto iter = locals.find(item);
+
+        /* it's a local variable, wrap it as closure */
+        if (iter != locals.end())
+        {
+            _closures[iter->second] = std::make_unique<Closure::Context>(&_locals, iter->second);
+            closure.emplace(item, _closures[iter->second]->ref);
+        }
+        else
+        {
+            /* otherwise, find in closure map */
+            auto cliter = _names.find(item);
+
+            /* if found, inherit the closure */
+            if (cliter != _names.end())
+                closure.emplace(item, cliter->second);
+
+            /* if not found, it should never be found again,
+             * but we don't throw exceptions here, the opcode
+             * LOAD_NAME will throw an exception for us when it
+             * comes to resolving the name */
+        }
+    }
+
+    /* move to prevent copy */
+    return std::move(closure);
 }
 
 Runtime::ObjectRef Interpreter::eval(void)
@@ -548,7 +586,6 @@ Runtime::ObjectRef Interpreter::eval(void)
                 {
                     /* invocation flags */
                     uint32_t flags = OPERAND();
-                    Runtime::ObjectRef obj = nullptr;
                     Runtime::ObjectRef vargs = nullptr;
                     Runtime::ObjectRef kwargs = nullptr;
 
@@ -640,9 +677,21 @@ Runtime::ObjectRef Interpreter::eval(void)
                     if (_stack.empty())
                         throw Exceptions::InternalError("Stack is empty");
 
-                    /* pop callable object from stack, and invoke it */
-                    obj = std::move(_stack.back());
-                    _stack.back() = obj->type()->objectInvoke(obj, vargs, kwargs);
+                    /* tuple type check */
+                    if (vargs->isNotInstanceOf(Runtime::TupleTypeObject))
+                        throw Exceptions::InternalError("Invalid function call: vargs");
+
+                    /* map type check */
+                    if (kwargs->isNotInstanceOf(Runtime::MapTypeObject))
+                        throw Exceptions::InternalError("Invalid function call: kwargs");
+
+                    /* pop callable object from stack */
+                    Runtime::ObjectRef obj = std::move(_stack.back());
+                    Runtime::Reference<Runtime::MapObject> namedArgs = kwargs.as<Runtime::MapObject>();
+                    Runtime::Reference<Runtime::TupleObject> indexArgs = vargs.as<Runtime::TupleObject>();
+
+                    /* invoke object as function */
+                    _stack.back() = obj->type()->objectInvoke(obj, std::move(indexArgs), std::move(namedArgs));
                     break;
                 }
 
@@ -1208,64 +1257,88 @@ Runtime::ObjectRef Interpreter::eval(void)
                         throw Exceptions::InternalError("Stack is empty");
 
                     /* code object ID and defaults pack */
-                    auto id = OPERAND();
+                    auto nid = OPERAND();
+                    auto cid = OPERAND();
                     auto def = std::move(_stack.back());
 
-                    /* check constant ID */
-                    if (id >= _code->consts().size())
-                        throw Exceptions::InternalError(Utils::Strings::format("Constant ID %u out of range", id));
+                    /* check name ID */
+                    if (nid >= _code->consts().size())
+                        throw Exceptions::InternalError(Utils::Strings::format("Name ID %u out of range", cid));
+
+                    /* check code ID */
+                    if (cid >= _code->consts().size())
+                        throw Exceptions::InternalError(Utils::Strings::format("Code ID %u out of range", cid));
 
                     /* check for tuple object */
                     if (def->isNotInstanceOf(Runtime::TupleTypeObject))
                         throw Exceptions::InternalError("Invalid tuple object");
 
                     /* check for code object */
-                    if (_code->consts()[id]->isNotInstanceOf(Runtime::CodeTypeObject))
+                    if (_code->consts()[cid]->isNotInstanceOf(Runtime::CodeTypeObject))
                         throw Exceptions::InternalError("Invalid code object");
 
                     /* convert to corresponding type */
                     auto funcDef = def.as<Runtime::TupleObject>();
-                    auto funcCode = _code->consts()[id].as<Runtime::CodeObject>();
-                    std::unordered_map<std::string, Engine::ClosureRef> funcClosure;
-
-                    /* build function closure */
-                    for (const auto &item : funcCode->names())
-                    {
-                        /* find from local variables first */
-                        auto iter = _code->localMap().find(item);
-
-                        /* it's a local variable, wrap it as closure */
-                        if (iter != _code->localMap().end())
-                        {
-                            _closures[iter->second] = std::make_unique<Closure::Context>(&_locals, iter->second);
-                            funcClosure.emplace(item, _closures[iter->second]->ref);
-                        }
-                        else
-                        {
-                            /* otherwise, find in closure map */
-                            auto cliter = _names.find(item);
-
-                            /* if found, inherit the closure */
-                            if (cliter != _names.end())
-                                funcClosure.emplace(item, cliter->second);
-
-                            /* if not found, it should never be found again,
-                             * but we don't throw exceptions here, the opcode
-                             * LOAD_NAME will throw an exception for us when it
-                             * comes to resolving the name */
-                        }
-                    }
+                    auto funcCode = _code->consts()[cid].as<Runtime::CodeObject>();
+                    auto funcName = _code->consts()[nid].as<Runtime::StringObject>();
+                    auto funcClosure = closureCreate(funcCode);
 
                     /* create function object, and put on stack */
-                    _stack.back() = Runtime::Object::newObject<Runtime::FunctionObject>(funcCode, funcDef, funcClosure);
+                    _stack.back() = Runtime::Object::newObject<Runtime::FunctionObject>(funcName->value(), funcCode, funcDef, funcClosure);
                     break;
                 }
 
                 /* build a class object */
                 case OpCode::MAKE_CLASS:
                 {
-                    // TODO: implement these
-                    throw Exceptions::InternalError("not implemented yet");
+                    /* extract constant ID */
+                    uint32_t nid = OPERAND();
+                    uint32_t cid = OPERAND();
+
+                    /* check stack */
+                    if (_stack.empty())
+                        throw Exceptions::InternalError("Stack is empty");
+
+                    /* check name ID range */
+                    if (nid >= _code->consts().size())
+                        throw Exceptions::InternalError("Name ID out of range");
+
+                    /* check code ID range */
+                    if (cid >= _code->consts().size())
+                        throw Exceptions::InternalError("Code ID out of range");
+
+                    /* load super class from stack */
+                    auto code = _code->consts()[cid].as<Runtime::CodeObject>();
+                    auto name = _code->consts()[nid].as<Runtime::StringObject>();
+                    auto super = std::move(_stack.back());
+                    auto closure = closureCreate(code);
+
+                    /* super class must be a type */
+                    if (super->isNotInstanceOf(Runtime::TypeObject))
+                    {
+                        throw Exceptions::TypeError(Utils::Strings::format(
+                            "Super class must be a type, not \"%s\"",
+                            super->type()->name()
+                        ));
+                    }
+
+                    /* create a new interpreter for class body,
+                     * and a static map object for class attribues */
+                    Interpreter vm(code, closure);
+                    Runtime::Reference<Runtime::MapObject> dict = Runtime::MapObject::newOrdered();
+
+                    /* execute the class body */
+                    if (vm.eval().isNotIdenticalWith(Runtime::NullObject))
+                        throw Exceptions::InternalError("Invalid class body");
+
+                    /* enumerate every locals, but exclude not initialized one */
+                    for (const auto &item : code->localMap())
+                        if (vm._locals[item.second].isNotNull())
+                            dict->insert(Runtime::StringObject::fromStringInterned(item.first), vm._locals[item.second]);
+
+                    /* create a class object, and put on stack */
+                    _stack.back() = Runtime::Type::create(name->value(), std::move(dict), super.as<Runtime::Type>());
+                    break;
                 }
 
                 /* build a native class object */

@@ -57,13 +57,13 @@ Runtime::ObjectRef CodeGenerator::build(void)
 
 /*** Language Structures ***/
 
-void CodeGenerator::buildClassObject(const std::unique_ptr<AST::Class> &node)
+void CodeGenerator::buildClassObject(const std::string &name, const std::unique_ptr<AST::Class> &node)
 {
     /* generate super class if any */
     if (node->super)
         visitExpression(node->super);
     else
-        emitOperand(node, Engine::OpCode::LOAD_CONST, addConst(Runtime::TypeObject));
+        emitOperand(node, Engine::OpCode::LOAD_CONST, addConst(Runtime::ObjectTypeObject));
 
     /* create a new code frame for class */
     CodeFrame cls(this, CodeType::ClassCode);
@@ -76,16 +76,17 @@ void CodeGenerator::buildClassObject(const std::unique_ptr<AST::Class> &node)
     /* pop the code object out of frame */
     auto code = cls.leave();
     auto codeId = addConst(code);
+    auto nameId = addConst(Runtime::StringObject::fromStringInterned(name));
 
     /* merge it's free variables with ours, if we don't have them */
-    for (const auto &name : code->names())
-        addName(name);
+    for (const auto &var : code->names())
+        addName(var);
 
     /* make it a class */
-    emitOperand(node, Engine::OpCode::MAKE_CLASS, codeId);
+    emitOperand2(node, Engine::OpCode::MAKE_CLASS, nameId, codeId);
 }
 
-void CodeGenerator::buildFunctionObject(const std::unique_ptr<AST::Function> &node)
+void CodeGenerator::buildFunctionObject(const std::string &name, const std::unique_ptr<AST::Function> &node)
 {
     /* check for default value count */
     if (node->defaults.size() > UINT32_MAX)
@@ -107,10 +108,10 @@ void CodeGenerator::buildFunctionObject(const std::unique_ptr<AST::Function> &no
     FunctionScope _(this, node->name, node->args);
 
     /* add all names into local variable table */
-    for (const auto &name : node->args)
+    for (const auto &arg : node->args)
     {
-        addLocal(name->name);
-        args().emplace_back(name->name);
+        addLocal(arg->name);
+        args().emplace_back(arg->name);
     }
 
     /* also add vargs if any */
@@ -135,13 +136,14 @@ void CodeGenerator::buildFunctionObject(const std::unique_ptr<AST::Function> &no
     /* pop the code object out of frame */
     auto code = func.leave();
     auto codeId = addConst(code);
+    auto nameId = addConst(Runtime::StringObject::fromStringInterned(name));
 
     /* merge it's free variables with ours, if we don't have them */
-    for (const auto &name : code->names())
-        addName(name);
+    for (const auto &var : code->names())
+        addName(var);
 
     /* make it a function */
-    emitOperand(node, Engine::OpCode::MAKE_FUNCTION, codeId);
+    emitOperand2(node, Engine::OpCode::MAKE_FUNCTION, nameId, codeId);
 }
 
 void CodeGenerator::visitIf(const std::unique_ptr<AST::If> &node)
@@ -272,7 +274,7 @@ void CodeGenerator::visitTry(const std::unique_ptr<AST::Try> &node)
 
 void CodeGenerator::visitClass(const std::unique_ptr<AST::Class> &node)
 {
-    buildClassObject(node);
+    buildClassObject(node->name->name, node);
     emitOperand(node->name, Engine::OpCode::STOR_LOCAL, addLocal(node->name->name));
 }
 
@@ -385,12 +387,17 @@ void CodeGenerator::visitSwitch(const std::unique_ptr<AST::Switch> &node)
 
 void CodeGenerator::visitFunction(const std::unique_ptr<AST::Function> &node)
 {
-    /* create function object */
-    buildFunctionObject(node);
-
     /* store as local variable if it's named function */
     if (node->name != nullptr)
+    {
+        buildFunctionObject(node->name->name, node);
         emitOperand(node->name, Engine::OpCode::STOR_LOCAL, addLocal(node->name->name));
+    }
+    else
+    {
+        static std::atomic_size_t lambdaId = 0;
+        buildFunctionObject(Utils::Strings::format("<lambda-%zu>", lambdaId++), node);
+    }
 }
 
 bool CodeGenerator::isInConstructor(void)
@@ -1026,14 +1033,14 @@ void CodeGenerator::visitDecorator(const std::unique_ptr<AST::Decorator> &node)
         case AST::Decorator::Decoration::Class:
         {
             name = node->klass->name.get();
-            buildClassObject(node->klass);
+            buildClassObject(name->name, node->klass);
             break;
         }
 
         case AST::Decorator::Decoration::Function:
         {
             name = node->function->name.get();
-            buildFunctionObject(node->function);
+            buildFunctionObject(name->name, node->function);
             break;
         }
     }

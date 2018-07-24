@@ -107,8 +107,9 @@ enum class OpCode : uint8_t
 };
 
 /* opcode flags */
-static const uint32_t OP_V          = 0x00000001;    /* has operand */
-static const uint32_t OP_REL        = 0x00000002;    /* relative to PC */
+static const uint32_t OP_V          = 0x00000001;    /* has first operand */
+static const uint32_t OP_V2         = 0x00000002;    /* has second operand */
+static const uint32_t OP_REL        = 0x00000004;    /* relative to PC */
 
 /* slicing flags */
 static const uint32_t SL_BEGIN      = 0x00000001;    /* have beginning expression */
@@ -243,8 +244,8 @@ static const uint32_t OpCodeFlags[256] = {
     OP_V,               /* 0x60 :: MAKE_MAP      */
     OP_V,               /* 0x61 :: MAKE_ARRAY    */
     OP_V,               /* 0x62 :: MAKE_TUPLE    */
-    OP_V,               /* 0x63 :: MAKE_FUNCTION */
-    OP_V,               /* 0x64 :: MAKE_CLASS    */
+    OP_V | OP_V2,       /* 0x63 :: MAKE_FUNCTION */
+    OP_V | OP_V2,       /* 0x64 :: MAKE_CLASS    */
     0,                  /* 0x65 :: MAKE_ITER     */
     OP_V,               /* 0x66 :: MAKE_NATIVE   */
 

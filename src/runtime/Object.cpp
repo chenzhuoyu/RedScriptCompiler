@@ -10,6 +10,7 @@
 #include "runtime/SliceObject.h"
 #include "runtime/TupleObject.h"
 #include "runtime/StringObject.h"
+#include "runtime/FunctionObject.h"
 #include "runtime/UnboundMethodObject.h"
 
 #include "utils/Strings.h"
@@ -19,8 +20,9 @@
 
 namespace RedScript::Runtime
 {
-/* the very first class */
+/* the meta class, and the base type object */
 TypeRef TypeObject;
+TypeRef ObjectTypeObject;
 
 /* per-thread scope object to control infinite recursion in repr */
 static thread_local std::unordered_set<Object *> _reprScope;
@@ -75,8 +77,13 @@ bool Object::enterReprScope(void)
 
 void Object::initialize(void)
 {
-    static Type rootClass("type", nullptr);
-    TypeObject = rootClass._type = TypeRef::refStatic(rootClass);
+    /* the meta class */
+    static Type metaClass("type", nullptr);
+    metaClass._type = TypeObject = TypeRef::refStatic(metaClass);
+
+    /* the base object type */
+    static ObjectType objectType("object", nullptr);
+    metaClass._super = ObjectTypeObject = TypeRef::refStatic(objectType);
 }
 
 /*** Type Implementations ***/
@@ -316,7 +323,7 @@ void Type::nativeObjectDelAttr(ObjectRef self, const std::string &name)
         throw Exceptions::AttributeError(Utils::Strings::format("Cannot delete built-in attribute \"%s\" from \"%s\"", name, _name));
 
     /* search this type and all of it's super types */
-    while (!(type.isNull()) &&
+    while (type.isNotNull() &&
            ((iter = type->dict().find(name)) == type->dict().end()) &&
            ((iter = type->attrs().find(name)) == type->attrs().end()))
         type = type->_super;
@@ -406,7 +413,7 @@ ObjectRef Type::nativeObjectGetAttr(ObjectRef self, const std::string &name)
     }
 
     /* search this type and all of it's super types */
-    while (!(type.isNull()) &&
+    while (type.isNotNull() &&
            ((iter = type->dict().find(name)) == type->dict().end()) &&
            ((iter = type->attrs().find(name)) == type->attrs().end()))
         type = type->_super;
@@ -487,7 +494,7 @@ void Type::nativeObjectSetAttr(ObjectRef self, const std::string &name, ObjectRe
         throw Exceptions::AttributeError(Utils::Strings::format("Attribute \"%s\" of \"%s\" is read-only", name, _name));
 
     /* search this type and all of it's super types */
-    while (!(type.isNull()) &&
+    while (type.isNotNull() &&
            ((iter = type->dict().find(name)) == type->dict().end()) &&
            ((iter = type->attrs().find(name)) == type->attrs().end()))
         type = type->_super;
@@ -556,67 +563,92 @@ void Type::nativeObjectDefineAttr(ObjectRef self, const std::string &name, Objec
     self->dict().emplace(name, value);
 }
 
-ObjectRef Type::nativeObjectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs)
+ObjectRef Type::nativeObjectNew(TypeRef type, Reference<TupleObject> args, Reference<MapObject> kwargs)
 {
-    /* tuple type check */
-    if (args->isNotInstanceOf(TupleTypeObject))
-        throw Exceptions::InternalError("Invalid function call: args");
+    /* only `type` object can create new types */
+    if (type.isNotIdenticalWith(TypeObject))
+        throw Exceptions::InternalError("Invalid type creation");
 
-    /* map type check */
-    if (kwargs->isNotInstanceOf(MapTypeObject))
-        throw Exceptions::InternalError("Invalid function call: kwargs");
-
-    /* convert to correct types */
-    Reference<MapObject> namedArgs = kwargs.as<MapObject>();
-    Reference<TupleObject> indexArgs = args.as<TupleObject>();
-
-    /* type(<name>, [super], [attrs]) */
-    if (self.isIdenticalWith(TypeObject))
-    {
-        /* class name, attributes and super class */
-        ObjectRef name;
-        ObjectRef attrs;
-        ObjectRef super;
-
-        /* have first argument (class name) */
-        if (indexArgs->size() >= 1)
-            name = indexArgs->items()[0];
-
-        /* have second argument (super class) */
-        if (indexArgs->size() >= 2)
-            super = indexArgs->items()[1];
-
-        /* have third argument (class attributes) */
-        if (indexArgs->size() == 3)
-            args = indexArgs->items()[2];
-
-        /* should have no more positional arguments */
-        if (indexArgs->size() > 3)
-        {
-            throw Exceptions::TypeError(Utils::Strings::format(
-                "\"type\" takes at most 3 arguments but %zu given",
-                indexArgs->size()
-            ));
-        }
-
-        // TODO: create new type
-        return nullptr;
-    }
-
-    /* object() */
-    else if (self->isInstanceOf(TypeObject))
-    {
-        throw Exceptions::InternalError("not implemented");
-    }
-
-    /* otherwise, it's an error */
-    else
+    /* should have no more than 3 positional arguments */
+    if (args->size() > 3)
     {
         throw Exceptions::TypeError(Utils::Strings::format(
-            "\"%s\" object is not callable",
-            self->type()->name()
+            "\"type\" takes at most 3 arguments but %zu given",
+            args->size()
         ));
     }
+
+    /* type properties */
+    ObjectRef name = kwargs->pop(StringObject::fromStringInterned("name"));
+    ObjectRef dict = kwargs->pop(StringObject::fromStringInterned("dict"));
+    ObjectRef super = kwargs->pop(StringObject::fromStringInterned("super"));
+
+    /* have first argument (class name) */
+    if (name.isNull() && (args->size() >= 1))
+        name = args->items()[0];
+
+    /* have second argument (class dict) */
+    if (dict.isNull() && (args->size() >= 2))
+        dict = args->items()[1];
+
+    /* have third argument (super class) */
+    if (super.isNull() && (args->size() >= 3))
+        super = args->items()[2];
+
+    /* must have class name */
+    if (name.isNull())
+        throw Exceptions::TypeError("Missing required class name");
+
+    /* and it must be a string */
+    if (name->isNotInstanceOf(StringTypeObject))
+    {
+        throw Exceptions::TypeError(Utils::Strings::format(
+            "Class name must be a string, not \"%s\"",
+            name->type()->name()
+        ));
+    }
+
+    /* dict must be a valid map if present */
+    if (dict.isNotNull() && dict->isNotInstanceOf(MapTypeObject))
+    {
+        throw Exceptions::TypeError(Utils::Strings::format(
+            "Class dict must be a map, not \"%s\"",
+            dict->type()->name()
+        ));
+    }
+
+    /* super class must be a valid type if present */
+    if (super.isNotNull() && super->isNotInstanceOf(TypeObject))
+    {
+        throw Exceptions::TypeError(Utils::Strings::format(
+            "Super class must be a type, not \"%s\"",
+            super->type()->name()
+        ));
+    }
+
+    /* create a new type */
+    return Type::create(name.as<StringObject>()->value(), dict.as<MapObject>(), super.as<Type>());
+}
+
+ObjectRef Type::nativeObjectInit(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
+{
+    /* whatevet it might be, as long as it's not null, return the instance as is */
+    if (self.isNull())
+        throw Exceptions::InternalError("Invalid type initialization");
+    else
+        return std::move(self);
+}
+
+ObjectRef Type::nativeObjectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
+{
+    /* must be a type object here */
+    if (self->isNotInstanceOf(TypeObject))
+        throw Exceptions::InternalError("Invalid type call");
+
+    /* create and initialize an object */
+    auto type = self.as<Type>();
+    auto result = type->objectNew(type, args, kwargs);
+    return result->type()->objectInit(result, args, kwargs);
 }
 
 /*** Native Boolean Protocol ***/
@@ -794,12 +826,6 @@ ObjectRef Type::nativeComparableCompare(ObjectRef self, ObjectRef other)
     ObjectRef m = findUserMethod(self, #name, #alt);                                        \
     return m.isNull() ? native ## func(std::move(self), std::move(arg1))                    \
                       : applyBinaryMethod(std::move(m), std::move(self), std::move(arg1));  \
-}
-
-#define APPLY_TERNARY(name, func, self, arg1, arg2) {                                                           \
-    ObjectRef m = findUserMethod(self, #name, nullptr);                                                         \
-    return m.isNull() ? native ## func(std::move(self), std::move(arg1), std::move(arg2))                       \
-                      : applyTernaryMethod(std::move(m), std::move(self), std::move(arg1), std::move(arg2));    \
 }
 
 /*** Object Protocol ***/
@@ -1009,10 +1035,89 @@ void Type::objectSetAttr(ObjectRef self, const std::string &name, ObjectRef valu
     );
 }
 
-ObjectRef Type::objectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs)
+ObjectRef Type::objectNew(TypeRef type, Reference<TupleObject> args, Reference<MapObject> kwargs)
 {
-    /* apply invocations as ternary operator */
-    APPLY_TERNARY(__invoke__, ObjectInvoke, self, args, kwargs)
+    /* find the user method */
+    auto iter = type->dict().find("__new__");
+
+    /* don't have "__init__" method */
+    if (iter == type->dict().end())
+        return nativeObjectNew(std::move(type), std::move(args), std::move(kwargs));
+
+    /* must be an unbound method */
+    if (iter->second->isNotInstanceOf(UnboundMethodTypeObject))
+    {
+        throw Exceptions::TypeError(Utils::Strings::format(
+            "\"__new__\" must be an unbound method, not \"%s\"",
+            iter->second->type()->name()
+        ));
+    }
+
+    /* invoke the method */
+    auto func = iter->second.as<UnboundMethodObject>()->bind(type);
+    return func->type()->objectInvoke(std::move(func), std::move(args), std::move(kwargs));
+}
+
+ObjectRef Type::objectInit(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
+{
+    /* find the user method */
+    ObjectRef method = findUserMethod(self, "__init__", nullptr);
+
+    /* don't have "__init__" method */
+    if (method.isNull())
+        return nativeObjectInit(std::move(self), std::move(args), std::move(kwargs));
+
+    /* must be an unbound method */
+    if (method->isNotInstanceOf(UnboundMethodTypeObject))
+    {
+        throw Exceptions::TypeError(Utils::Strings::format(
+            "\"__invoke__\" must be an unbound method, not \"%s\"",
+            method->type()->name()
+        ));
+    }
+
+    /* invoke the method */
+    auto func = method.as<UnboundMethodObject>()->bind(self);
+    auto result = func->type()->objectInvoke(std::move(func), std::move(args), std::move(kwargs));
+
+    /* check for null reference */
+    if (result.isNull())
+        throw Exceptions::InternalError("Constructor gives nullptr");
+
+    /* user-defined constructor must return null */
+    if (result.isNotIdenticalWith(NullObject))
+    {
+        throw Exceptions::TypeError(Utils::Strings::format(
+            "Constructor must return null, not \"%s\"",
+            result->type()->name()
+        ));
+    }
+
+    /* move to prevent copy */
+    return std::move(self);
+}
+
+ObjectRef Type::objectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
+{
+    /* find the user method */
+    ObjectRef method = findUserMethod(self, "__invoke__", nullptr);
+
+    /* don't have "__invoke__" method */
+    if (method.isNull())
+        return nativeObjectInvoke(std::move(self), std::move(args), std::move(kwargs));
+
+    /* must be an unbound method */
+    if (method->isNotInstanceOf(UnboundMethodTypeObject))
+    {
+        throw Exceptions::TypeError(Utils::Strings::format(
+            "\"__invoke__\" must be an unbound method, not \"%s\"",
+            method->type()->name()
+        ));
+    }
+
+    /* invoke the method */
+    auto func = method.as<UnboundMethodObject>()->bind(self);
+    return func->type()->objectInvoke(std::move(func), std::move(args), std::move(kwargs));
 }
 
 /*** Boolean Protocol ***/
@@ -1120,6 +1225,85 @@ ObjectRef Type::comparableContains(ObjectRef self, ObjectRef other) APPLY_BINARY
 #undef APPLY_UNARY
 #undef APPLY_BINARY
 #undef APPLY_BINARY_ALT
-#undef APPLY_TERNARY
 
+/*** Custom Class Creation Interface ***/
+
+TypeRef Type::create(const std::string &name, Reference<MapObject> dict, TypeRef super)
+{
+    /* create a new type */
+    TypeRef type = super.isNull()
+        ? Object::newObject<ObjectType>(name)
+        : Object::newObject<ObjectType>(name, super);
+
+    /* fill the type dict if any */
+    if (dict.isNotNull())
+    {
+        /* enumerate all it's items */
+        dict->enumerate([&](ObjectRef key, ObjectRef value)
+        {
+            /* dict key must be a string */
+            if (key->isNotInstanceOf(StringTypeObject))
+            {
+                throw Exceptions::TypeError(Utils::Strings::format(
+                    "Class dict key must be a string, not \"%s\"",
+                    key->type()->name()
+                ));
+            }
+
+            /* if it's a function or native function, wrap with unbound method */
+            if (value->isInstanceOf(FunctionTypeObject) ||
+                value->isInstanceOf(NativeFunctionTypeObject))
+                value = UnboundMethodObject::fromCallable(std::move(value));
+
+            /* add to class dict, and continue enumerating */
+            type->dict().emplace(key.as<StringObject>()->value(), std::move(value));
+            return true;
+        });
+    }
+
+    /* move to prevent copy */
+    return std::move(type);
+}
+
+/** ObjectType implementation **/
+
+ObjectRef ObjectType::nativeObjectNew(TypeRef type, Reference<TupleObject> args, Reference<MapObject> kwargs)
+{
+    /* simply create a new object of type `type` */
+    return Object::newObject<Object>(type);
+}
+
+ObjectRef ObjectType::nativeObjectInit(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
+{
+    /* root object doesn't take any arguments by default */
+    if (args->size())
+    {
+        throw Exceptions::TypeError(Utils::Strings::format(
+            "\"__init__\" of \"%s\" object takes no arguments, but %zu given",
+            self->type()->name(),
+            args->size()
+        ));
+    }
+
+    /* and no keyword arguments */
+    if (kwargs->size())
+    {
+        throw Exceptions::TypeError(Utils::Strings::format(
+            "\"__init__\" of \"%s\" object doesn't accept keyword argument \"%s\"",
+            self->type()->name(),
+            kwargs->front()->type()->objectStr(kwargs->front())
+        ));
+    }
+
+    /* move to prevent copy */
+    return std::move(self);
+}
+
+ObjectRef ObjectType::nativeObjectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
+{
+    throw Exceptions::TypeError(Utils::Strings::format(
+        "\"%s\" object is not callable",
+        self->type()->name()
+    ));
+}
 }

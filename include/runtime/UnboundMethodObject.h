@@ -20,7 +20,7 @@ protected:
 /*** Native Object Protocol ***/
 
 public:
-    virtual ObjectRef nativeObjectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs) override;
+    virtual ObjectRef nativeObjectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs) override;
 
 };
 
@@ -44,10 +44,10 @@ public:
     ObjectRef invoke(Reference<TupleObject> args, Reference<MapObject> kwargs);
 
 public:
-    static ObjectRef newUnary(UnaryFunction   function) { return fromCallable(NativeFunctionObject::newUnary(function)); }
-    static ObjectRef newBinary(BinaryFunction  function) { return fromCallable(NativeFunctionObject::newBinary(function)); }
+    static ObjectRef newUnary(UnaryFunction function) { return fromCallable(NativeFunctionObject::newUnary(function)); }
+    static ObjectRef newBinary(BinaryFunction function) { return fromCallable(NativeFunctionObject::newBinary(function)); }
     static ObjectRef newTernary(TernaryFunction function) { return fromCallable(NativeFunctionObject::newTernary(function)); }
-    static ObjectRef newVariadic(NativeFunction  function) { return fromCallable(NativeFunctionObject::newVariadic(function)); }
+    static ObjectRef newVariadic(NativeFunction function) { return fromCallable(NativeFunctionObject::newVariadic(function)); }
 
 public:
     template <typename Func>

@@ -154,7 +154,7 @@ static inline Slice sliceConstraint(
     ssize_t stride = 1;
 
     /* have stepping expression */
-    if (!(step.isNull()))
+    if (step.isNotNull())
     {
         /* must be an integer */
         if (step->isNotInstanceOf(Runtime::IntTypeObject))
@@ -187,12 +187,12 @@ static inline Slice sliceConstraint(
 
     /* have ending expression, convert to
      * unsigned size type with index constraint */
-    if (!(end.isNull()))
+    if (end.isNotNull())
         stop = indexConstraint(list, end);
 
     /* have beginning expression, convert to
      * unsigned size type with index constraint */
-    if (!(begin.isNull()))
+    if (begin.isNotNull())
         start = indexConstraint(list, begin);
 
     /* might be empty slice */

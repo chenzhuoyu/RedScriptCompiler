@@ -100,16 +100,34 @@ uint32_t CodeObject::emitOperand(int row, int col, Engine::OpCode op, int32_t v)
 {
     /* emit the opcode */
     char *p = reinterpret_cast<char *>(&v);
-    size_t n = emit(row, col, op);
+    size_t size = emit(row, col, op);
 
     /* check for operand space */
-    if (n >= UINT32_MAX - sizeof(int32_t) - 1)
+    if (size >= UINT32_MAX - sizeof(int32_t) - 1)
         throw Exceptions::RuntimeError("Code exceeds 4G limit");
 
     /* add operand to instruction buffer */
     _buffer.insert(_buffer.end(), p, p + sizeof(int32_t));
     _lineNumTable.insert(_lineNumTable.end(), sizeof(int32_t), {row, col});
-    return static_cast<uint32_t>(n);
+    return static_cast<uint32_t>(size);
+}
+
+uint32_t CodeObject::emitOperand2(int row, int col, Engine::OpCode op, int32_t v1, int32_t v2)
+{
+    /* emit the opcode */
+    char *p1 = reinterpret_cast<char *>(&v1);
+    char *p2 = reinterpret_cast<char *>(&v2);
+    size_t size = emit(row, col, op);
+
+    /* check for operand space */
+    if (size >= UINT32_MAX - sizeof(int32_t) * 2 - 1)
+        throw Exceptions::RuntimeError("Code exceeds 4G limit");
+
+    /* add operand to instruction buffer */
+    _buffer.insert(_buffer.end(), p1, p1 + sizeof(int32_t));
+    _buffer.insert(_buffer.end(), p2, p2 + sizeof(int32_t));
+    _lineNumTable.insert(_lineNumTable.end(), sizeof(int32_t), {row, col});
+    return static_cast<uint32_t>(size);
 }
 
 void CodeObject::initialize(void)

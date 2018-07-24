@@ -60,9 +60,9 @@ static void dis(RedScript::Runtime::Reference<RedScript::Runtime::CodeObject> co
         uint8_t op = (uint8_t)*p;
         auto line = code->lineNums()[p - s];
 
-        if (!(RedScript::Engine::OpCodeFlags[op] & RedScript::Engine::OP_V))
+        if (!(RedScript::Engine::OpCodeFlags[op] & (RedScript::Engine::OP_V | RedScript::Engine::OP_V2)))
             printf("%.4lx %3d:%-3d %15s\n", p - s, line.first, line.second, RedScript::Engine::OpCodeNames[op]);
-        else
+        else if (!(RedScript::Engine::OpCodeFlags[op] & RedScript::Engine::OP_V2))
         {
             int32_t opv = *(int32_t *)(p + 1);
             if (!(RedScript::Engine::OpCodeFlags[op] & RedScript::Engine::OP_REL))
@@ -70,6 +70,13 @@ static void dis(RedScript::Runtime::Reference<RedScript::Runtime::CodeObject> co
             else
                 printf("%.4lx %3d:%-3d %15s    %d -> %#lx\n", p - s, line.first, line.second, RedScript::Engine::OpCodeNames[op], opv, p - s + opv);
             p += sizeof(int32_t);
+        }
+        else
+        {
+            int32_t opv = *(int32_t *)(p + 1);
+            int32_t opv2 = *(int32_t *)(p + 5);
+            printf("%.4lx %3d:%-3d %15s    %d, %d\n", p - s, line.first, line.second, RedScript::Engine::OpCodeNames[op], opv, opv2);
+            p += sizeof(int32_t) * 2;
         }
         p++;
     }

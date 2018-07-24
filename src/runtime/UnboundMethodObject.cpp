@@ -8,34 +8,17 @@ TypeRef UnboundMethodTypeObject;
 
 void UnboundMethodType::addBuiltins(void)
 {
-    attrs().emplace(
-        "__invoke__",
-        UnboundMethodObject::newTernary([](ObjectRef self, ObjectRef args, ObjectRef kwargs)
-        {
-            /* invoke the object protocol */
-            return self->type()->nativeObjectInvoke(self, args, kwargs);
-        })
-    );
+    // TODO: add __invoke__
 }
 
 /*** Native Object Protocol ***/
 
-ObjectRef UnboundMethodType::nativeObjectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs)
+ObjectRef UnboundMethodType::nativeObjectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
 {
-    /* check object type */
     if (self->isNotInstanceOf(UnboundMethodTypeObject))
         throw Exceptions::InternalError("Invalid unbound method call");
-
-    /* check tuple type */
-    if (args->isNotInstanceOf(TupleTypeObject))
-        throw Exceptions::InternalError("Invalid args tuple object");
-
-    /* check map type */
-    if (kwargs->isNotInstanceOf(MapTypeObject))
-        throw Exceptions::InternalError("Invalid kwargs map object");
-
-    /* call the method handler */
-    return self.as<UnboundMethodObject>()->invoke(args.as<TupleObject>(), kwargs.as<MapObject>());
+    else
+        return self.as<UnboundMethodObject>()->invoke(std::move(args), std::move(kwargs));
 }
 
 ObjectRef UnboundMethodObject::bind(ObjectRef self)

@@ -79,6 +79,7 @@ private:
     template <typename T> inline uint32_t emit(T &&t, Engine::OpCode op) { return code()->emit(t->row(), t->col(), op); }
     template <typename T> inline uint32_t emitJump(T &&t, Engine::OpCode op) { return code()->emitJump(t->row(), t->col(), op); }
     template <typename T> inline uint32_t emitOperand(T &&t, Engine::OpCode op, int32_t v) { return code()->emitOperand(t->row(), t->col(), op, v); }
+    template <typename T> inline uint32_t emitOperand2(T &&t, Engine::OpCode op, int32_t v1, int32_t v2) { return code()->emitOperand2(t->row(), t->col(), op, v1, v2); }
 
 private:
     inline bool isLocal(const std::string &value) { return code()->isLocal(value); }
@@ -206,8 +207,8 @@ public:
 /*** Language Structures ***/
 
 private:
-    void buildClassObject(const std::unique_ptr<AST::Class> &node);
-    void buildFunctionObject(const std::unique_ptr<AST::Function> &node);
+    void buildClassObject(const std::string &name, const std::unique_ptr<AST::Class> &node);
+    void buildFunctionObject(const std::string &name, const std::unique_ptr<AST::Function> &node);
 
 private:
     virtual void visitIf(const std::unique_ptr<AST::If> &node) override;

@@ -19,7 +19,7 @@ protected:
 /*** Native Object Protocol ***/
 
 public:
-    virtual ObjectRef nativeObjectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs) override;
+    virtual ObjectRef nativeObjectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs) override;
 
 };
 

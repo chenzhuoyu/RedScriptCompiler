@@ -61,6 +61,10 @@ void Builtins::shutdown(void)
 
 void Builtins::initialize(void)
 {
+    /* built-in objects */
+    Globals.emplace("type"  , Closure::ref(Runtime::TypeObject));
+    Globals.emplace("object", Closure::ref(Runtime::ObjectTypeObject));
+
     /* built-in print function */
     Globals.emplace(
         "print",

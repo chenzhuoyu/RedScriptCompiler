@@ -161,14 +161,14 @@ void MapObject::enumerate(MapObject::EnumeratorFunc func)
     {
         /* in which case just walk through the map */
         for (const auto &item : _map)
-            if (!func(item.first, item.second->value))
+            if (!(func(item.first, item.second->value)))
                 break;
     }
     else
     {
         /* otherwise traverse the list, which preserve the order */
         for (Node *node = _head.next; node != &_head; node = node->next)
-            if (!func(node->key, node->value))
+            if (!(func(node->key, node->value)))
                 break;
     }
 }
@@ -210,7 +210,7 @@ void MapObject::enumerateCopy(MapObject::EnumeratorFunc func)
 
     /* now left the locking zone, invoke the callback */
     for (size_t i = 0; i < keys.size(); i++)
-        if (!func(std::move(keys[i]), std::move(values[i])))
+        if (!(func(std::move(keys[i]), std::move(values[i]))))
             break;
 }
 

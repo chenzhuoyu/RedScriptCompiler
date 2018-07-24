@@ -52,9 +52,21 @@
 #}
 #}
 
-a = 1
-print(a.__class__)
-print(dir(a.__class__))
-print(a.__class__.__add__)
-print(dir(a.__class__.__add__))
-print(a.__class__.__add__.um_func)
+class Test
+{
+    def __init__(self, x) {
+        self.x = x
+        print('self is', self)
+    }
+
+    def func(self) {
+        print('in func')
+        print('self.x is', self.x)
+    }
+}
+
+print(Test)
+test = Test(999)
+print(test)
+print(test.func)
+test.func()

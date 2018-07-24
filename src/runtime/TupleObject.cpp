@@ -272,7 +272,7 @@ void TupleObject::referenceClear(void)
 void TupleObject::referenceTraverse(VisitFunction visit)
 {
     for (size_t i = 0; i < _size; i++)
-        if (!(_items[i].isNull()))
+        if (_items[i].isNotNull())
             visit(_items[i]);
 }
 

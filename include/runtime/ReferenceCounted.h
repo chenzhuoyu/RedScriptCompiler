@@ -206,9 +206,12 @@ public:
 
 public:
     T *get(void) { return _object; }
-    bool isNull(void) const { return !_object; }
     bool isStatic(void) const { return _object ? _object->isStatic() : true; }
     size_t refCount(void) const { return _object ? _object->refCount() : SIZE_MAX; }
+
+public:
+    bool isNull(void) const { return _object == nullptr; }
+    bool isNotNull(void) const { return _object != nullptr; }
 
 public:
     template <typename U> bool isIdenticalWith(const Reference<U> &other) const { return _object == other._object; }

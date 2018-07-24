@@ -12,13 +12,18 @@ namespace RedScript::Runtime
 {
 class Type;
 class Object;
+class MapObject;
+class TupleObject;
+
+/* reference names */
 typedef Reference<Type> TypeRef;
 typedef Reference<Object> ObjectRef;
 typedef std::vector<std::string> StringList;
 typedef std::unordered_map<std::string, ObjectRef> Dict;
 
-/* the very first class */
+/* the meta class, and the base type object */
 extern TypeRef TypeObject;
+extern TypeRef ObjectTypeObject;
 
 /* simple object */
 class Object : public ReferenceCounted
@@ -72,7 +77,7 @@ public:
 
 public:
     bool isInstanceOf(TypeRef type) { return _type.isIdenticalWith(type); }
-    bool isNotInstanceOf(TypeRef type) { return !(_type.isIdenticalWith(type)); }
+    bool isNotInstanceOf(TypeRef type) { return _type.isNotIdenticalWith(type); }
 
 public:
     /* for object system initialization and destruction, internal use only! */
@@ -96,7 +101,7 @@ class Type : public Object
     friend class Object;
 
 public:
-    explicit Type(const std::string &name) : Type(name, TypeObject) {}
+    explicit Type(const std::string &name) : Type(name, ObjectTypeObject) {}
     explicit Type(const std::string &name, TypeRef super) : Object(TypeObject), _name(name), _super(super) {}
 
 public:
@@ -150,7 +155,9 @@ public:
     virtual void      nativeObjectDefineAttr(ObjectRef self, const std::string &name, ObjectRef value);
 
 public:
-    virtual ObjectRef nativeObjectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs);
+    virtual ObjectRef nativeObjectNew(TypeRef type, Reference<TupleObject> args, Reference<MapObject> kwargs);
+    virtual ObjectRef nativeObjectInit(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs);
+    virtual ObjectRef nativeObjectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs);
 
 /*** Native Boolean Protocol ***/
 
@@ -256,7 +263,9 @@ public:
     void      objectDefineAttr(ObjectRef self, const std::string &name, ObjectRef value) { nativeObjectDefineAttr(self, name, value); }
 
 public:
-    ObjectRef objectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs);
+    ObjectRef objectNew(TypeRef type, Reference<TupleObject> args, Reference<MapObject> kwargs);
+    ObjectRef objectInit(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs);
+    ObjectRef objectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs);
 
 /*** Boolean Protocol ***/
 
@@ -340,6 +349,25 @@ public:
 public:
     ObjectRef comparableCompare(ObjectRef self, ObjectRef other);
     ObjectRef comparableContains(ObjectRef self, ObjectRef other);
+
+/*** Custom Class Creation Interface ***/
+
+public:
+    static TypeRef create(const std::string &name, Reference<MapObject> dict, TypeRef super);
+
+};
+
+class ObjectType : public Type
+{
+public:
+    using Type::Type;
+
+/*** Native Object Protocol ***/
+
+public:
+    virtual ObjectRef nativeObjectNew(TypeRef type, Reference<TupleObject> args, Reference<MapObject> kwargs) override;
+    virtual ObjectRef nativeObjectInit(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs) override;
+    virtual ObjectRef nativeObjectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs) override;
 
 };
 }

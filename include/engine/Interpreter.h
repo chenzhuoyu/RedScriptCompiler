@@ -27,6 +27,7 @@ private:
 private:
     Runtime::ObjectRef tupleConcat(Runtime::ObjectRef a, Runtime::ObjectRef b);
     Runtime::ObjectRef hashmapConcat(Runtime::ObjectRef a, Runtime::ObjectRef b);
+    std::unordered_map<std::string, Engine::ClosureRef> closureCreate(Runtime::Reference<Runtime::CodeObject> &code);
 
 public:
     Interpreter(

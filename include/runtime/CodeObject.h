@@ -79,6 +79,7 @@ public:
     uint32_t emit(int row, int col, Engine::OpCode op);
     uint32_t emitJump(int row, int col, Engine::OpCode op);
     uint32_t emitOperand(int row, int col, Engine::OpCode op, int32_t v);
+    uint32_t emitOperand2(int row, int col, Engine::OpCode op, int32_t v1, int32_t v2);
 
 public:
     bool isLocal(const std::string &value) const { return _locals.find(value) != _locals.end(); }

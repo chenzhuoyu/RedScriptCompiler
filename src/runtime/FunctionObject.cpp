@@ -17,34 +17,17 @@ TypeRef FunctionTypeObject;
 
 void FunctionType::addBuiltins(void)
 {
-    attrs().emplace(
-        "__invoke__",
-        UnboundMethodObject::newTernary([](ObjectRef self, ObjectRef args, ObjectRef kwargs)
-        {
-            /* invoke the object protocol */
-            return self->type()->nativeObjectInvoke(self, args, kwargs);
-        })
-    );
+    // TODO: add __invoke__
 }
 
 /*** Native Object Protocol ***/
 
-ObjectRef FunctionType::nativeObjectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs)
+ObjectRef FunctionType::nativeObjectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
 {
-    /* check object type */
     if (self->isNotInstanceOf(FunctionTypeObject))
         throw Exceptions::InternalError("Invalid function call");
-
-    /* check tuple type */
-    if (args->isNotInstanceOf(TupleTypeObject))
-        throw Exceptions::InternalError("Invalid args tuple object");
-
-    /* check map type */
-    if (kwargs->isNotInstanceOf(MapTypeObject))
-        throw Exceptions::InternalError("Invalid kwargs map object");
-
-    /* call the function handler */
-    return self.as<FunctionObject>()->invoke(args.as<TupleObject>(), kwargs.as<MapObject>());
+    else
+        return self.as<FunctionObject>()->invoke(std::move(args), std::move(kwargs));
 }
 
 ObjectRef FunctionObject::invoke(Reference<TupleObject> args, Reference<MapObject> kwargs)

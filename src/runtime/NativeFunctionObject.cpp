@@ -8,31 +8,16 @@ TypeRef NativeFunctionTypeObject;
 
 void NativeFunctionType::addBuiltins(void)
 {
-    attrs().emplace(
-        "__invoke__",
-        UnboundMethodObject::newTernary([](ObjectRef self, ObjectRef args, ObjectRef kwargs)
-        {
-            /* invoke the object protocol */
-            return self->type()->nativeObjectInvoke(self, args, kwargs);
-        })
-    );
+    // TODO: add __invoke__
 }
 
 /*** Native Object Protocol ***/
 
-ObjectRef NativeFunctionType::nativeObjectInvoke(ObjectRef self, ObjectRef args, ObjectRef kwargs)
+ObjectRef NativeFunctionType::nativeObjectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
 {
     /* check object type */
     if (self->isNotInstanceOf(NativeFunctionTypeObject))
         throw Exceptions::InternalError("Invalid native function call");
-
-    /* check tuple type */
-    if (args->isNotInstanceOf(TupleTypeObject))
-        throw Exceptions::InternalError("Invalid tuple object");
-
-    /* check map type */
-    if (kwargs->isNotInstanceOf(MapTypeObject))
-        throw Exceptions::InternalError("Invalid map object");
 
     /* convert to function object */
     auto func = self.as<NativeFunctionObject>();
@@ -43,7 +28,7 @@ ObjectRef NativeFunctionType::nativeObjectInvoke(ObjectRef self, ObjectRef args,
         throw Exceptions::InternalError("Empty native function call");
 
     /* call the native function */
-    return function(args.as<TupleObject>(), kwargs.as<MapObject>());
+    return function(std::move(args), std::move(kwargs));
 }
 
 ObjectRef NativeFunctionObject::newNullary(NullaryFunction function)
