@@ -13,16 +13,14 @@ size_t MapObject::size(void)
 
 Runtime::ObjectRef MapObject::back(void)
 {
-    /* unordered maps have no particular order, so any element is acceptable as "back" */
     Utils::RWLock::Read _(_lock);
-    return (_mode == Mode::Unordered) ? _map.begin()->second->value : _head.prev->value;
+    return _head.prev->value;
 }
 
 Runtime::ObjectRef MapObject::front(void)
 {
-    /* unordered maps have no particular order, so any element is acceptable as "front" */
     Utils::RWLock::Read _(_lock);
-    return (_mode == Mode::Unordered) ? _map.begin()->second->value : _head.next->value;
+    return _head.next->value;
 }
 
 Runtime::ObjectRef MapObject::pop(Runtime::ObjectRef key)
@@ -37,13 +35,10 @@ Runtime::ObjectRef MapObject::pop(Runtime::ObjectRef key)
         if (it == _map.end())
             return nullptr;
 
-        /* erase from map */
+        /* erase from map, and detach from node list */
         node = it->second;
         _map.erase(it);
-
-        /* detach from node list if ordered or LRU */
-        if (_mode != Mode::Unordered)
-            detach(node);
+        detach(node);
     }
 
     /* extract the value, move to prevent copy */
@@ -105,13 +100,10 @@ void MapObject::insert(Runtime::ObjectRef key, Runtime::ObjectRef value)
     /* check for existance */
     if (it == _map.end())
     {
-        /* node not exists, create new node */
+        /* node not exists, create new node and attach to node list */
         node = new Node(key, value);
         _map.emplace(key, node);
-
-        /* attach to node list, if ordered or LRU */
-        if (_mode != Mode::Unordered)
-            attach(node, &_head);
+        attach(node, &_head);
     }
     else
     {
@@ -156,21 +148,10 @@ void MapObject::enumerate(MapObject::EnumeratorFunc func)
     /* lock in shared mode */
     Utils::RWLock::Read _(_lock);
 
-    /* unordered maps have no list head */
-    if (_mode == Mode::Unordered)
-    {
-        /* in which case just walk through the map */
-        for (const auto &item : _map)
-            if (!(func(item.first, item.second->value)))
-                break;
-    }
-    else
-    {
-        /* otherwise traverse the list, which preserve the order */
-        for (Node *node = _head.next; node != &_head; node = node->next)
-            if (!(func(node->key, node->value)))
-                break;
-    }
+    /* traverse the list, which preserve the order */
+    for (Node *node = _head.next; node != &_head; node = node->next)
+        if (!(func(node->key, node->value)))
+            break;
 }
 
 void MapObject::enumerateCopy(MapObject::EnumeratorFunc func)
@@ -187,24 +168,11 @@ void MapObject::enumerateCopy(MapObject::EnumeratorFunc func)
         keys.reserve(_map.size());
         values.reserve(_map.size());
 
-        /* unordered maps have no list head */
-        if (_mode == Mode::Unordered)
+        /* traverse the list, which preserve the order */
+        for (Node *node = _head.next; node != &_head; node = node->next)
         {
-            /* in which case just walk through the map */
-            for (const auto &item : _map)
-            {
-                keys.emplace_back(item.first);
-                values.emplace_back(item.second->value);
-            }
-        }
-        else
-        {
-            /* otherwise traverse the list, which preserve the order */
-            for (Node *node = _head.next; node != &_head; node = node->next)
-            {
-                keys.emplace_back(node->key);
-                values.emplace_back(node->value);
-            }
+            keys.emplace_back(node->key);
+            values.emplace_back(node->value);
         }
     }
 

@@ -45,7 +45,6 @@ public:
     {
         LRU,
         Ordered,
-        Unordered,
     };
 
 public:
@@ -75,7 +74,7 @@ private:
 
 public:
     virtual ~MapObject() { clear(); }
-    explicit MapObject(Mode mode = Mode::Unordered) : Object(MapTypeObject), _mode(mode) {}
+    explicit MapObject(Mode mode = Mode::Ordered) : Object(MapTypeObject), _mode(mode) {}
 
 public:
     size_t size(void);
@@ -97,9 +96,8 @@ public:
     void enumerateCopy(EnumeratorFunc func);
 
 public:
-    static Reference<MapObject> newLRU(void)        { return Object::newObject<MapObject>(Mode::LRU); }
-    static Reference<MapObject> newOrdered(void)    { return Object::newObject<MapObject>(Mode::Ordered); }
-    static Reference<MapObject> newUnordered(void)  { return Object::newObject<MapObject>(Mode::Unordered); }
+    static Reference<MapObject> newLRU(void)     { return Object::newObject<MapObject>(Mode::LRU); }
+    static Reference<MapObject> newOrdered(void) { return Object::newObject<MapObject>(Mode::Ordered); }
 
 public:
     static void shutdown(void) {}
