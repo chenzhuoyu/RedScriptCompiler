@@ -139,21 +139,28 @@ void Type::addBuiltins(void)
     );
 }
 
-ObjectRef Type::findUserMethod(ObjectRef self, const char *name, const char *alt)
+ObjectRef Type::findUserMethod(ObjectRef self, const char *name, const char *alternative)
 {
-    /* get it's dict */
-    auto type = self->type();
-    auto iter = type->dict().find(name);
+    /* type reference and dict iterator */
+    TypeRef type;
+    Dict::iterator iter;
 
-    /* find the alternate name as needed */
-    if (alt && (iter == type->dict().end()))
-        iter = type->dict().find(alt);
+    /* search through super class chain */
+    for (type = self->type(); type.isNotNull(); type = type->_super)
+        if ((iter = type->dict().find(name)) != type->dict().end())
+            return iter->second;
 
-    /* check for existence */
-    if (iter == type->dict().end())
+    /* no alternative name available */
+    if (alternative == nullptr)
         return nullptr;
-    else
-        return iter->second;
+
+    /* search through super class chain again, with alternative name */
+    for (type = self->type(); type.isNotNull(); type = type->_super)
+        if ((iter = type->dict().find(alternative)) != type->dict().end())
+            return iter->second;
+
+    /* not found */
+    return nullptr;
 }
 
 Type::DescriptorType Type::resolveDescriptor(ObjectRef obj, ObjectRef *getter, ObjectRef *setter, ObjectRef *deleter)
@@ -1037,11 +1044,17 @@ void Type::objectSetAttr(ObjectRef self, const std::string &name, ObjectRef valu
 
 ObjectRef Type::objectNew(TypeRef type, Reference<TupleObject> args, Reference<MapObject> kwargs)
 {
-    /* find the user method */
-    auto iter = type->dict().find("__new__");
+    /* type reference and dict iterator */
+    TypeRef ref;
+    Dict::iterator iter;
 
-    /* don't have "__init__" method */
-    if (iter == type->dict().end())
+    /* search through super class chain */
+    for (ref = type; ref.isNotNull(); ref = ref->_super)
+        if ((iter = ref->dict().find("__new__")) != ref->dict().end())
+            break;
+
+    /* don't have "__new__" method */
+    if (ref.isNull())
         return nativeObjectNew(std::move(type), std::move(args), std::move(kwargs));
 
     /* must be an unbound method */

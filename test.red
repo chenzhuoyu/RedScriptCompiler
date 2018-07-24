@@ -54,19 +54,23 @@
 
 class Test
 {
-    def __init__(self, x) {
+    def __init__(self, x)
+    {
         self.x = x
         print('self is', self)
     }
 
-    def func(self) {
+    def func(self)
+    {
         print('in func')
         print('self.x is', self.x)
     }
 }
 
+class Foo : Test {}
+
 print(Test)
-test = Test(999)
+test = Foo(999)
 print(test)
 print(test.func)
 test.func()
