@@ -98,7 +98,7 @@ Runtime::ObjectRef Interpreter::hashmapConcat(Runtime::ObjectRef a, Runtime::Obj
 std::unordered_map<std::string, Engine::ClosureRef> Interpreter::closureCreate(Runtime::Reference<Runtime::CodeObject> &code)
 {
     /* locals map and result closure */
-    auto &locals = _code->localMap();
+    std::unordered_map<std::string, uint32_t> &locals = _code->localMap();
     std::unordered_map<std::string, Engine::ClosureRef> closure;
 
     /* build class closure */
@@ -1262,7 +1262,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                     auto def = std::move(_stack.back());
 
                     /* check name ID */
-                    if (nid >= _code->consts().size())
+                    if (nid >= _code->locals().size())
                         throw Exceptions::InternalError(Utils::Strings::format("Name ID %u out of range", cid));
 
                     /* check code ID */
@@ -1273,45 +1273,43 @@ Runtime::ObjectRef Interpreter::eval(void)
                     if (def->isNotInstanceOf(Runtime::TupleTypeObject))
                         throw Exceptions::InternalError("Invalid tuple object");
 
+                    /* get function code and name */
+                    auto &code = _code->consts()[cid];
+                    auto &name = _code->locals()[nid];
+
                     /* check for code object */
-                    if (_code->consts()[cid]->isNotInstanceOf(Runtime::CodeTypeObject))
+                    if (code->isNotInstanceOf(Runtime::CodeTypeObject))
                         throw Exceptions::InternalError("Invalid code object");
 
-                    /* convert to corresponding type */
+                    /* build execution closure */
                     auto funcDef = def.as<Runtime::TupleObject>();
-                    auto funcCode = _code->consts()[cid].as<Runtime::CodeObject>();
-                    auto funcName = _code->consts()[nid].as<Runtime::StringObject>();
+                    auto funcCode = code.as<Runtime::CodeObject>();
                     auto funcClosure = closureCreate(funcCode);
 
                     /* create function object, and put on stack */
-                    _stack.back() = Runtime::Object::newObject<Runtime::FunctionObject>(funcName->value(), funcCode, funcDef, funcClosure);
+                    _stack.back() = Runtime::Object::newObject<Runtime::FunctionObject>(name, funcCode, funcDef, funcClosure);
                     break;
                 }
 
                 /* build a class object */
                 case OpCode::MAKE_CLASS:
                 {
-                    /* extract constant ID */
-                    uint32_t nid = OPERAND();
-                    uint32_t cid = OPERAND();
-
                     /* check stack */
                     if (_stack.empty())
                         throw Exceptions::InternalError("Stack is empty");
 
+                    /* extract constant ID */
+                    auto nid = OPERAND();
+                    auto cid = OPERAND();
+                    auto super = std::move(_stack.back());
+
                     /* check name ID range */
-                    if (nid >= _code->consts().size())
+                    if (nid >= _code->locals().size())
                         throw Exceptions::InternalError("Name ID out of range");
 
                     /* check code ID range */
                     if (cid >= _code->consts().size())
                         throw Exceptions::InternalError("Code ID out of range");
-
-                    /* load super class from stack */
-                    auto code = _code->consts()[cid].as<Runtime::CodeObject>();
-                    auto name = _code->consts()[nid].as<Runtime::StringObject>();
-                    auto super = std::move(_stack.back());
-                    auto closure = closureCreate(code);
 
                     /* super class must be a type */
                     if (super->isNotInstanceOf(Runtime::TypeObject))
@@ -1322,9 +1320,22 @@ Runtime::ObjectRef Interpreter::eval(void)
                         ));
                     }
 
+                    /* get function code and name */
+                    auto &code = _code->consts()[cid];
+                    auto &name = _code->locals()[nid];
+
+                    /* check for code object */
+                    if (code->isNotInstanceOf(Runtime::CodeTypeObject))
+                        throw Exceptions::InternalError("Invalid code object");
+
+                    /* build execution closure */
+                    auto classCode = code.as<Runtime::CodeObject>();
+                    auto classSuper = super.as<Runtime::Type>();
+                    auto classClosure = closureCreate(classCode);
+
                     /* create a new interpreter for class body,
                      * and a static map object for class attribues */
-                    Interpreter vm(code, closure);
+                    Interpreter vm(classCode, classClosure);
                     Runtime::Reference<Runtime::MapObject> dict = Runtime::MapObject::newOrdered();
 
                     /* execute the class body */
@@ -1332,12 +1343,12 @@ Runtime::ObjectRef Interpreter::eval(void)
                         throw Exceptions::InternalError("Invalid class body");
 
                     /* enumerate every locals, but exclude not initialized one */
-                    for (const auto &item : code->localMap())
+                    for (auto &item : classCode->localMap())
                         if (vm._locals[item.second].isNotNull())
                             dict->insert(Runtime::StringObject::fromStringInterned(item.first), vm._locals[item.second]);
 
                     /* create a class object, and put on stack */
-                    _stack.back() = Runtime::Type::create(name->value(), std::move(dict), super.as<Runtime::Type>());
+                    _stack.back() = Runtime::Type::create(name, std::move(dict), std::move(classSuper));
                     break;
                 }
 

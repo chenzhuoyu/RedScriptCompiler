@@ -76,7 +76,7 @@ void CodeGenerator::buildClassObject(const std::string &name, const std::unique_
     /* pop the code object out of frame */
     auto code = cls.leave();
     auto codeId = addConst(code);
-    auto nameId = addConst(Runtime::StringObject::fromStringInterned(name));
+    auto nameId = addLocal(name);
 
     /* merge it's free variables with ours, if we don't have them */
     for (const auto &var : code->names())
@@ -136,7 +136,7 @@ void CodeGenerator::buildFunctionObject(const std::string &name, const std::uniq
     /* pop the code object out of frame */
     auto code = func.leave();
     auto codeId = addConst(code);
-    auto nameId = addConst(Runtime::StringObject::fromStringInterned(name));
+    auto nameId = addLocal(name);
 
     /* merge it's free variables with ours, if we don't have them */
     for (const auto &var : code->names())
