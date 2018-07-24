@@ -8,10 +8,10 @@
 
 namespace RedScript::Runtime
 {
-class BoolType : public Type
+class BoolType : public ObjectType
 {
 public:
-    explicit BoolType() : Type("bool") {}
+    explicit BoolType() : ObjectType("bool") {}
 
 protected:
     virtual void addBuiltins(void) override {}

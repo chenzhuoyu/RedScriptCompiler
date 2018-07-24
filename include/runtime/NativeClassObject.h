@@ -12,10 +12,10 @@
 
 namespace RedScript::Runtime
 {
-class NativeClassType : public Type
+class NativeClassType : public ObjectType
 {
 public:
-    explicit NativeClassType() : Type("native_class") {}
+    explicit NativeClassType() : ObjectType("native_class") {}
 
 protected:
     virtual void addBuiltins(void) override {}

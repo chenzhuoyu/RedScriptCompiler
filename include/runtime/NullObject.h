@@ -8,10 +8,10 @@
 
 namespace RedScript::Runtime
 {
-class NullType : public Type
+class NullType : public ObjectType
 {
 public:
-    explicit NullType() : Type("null") {}
+    explicit NullType() : ObjectType("null") {}
 
 protected:
     virtual void addBuiltins(void) override {}

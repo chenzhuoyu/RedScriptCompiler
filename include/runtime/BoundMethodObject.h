@@ -7,10 +7,10 @@
 
 namespace RedScript::Runtime
 {
-class BoundMethodType : public Type
+class BoundMethodType : public ObjectType
 {
 public:
-    explicit BoundMethodType() : Type("bound_method") {}
+    explicit BoundMethodType() : ObjectType("bound_method") {}
 
 protected:
     virtual void addBuiltins(void) override;

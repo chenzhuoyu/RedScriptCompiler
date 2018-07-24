@@ -10,10 +10,10 @@
 
 namespace RedScript::Runtime
 {
-class IntType : public Type
+class IntType : public ObjectType
 {
 public:
-    explicit IntType() : Type("int") {}
+    explicit IntType() : ObjectType("int") {}
 
 protected:
     virtual void addBuiltins(void) override;

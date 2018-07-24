@@ -9,10 +9,10 @@
 
 namespace RedScript::Runtime
 {
-class DecimalType : public Type
+class DecimalType : public ObjectType
 {
 public:
-    explicit DecimalType() : Type("decimal") {}
+    explicit DecimalType() : ObjectType("decimal") {}
 
 protected:
     virtual void addBuiltins(void) override;

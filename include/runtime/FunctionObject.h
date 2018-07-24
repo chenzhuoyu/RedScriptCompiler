@@ -11,10 +11,10 @@
 
 namespace RedScript::Runtime
 {
-class FunctionType : public Type
+class FunctionType : public ObjectType
 {
 public:
-    explicit FunctionType() : Type("function") {}
+    explicit FunctionType() : ObjectType("function") {}
 
 protected:
     virtual void addBuiltins(void) override;

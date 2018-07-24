@@ -5,10 +5,10 @@
 
 namespace RedScript::Runtime
 {
-class SliceType : public Type
+class SliceType : public ObjectType
 {
 public:
-    explicit SliceType() : Type("slice") {}
+    explicit SliceType() : ObjectType("slice") {}
 
 protected:
     virtual void addBuiltins(void) override {}

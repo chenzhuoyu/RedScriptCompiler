@@ -5,10 +5,10 @@
 
 namespace RedScript::Runtime
 {
-class ProxyType : public Type
+class ProxyType : public ObjectType
 {
 public:
-    explicit ProxyType() : Type("proxy") {}
+    explicit ProxyType() : ObjectType("proxy") {}
 
 protected:
     virtual void addBuiltins(void) override {}

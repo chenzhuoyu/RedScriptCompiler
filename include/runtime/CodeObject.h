@@ -11,10 +11,10 @@
 
 namespace RedScript::Runtime
 {
-class CodeType : public Type
+class CodeType : public ObjectType
 {
 public:
-    explicit CodeType() : Type("code") {}
+    explicit CodeType() : ObjectType("code") {}
 
 protected:
     virtual void addBuiltins(void) override {}

@@ -10,10 +10,10 @@
 
 namespace RedScript::Runtime
 {
-class UnboundMethodType : public Type
+class UnboundMethodType : public ObjectType
 {
 public:
-    explicit UnboundMethodType() : Type("unbound_method") {}
+    explicit UnboundMethodType() : ObjectType("unbound_method") {}
 
 protected:
     virtual void addBuiltins(void) override;
