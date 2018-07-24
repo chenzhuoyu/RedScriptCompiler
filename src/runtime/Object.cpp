@@ -655,7 +655,17 @@ ObjectRef Type::nativeObjectInvoke(ObjectRef self, Reference<TupleObject> args, 
     /* create and initialize an object */
     auto type = self.as<Type>();
     auto result = type->objectNew(type, args, kwargs);
-    return result->type()->objectInit(result, args, kwargs);
+
+    /* don't call "__init__" if "__new__" does not return an instance of `type` */
+    if (result->isNotInstanceOf(type))
+        return std::move(result);
+
+    /* call the object's "__init__" method to initialize it */
+    return result->type()->objectInit(
+        result,
+        std::move(args),
+        std::move(kwargs)
+    );
 }
 
 /*** Native Boolean Protocol ***/
