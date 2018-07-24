@@ -126,7 +126,7 @@ uint32_t CodeObject::emitOperand2(int row, int col, Engine::OpCode op, int32_t v
     /* add operand to instruction buffer */
     _buffer.insert(_buffer.end(), p1, p1 + sizeof(int32_t));
     _buffer.insert(_buffer.end(), p2, p2 + sizeof(int32_t));
-    _lineNumTable.insert(_lineNumTable.end(), sizeof(int32_t), {row, col});
+    _lineNumTable.insert(_lineNumTable.end(), sizeof(int32_t) * 2, {row, col});
     return static_cast<uint32_t>(size);
 }
 
