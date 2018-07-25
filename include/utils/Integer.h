@@ -56,7 +56,7 @@ private:
 
         /* and must be a valid 32-bit integer */
         auto bits = val.toUInt();
-        return bits < UINT32_MAX ? static_cast<uint32_t>(bits) : throw Exceptions::ValueError("Bit shifts too far");;
+        return bits < UINT32_MAX ? static_cast<uint32_t>(bits) : throw Exceptions::ValueError("Bit shifts too far");
     }
 
 private:
