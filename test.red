@@ -52,26 +52,8 @@
 #}
 #}
 
-class Test
-{
-    def __init__(self, x)
-    {
-        self.x = x
-        print('self is', self)
-    }
-
-    def test_func(self)
-    {
-        print('in test_func')
-        print('self.x is', self.x)
-    }
+i = 0
+while (i < 1000000) {
+    i += 1
 }
-
-class Foo : Test {}
-
-print(Test)
-test = Foo(999)
-print(test)
-print(test.test_func)
-print(test.test_func.bm_func)
-test.test_func()
+print('done')

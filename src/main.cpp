@@ -92,7 +92,7 @@ static void dis(RedScript::Runtime::Reference<RedScript::Runtime::CodeObject> co
 
 static void run(void)
 {
-    std::ifstream ifs("test.red");
+    std::ifstream ifs("/Users/Oxygen/ClionProjects/RedScriptCompiler/test.red");
     std::string source((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
 
     RedScript::Compiler::Parser parser(std::make_unique<RedScript::Compiler::Tokenizer>(source));
@@ -112,7 +112,14 @@ static void run(void)
 
     RedScript::Engine::Interpreter intp(code, RedScript::Engine::Builtins::Globals);
     std::cout << "--------------------- EVAL ---------------------" << std::endl;
+    timespec begin;
+    clock_gettime(CLOCK_MONOTONIC, &begin);
     RedScript::Runtime::ObjectRef ret = intp.eval();
+
+    std::cout << "--------------------- ELAPSED ---------------------" << std::endl;
+    timespec end;
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    std::cout << (end.tv_sec - begin.tv_sec) * 1000.0 + (end.tv_nsec - begin.tv_nsec) / 1000000.0 << " ms" << std::endl;
 
     std::cout << "--------------------- RETURN ---------------------" << std::endl;
     std::cout << ret->type()->objectRepr(ret) << std::endl;

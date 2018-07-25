@@ -32,11 +32,12 @@ private:
 public:
     Interpreter(
         Runtime::Reference<Runtime::CodeObject> code,
-        const std::unordered_map<std::string, ClosureRef> &names
-    ) : _code(code),
-        _names(names),
-        _locals(code->locals().size()),
-        _closures(code->locals().size()) {}
+        const std::unordered_map<std::string, ClosureRef> &names) : _code(code), _names(names)
+    {
+        _stack.reserve(1024);
+        _locals.resize(code->locals().size());
+        _closures.resize(code->locals().size());
+    }
 
 public:
     Runtime::ObjectRef eval(void);
