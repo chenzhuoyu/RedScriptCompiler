@@ -22,8 +22,8 @@ static_assert(
 struct Generation
 {
     size_t size;
+    size_t used;
     int32_t name;
-    std::atomic_size_t used;
 
 private:
     GCNode _head;
@@ -67,14 +67,14 @@ private:
 public:
     void addObject(GCNode *object)
     {
-        used++;
         attach(object);
+        __sync_add_and_fetch(&used, 1);
     }
 
 public:
     void removeObject(GCNode *object)
     {
-        used--;
+        __sync_sub_and_fetch(&used, 1);
         detach(object);
     }
 
@@ -198,8 +198,8 @@ public:
         _head.prev = &_head;
 
         /* update the generation size */
-        size = used.exchange(0);
-        target.used.fetch_add(size);
+        size = __sync_fetch_and_and(&used, 0);
+        __sync_add_and_fetch(&(target.used), size);
         return size;
     }
 
@@ -220,8 +220,8 @@ static Generation Generations[] = {
 };
 
 /* garbage collector state */
-static std::atomic_flag _isCollecting = false;
-static std::atomic_size_t _residentObjects = 0;
+static int _isCollecting = 0;
+static size_t _residentObjects = 0;
 
 /*** GCObject implementations ***/
 
@@ -265,7 +265,7 @@ void *GarbageCollector::alloc(size_t size)
 size_t GarbageCollector::collect(CollectionMode mode)
 {
     /* check the collecting flags */
-    if (_isCollecting.test_and_set())
+    if (__sync_lock_test_and_set(&_isCollecting, 1))
         return 0;
 
     /* calculate generation count */
@@ -307,7 +307,7 @@ size_t GarbageCollector::collect(CollectionMode mode)
                     if (i != count)
                     {
                         n += Generations[i - 1].collect();
-                        _residentObjects += Generations[i - 1].move(Generations[i]);
+                        __sync_add_and_fetch(&_residentObjects, Generations[i - 1].move(Generations[i]));
                     }
 
                     /* too many resident objects, force a full collection */
@@ -327,7 +327,7 @@ size_t GarbageCollector::collect(CollectionMode mode)
     }
 
     /* clear the collecting flags */
-    _isCollecting.clear();
+    __sync_lock_release(&_isCollecting);
     return n;
 }
 }

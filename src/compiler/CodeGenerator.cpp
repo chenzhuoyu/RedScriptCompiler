@@ -399,8 +399,8 @@ void CodeGenerator::visitFunction(const std::unique_ptr<AST::Function> &node)
     }
     else
     {
-        static std::atomic_size_t lambdaId = 0;
-        buildFunctionObject(Utils::Strings::format("<lambda-%zu>", lambdaId++), node);
+        static size_t lambdaId = 0;
+        buildFunctionObject(Utils::Strings::format("<lambda-%zu>", __sync_fetch_and_add(&lambdaId, 1)), node);
     }
 }
 

@@ -16,21 +16,21 @@ class RWLock final : public Immovable, public NonCopyable
     {
         struct
         {
-            std::atomic<uint16_t> _reads;
-            std::atomic<uint16_t> _writes;
-            std::atomic<uint16_t> _tickets;
+            uint16_t _reads;
+            uint16_t _writes;
+            uint16_t _tickets;
         };
 
-        std::atomic<uint32_t> _rw;
-        std::atomic<uint64_t> _all;
+        uint64_t _all;
+        uint32_t _access;
     };
 
 private:
+    size_t _rlocks;
     Engine::Thread *_owner;
-    std::atomic_size_t _rlocks;
 
 public:
-    RWLock() : _all(0), _owner(nullptr), _rlocks(0) {}
+    RWLock() : _all(0), _rlocks(0), _owner(nullptr) {}
 
 public:
     size_t reads(void) const { return _rlocks; }
@@ -39,21 +39,21 @@ public:
 public:
     void readLock(void)
     {
-        uint16_t tk = _tickets++;
+        auto tk = __sync_fetch_and_add(&_tickets, 1);
         while (tk != _reads);
-        _reads++;
+        __sync_add_and_fetch(&_reads, 1);
     }
 
 public:
     void writeLock(void)
     {
-        uint16_t tk = _tickets++;
+        auto tk = __sync_fetch_and_add(&_tickets, 1);
         while (tk != _writes);
     }
 
 public:
-    void readUnlock(void) { _writes++; }
-    void writeUnlock(void) { _rw = (_reads + 1) | ((_writes + 1) << 16); }
+    void readUnlock(void) { __sync_add_and_fetch(&_writes, 1); }
+    void writeUnlock(void) { _access = (_reads + 1u) | ((_writes + 1u) << 16u); }
 
 public:
     class Read
@@ -63,7 +63,7 @@ public:
     public:
         ~Read()
         {
-            _lock._rlocks--;
+            __sync_sub_and_fetch(&(_lock._rlocks), 1);
             _lock.readUnlock();
         }
 
@@ -71,7 +71,7 @@ public:
         Read(RWLock &lock) : _lock(lock)
         {
             _lock.readLock();
-            _lock._rlocks++;
+            __sync_add_and_fetch(&(_lock._rlocks), 1);
         }
     };
 

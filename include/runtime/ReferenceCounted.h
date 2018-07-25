@@ -2,7 +2,6 @@
 #define REDSCRIPT_RUNTIME_REFERENCECOUNTED_H
 
 #include <new>
-#include <atomic>
 #include <cstdio>
 #include <cstdint>
 #include <climits>
@@ -137,21 +136,17 @@ private:
     inline void ref(void) const
     {
         if (_object)
-            _object->_refCount++;
+            __sync_add_and_fetch(&(_object->_refCount), 1);
     }
 
 private:
     inline void unref(void)
     {
-        if (_object && !(--_object->_refCount))
+        if (_object && !(__sync_sub_and_fetch(&(_object->_refCount), 1)))
         {
-            /* reference and null the object first */
-            T *object = _object;
+            T *temp = _object;
             _object = nullptr;
-
-            /* if the object is dynamically allocated, then reclaim the object */
-            if (!(object->_isStatic))
-                delete object;
+            delete temp;
         }
     }
 
@@ -182,27 +177,15 @@ public:
     template <typename U>
     Reference<U> as(void) const
     {
-        /* use `dynamic_cast` to perform down-cast or side-cast */
-        U *object = dynamic_cast<U *>(_object);
-        typedef typename Reference<U>::TagChecked TagCheckedU;
-
-        /* check for cast result */
-        if (!object && _object)
-            throw std::bad_cast();
-        else
-            return Reference<U>(object, TagCheckedU());
-    }
-
-private:
-    static inline T *nullChecked(T *object)
-    {
-        /* check for null pointer dereferencing */
-        return object ?: throw std::runtime_error("null pointer dereferencing");
+        return Reference<U>(
+            static_cast<U *>(_object),
+            typename Reference<U>::TagChecked()
+        );
     }
 
 public:
-    T &operator*(void) { return *nullChecked(_object); }
-    T *operator->(void) { return nullChecked(_object); }
+    T &operator*(void) { return *_object; }
+    T *operator->(void) { return _object; }
 
 public:
     T *get(void) { return _object; }
@@ -231,7 +214,7 @@ public:
     {
         if (_object == other._object)
             return true;
-        else if (!_object || !other._object)
+        else if (!_object || !(other._object))
             return false;
         else
             return _ReferenceComparator<T, U>::isEquals(_object, other._object);
@@ -243,7 +226,7 @@ public:
     {
         if (_object == other._object)
             return false;
-        else if (!_object || !other._object)
+        else if (!_object || !(other._object))
             return true;
         else
             return _ReferenceComparator<T, U>::isNotEquals(_object, other._object);
@@ -253,14 +236,10 @@ public:
     template <typename U>
     static inline Reference<T> borrow(U *object)
     {
-        /* use `dynamic_cast` to perform down-cast or side-cast */
-        T *newObject = dynamic_cast<T *>(object);
-
-        /* borrow a reference from `object`, if viable */
-        if (object && !newObject)
-            throw std::bad_cast();
-        else
-            return Reference<T>(newObject, TagBorrowed());
+        return Reference<T>(
+            static_cast<T *>(object),
+            TagBorrowed()
+        );
     }
 
 public:
@@ -298,7 +277,7 @@ class ReferenceCounted : public Utils::Immovable, public Utils::NonCopyable
 
 private:
     bool _isStatic;
-    std::atomic_int _refCount;
+    uint32_t _refCount;
 
 protected:
     virtual ~ReferenceCounted() = default;

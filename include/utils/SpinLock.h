@@ -12,13 +12,14 @@ namespace RedScript::Utils
 {
 class SpinLock final : public Immovable, public NonCopyable
 {
+    int _flags;
     Engine::Thread *_owner;
-    std::atomic_flag _flags;
 
 public:
-    SpinLock() : _owner(nullptr), _flags(false) {}
+    SpinLock() : _flags(0), _owner(nullptr) {}
 
 public:
+    bool isLocked(void) const { return _flags != 0; }
     Engine::Thread *owner(void) const { return _owner; }
 
 public:
@@ -30,13 +31,13 @@ public:
        ~Scope()
        {
             _lock._owner = nullptr;
-            _lock._flags.clear(std::memory_order_release);
+            __sync_lock_release(&(_lock._flags));
        }
 
     public:
         Scope(SpinLock &lock) : _lock(lock)
         {
-            while (_lock._flags.test_and_set(std::memory_order_acquire));
+            while (__sync_lock_test_and_set(&(_lock._flags), 1));
             _lock._owner = Engine::Thread::current();
         }
     };

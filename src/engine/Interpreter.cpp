@@ -918,9 +918,8 @@ Runtime::ObjectRef Interpreter::eval(void)
                     throw Exceptions::InternalError("Stack is empty");
 
                 /* evaluate condition */
-                auto value = _stack.back();
-                bool isTrue = value->isTrue();
-                auto offset = frame->nextOperand();
+                auto off = frame->nextOperand();
+                bool isTrue = _stack.back()->isTrue();
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wswitch"
@@ -964,7 +963,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                     case OpCode::BRCP_TRUE:
                     case OpCode::BRNP_TRUE:
                     {
-                        if (isTrue) frame->jump(offset);
+                        if (isTrue) frame->jump(off);
                         break;
                     }
 
@@ -973,7 +972,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                     case OpCode::BRCP_FALSE:
                     case OpCode::BRNP_FALSE:
                     {
-                        if (!isTrue) frame->jump(offset);
+                        if (!isTrue) frame->jump(off);
                         break;
                     }
                 }

@@ -37,7 +37,7 @@ public:
 
 public:
     Integer(Integer &&other)      { mpz_init(_value); swap(other); }
-    Integer(const Integer &other) { mpz_init(_value); assign(other); }
+    Integer(const Integer &other) { mpz_init_set(_value, other._value); }
 
 private:
     template <typename Function>
