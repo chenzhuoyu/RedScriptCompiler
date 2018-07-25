@@ -17,6 +17,7 @@ set(CMAKE_CXX_STANDARD 17)
 if (${CMAKE_BUILD_TYPE} MATCHES "Debug")
     add_definitions(-D_GLIBCXX_DEBUG)
 else ()
+    add_compile_options(-O3)
     add_compile_options(-flto=full)
 endif ()
 

@@ -55,7 +55,7 @@ public:
 
 public:
     virtual ~Object() = default;
-    explicit Object(TypeRef type) : _type(type) { _attrs.emplace("__class__", _type); }
+    explicit Object(TypeRef type) : _type(type) {}
 
 private:
     /* used by `_HasComparator<T>` and `_ReferenceComparator<T, U>` to perform equality test */
@@ -76,6 +76,7 @@ public:
     ObjectRef self(void) { return ObjectRef::borrow(this); }
 
 public:
+    bool isTrue(void);
     bool isInstanceOf(TypeRef type) { return _type.isIdenticalWith(type); }
     bool isNotInstanceOf(TypeRef type) { return _type.isNotIdenticalWith(type); }
 
@@ -125,11 +126,11 @@ private:
         NotADescriptor,
     };
 
-private:
+protected:
     ObjectRef findUserMethod(ObjectRef self, const char *name, const char *alternative);
     DescriptorType resolveDescriptor(ObjectRef obj, ObjectRef *getter, ObjectRef *setter, ObjectRef *deleter);
 
-private:
+protected:
     ObjectRef applyUnaryMethod(ObjectRef method, ObjectRef self);
     ObjectRef applyBinaryMethod(ObjectRef method, ObjectRef self, ObjectRef other);
     ObjectRef applyTernaryMethod(ObjectRef method, ObjectRef self, ObjectRef second, ObjectRef third);
@@ -245,110 +246,110 @@ public:
 /*** Object Protocol ***/
 
 public:
-    uint64_t    objectHash(ObjectRef self);
-    StringList  objectDir (ObjectRef self);
-    std::string objectStr (ObjectRef self);
-    std::string objectRepr(ObjectRef self);
+    virtual uint64_t    objectHash(ObjectRef self) { return nativeObjectHash(self); }
+    virtual StringList  objectDir (ObjectRef self) { return nativeObjectDir (self); }
+    virtual std::string objectStr (ObjectRef self) { return nativeObjectStr (self); }
+    virtual std::string objectRepr(ObjectRef self) { return nativeObjectRepr(self); }
 
 public:
-    bool objectIsTrue(ObjectRef self);
-    bool objectIsSubclassOf(ObjectRef self, TypeRef type) { return nativeObjectIsSubclassOf(self, type); }
-    bool objectIsInstanceOf(ObjectRef self, TypeRef type) { return nativeObjectIsInstanceOf(self, type); }
+    virtual bool objectIsTrue(ObjectRef self) { return nativeObjectIsTrue(self); }
+    virtual bool objectIsSubclassOf(ObjectRef self, TypeRef type) { return nativeObjectIsSubclassOf(self, type); }
+    virtual bool objectIsInstanceOf(ObjectRef self, TypeRef type) { return nativeObjectIsInstanceOf(self, type); }
 
 public:
-    bool      objectHasAttr   (ObjectRef self, const std::string &name) { return nativeObjectHasAttr(self, name); }
-    void      objectDelAttr   (ObjectRef self, const std::string &name);
-    ObjectRef objectGetAttr   (ObjectRef self, const std::string &name);
-    void      objectSetAttr   (ObjectRef self, const std::string &name, ObjectRef value);
-    void      objectDefineAttr(ObjectRef self, const std::string &name, ObjectRef value) { nativeObjectDefineAttr(self, name, value); }
+    virtual bool      objectHasAttr   (ObjectRef self, const std::string &name)                  { return nativeObjectHasAttr   (self, name);        }
+    virtual void      objectDelAttr   (ObjectRef self, const std::string &name)                  {        nativeObjectDelAttr   (self, name);        }
+    virtual ObjectRef objectGetAttr   (ObjectRef self, const std::string &name)                  { return nativeObjectGetAttr   (self, name);        }
+    virtual void      objectSetAttr   (ObjectRef self, const std::string &name, ObjectRef value) {        nativeObjectSetAttr   (self, name, value); }
+    virtual void      objectDefineAttr(ObjectRef self, const std::string &name, ObjectRef value) {        nativeObjectDefineAttr(self, name, value); }
 
 public:
-    ObjectRef objectNew(TypeRef type, Reference<TupleObject> args, Reference<MapObject> kwargs);
-    ObjectRef objectInit(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs);
-    ObjectRef objectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs);
+    virtual ObjectRef objectNew   (TypeRef   type, Reference<TupleObject> args, Reference<MapObject> kwargs);
+    virtual ObjectRef objectInit  (ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs);
+    virtual ObjectRef objectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs);
 
 /*** Boolean Protocol ***/
 
 public:
-    ObjectRef boolOr (ObjectRef self, ObjectRef other);
-    ObjectRef boolAnd(ObjectRef self, ObjectRef other);
-    ObjectRef boolNot(ObjectRef self);
+    virtual ObjectRef boolOr (ObjectRef self, ObjectRef other) { return nativeBoolOr (self, other); }
+    virtual ObjectRef boolAnd(ObjectRef self, ObjectRef other) { return nativeBoolAnd(self, other); }
+    virtual ObjectRef boolNot(ObjectRef self)                  { return nativeBoolNot(self);        }
 
 /*** Numeric Protocol ***/
 
 public:
-    ObjectRef numericPos(ObjectRef self);
-    ObjectRef numericNeg(ObjectRef self);
+    virtual ObjectRef numericPos(ObjectRef self)                        { return nativeNumericPos      (self);        }
+    virtual ObjectRef numericNeg(ObjectRef self)                        { return nativeNumericNeg      (self);        }
 
 public:
-    ObjectRef numericAdd  (ObjectRef self, ObjectRef other);
-    ObjectRef numericSub  (ObjectRef self, ObjectRef other);
-    ObjectRef numericMul  (ObjectRef self, ObjectRef other);
-    ObjectRef numericDiv  (ObjectRef self, ObjectRef other);
-    ObjectRef numericMod  (ObjectRef self, ObjectRef other);
-    ObjectRef numericPower(ObjectRef self, ObjectRef other);
+    virtual ObjectRef numericAdd  (ObjectRef self, ObjectRef other)     { return nativeNumericAdd      (self, other); }
+    virtual ObjectRef numericSub  (ObjectRef self, ObjectRef other)     { return nativeNumericSub      (self, other); }
+    virtual ObjectRef numericMul  (ObjectRef self, ObjectRef other)     { return nativeNumericMul      (self, other); }
+    virtual ObjectRef numericDiv  (ObjectRef self, ObjectRef other)     { return nativeNumericDiv      (self, other); }
+    virtual ObjectRef numericMod  (ObjectRef self, ObjectRef other)     { return nativeNumericMod      (self, other); }
+    virtual ObjectRef numericPower(ObjectRef self, ObjectRef other)     { return nativeNumericPower    (self, other); }
 
 public:
-    ObjectRef numericOr (ObjectRef self, ObjectRef other);
-    ObjectRef numericAnd(ObjectRef self, ObjectRef other);
-    ObjectRef numericXor(ObjectRef self, ObjectRef other);
-    ObjectRef numericNot(ObjectRef self);
+    virtual ObjectRef numericOr (ObjectRef self, ObjectRef other)       { return nativeNumericOr       (self, other); }
+    virtual ObjectRef numericAnd(ObjectRef self, ObjectRef other)       { return nativeNumericAnd      (self, other); }
+    virtual ObjectRef numericXor(ObjectRef self, ObjectRef other)       { return nativeNumericXor      (self, other); }
+    virtual ObjectRef numericNot(ObjectRef self)                        { return nativeNumericNot      (self);        }
 
 public:
-    ObjectRef numericLShift(ObjectRef self, ObjectRef other);
-    ObjectRef numericRShift(ObjectRef self, ObjectRef other);
+    virtual ObjectRef numericLShift(ObjectRef self, ObjectRef other)    { return nativeNumericLShift   (self, other); }
+    virtual ObjectRef numericRShift(ObjectRef self, ObjectRef other)    { return nativeNumericRShift   (self, other); }
 
 public:
-    ObjectRef numericIncAdd  (ObjectRef self, ObjectRef other);
-    ObjectRef numericIncSub  (ObjectRef self, ObjectRef other);
-    ObjectRef numericIncMul  (ObjectRef self, ObjectRef other);
-    ObjectRef numericIncDiv  (ObjectRef self, ObjectRef other);
-    ObjectRef numericIncMod  (ObjectRef self, ObjectRef other);
-    ObjectRef numericIncPower(ObjectRef self, ObjectRef other);
+    virtual ObjectRef numericIncAdd  (ObjectRef self, ObjectRef other)  { return nativeNumericIncAdd   (self, other); }
+    virtual ObjectRef numericIncSub  (ObjectRef self, ObjectRef other)  { return nativeNumericIncSub   (self, other); }
+    virtual ObjectRef numericIncMul  (ObjectRef self, ObjectRef other)  { return nativeNumericIncMul   (self, other); }
+    virtual ObjectRef numericIncDiv  (ObjectRef self, ObjectRef other)  { return nativeNumericIncDiv   (self, other); }
+    virtual ObjectRef numericIncMod  (ObjectRef self, ObjectRef other)  { return nativeNumericIncMod   (self, other); }
+    virtual ObjectRef numericIncPower(ObjectRef self, ObjectRef other)  { return nativeNumericIncPower (self, other); }
 
 public:
-    ObjectRef numericIncOr (ObjectRef self, ObjectRef other);
-    ObjectRef numericIncAnd(ObjectRef self, ObjectRef other);
-    ObjectRef numericIncXor(ObjectRef self, ObjectRef other);
+    virtual ObjectRef numericIncOr (ObjectRef self, ObjectRef other)    { return nativeNumericIncOr    (self, other); }
+    virtual ObjectRef numericIncAnd(ObjectRef self, ObjectRef other)    { return nativeNumericIncAnd   (self, other); }
+    virtual ObjectRef numericIncXor(ObjectRef self, ObjectRef other)    { return nativeNumericIncXor   (self, other); }
 
 public:
-    ObjectRef numericIncLShift(ObjectRef self, ObjectRef other);
-    ObjectRef numericIncRShift(ObjectRef self, ObjectRef other);
+    virtual ObjectRef numericIncLShift(ObjectRef self, ObjectRef other) { return nativeNumericIncLShift(self, other); }
+    virtual ObjectRef numericIncRShift(ObjectRef self, ObjectRef other) { return nativeNumericIncRShift(self, other); }
 
 /*** Iterator Protocol ***/
 
 public:
-    ObjectRef iterableIter(ObjectRef self);
-    ObjectRef iterableNext(ObjectRef self);
+    virtual ObjectRef iterableIter(ObjectRef self) { return nativeIterableIter(self); }
+    virtual ObjectRef iterableNext(ObjectRef self) { return nativeIterableNext(self); }
 
 /*** Sequence Protocol ***/
 
 public:
-    ObjectRef sequenceLen    (ObjectRef self);
-    void      sequenceDelItem(ObjectRef self, ObjectRef other);
-    ObjectRef sequenceGetItem(ObjectRef self, ObjectRef other);
-    void      sequenceSetItem(ObjectRef self, ObjectRef second, ObjectRef third);
+    virtual ObjectRef sequenceLen    (ObjectRef self)                                    { return nativeSequenceLen    (self);                }
+    virtual void      sequenceDelItem(ObjectRef self, ObjectRef other)                   {        nativeSequenceDelItem(self, other);         }
+    virtual ObjectRef sequenceGetItem(ObjectRef self, ObjectRef other)                   { return nativeSequenceGetItem(self, other);         }
+    virtual void      sequenceSetItem(ObjectRef self, ObjectRef second, ObjectRef third) {        nativeSequenceSetItem(self, second, third); }
 
 public:
-    void      sequenceDelSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step)                  {        nativeSequenceDelSlice(self, begin, end, step       ); }
-    ObjectRef sequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step)                  { return nativeSequenceGetSlice(self, begin, end, step       ); }
-    void      sequenceSetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step, ObjectRef value) {        nativeSequenceSetSlice(self, begin, end, step, value); }
+    virtual void      sequenceDelSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step)                  {        nativeSequenceDelSlice(self, begin, end, step       ); }
+    virtual ObjectRef sequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step)                  { return nativeSequenceGetSlice(self, begin, end, step       ); }
+    virtual void      sequenceSetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step, ObjectRef value) {        nativeSequenceSetSlice(self, begin, end, step, value); }
 
 /*** Comparator Protocol ***/
 
 public:
-    ObjectRef comparableEq(ObjectRef self, ObjectRef other);
-    ObjectRef comparableLt(ObjectRef self, ObjectRef other);
-    ObjectRef comparableGt(ObjectRef self, ObjectRef other);
+    virtual ObjectRef comparableEq(ObjectRef self, ObjectRef other)       { return nativeComparableEq(self, other); }
+    virtual ObjectRef comparableLt(ObjectRef self, ObjectRef other)       { return nativeComparableLt(self, other); }
+    virtual ObjectRef comparableGt(ObjectRef self, ObjectRef other)       { return nativeComparableGt(self, other); }
 
 public:
-    ObjectRef comparableNeq(ObjectRef self, ObjectRef other);
-    ObjectRef comparableLeq(ObjectRef self, ObjectRef other);
-    ObjectRef comparableGeq(ObjectRef self, ObjectRef other);
+    virtual ObjectRef comparableNeq(ObjectRef self, ObjectRef other)      { return nativeComparableNeq(self, other); }
+    virtual ObjectRef comparableLeq(ObjectRef self, ObjectRef other)      { return nativeComparableLeq(self, other); }
+    virtual ObjectRef comparableGeq(ObjectRef self, ObjectRef other)      { return nativeComparableGeq(self, other); }
 
 public:
-    ObjectRef comparableCompare(ObjectRef self, ObjectRef other);
-    ObjectRef comparableContains(ObjectRef self, ObjectRef other);
+    virtual ObjectRef comparableCompare (ObjectRef self, ObjectRef other) { return nativeComparableCompare (self, other); }
+    virtual ObjectRef comparableContains(ObjectRef self, ObjectRef other) { return nativeComparableContains(self, other); }
 
 /*** Custom Class Creation Interface ***/
 
@@ -357,7 +358,8 @@ public:
 
 };
 
-class ObjectType : public Type
+/* base class for built-in native types */
+class NativeType : public Type
 {
 public:
     using Type::Type;
@@ -368,6 +370,115 @@ public:
     virtual ObjectRef nativeObjectNew(TypeRef type, Reference<TupleObject> args, Reference<MapObject> kwargs) override;
     virtual ObjectRef nativeObjectInit(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs) override;
     virtual ObjectRef nativeObjectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs) override;
+
+};
+
+/* base class for user-defined types */
+class ObjectType : public NativeType
+{
+public:
+    using NativeType::NativeType;
+
+/*** Object Protocol ***/
+
+public:
+    virtual uint64_t    objectHash(ObjectRef self) override;
+    virtual StringList  objectDir (ObjectRef self) override;
+    virtual std::string objectStr (ObjectRef self) override;
+    virtual std::string objectRepr(ObjectRef self) override;
+
+public:
+    virtual bool objectIsTrue(ObjectRef self) override;
+    virtual bool objectIsSubclassOf(ObjectRef self, TypeRef type) override;
+    virtual bool objectIsInstanceOf(ObjectRef self, TypeRef type) override;
+
+public:
+    virtual void      objectDelAttr   (ObjectRef self, const std::string &name) override;
+    virtual ObjectRef objectGetAttr   (ObjectRef self, const std::string &name) override;
+    virtual void      objectSetAttr   (ObjectRef self, const std::string &name, ObjectRef value) override;
+
+public:
+    virtual ObjectRef objectNew(TypeRef type, Reference<TupleObject> args, Reference<MapObject> kwargs) override;
+    virtual ObjectRef objectInit(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs) override;
+    virtual ObjectRef objectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs) override;
+
+/*** Boolean Protocol ***/
+
+public:
+    virtual ObjectRef boolOr (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef boolAnd(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef boolNot(ObjectRef self) override;
+
+/*** Numeric Protocol ***/
+
+public:
+    virtual ObjectRef numericPos(ObjectRef self) override;
+    virtual ObjectRef numericNeg(ObjectRef self) override;
+
+public:
+    virtual ObjectRef numericAdd  (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef numericSub  (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef numericMul  (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef numericDiv  (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef numericMod  (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef numericPower(ObjectRef self, ObjectRef other) override;
+
+public:
+    virtual ObjectRef numericOr (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef numericAnd(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef numericXor(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef numericNot(ObjectRef self) override;
+
+public:
+    virtual ObjectRef numericLShift(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef numericRShift(ObjectRef self, ObjectRef other) override;
+
+public:
+    virtual ObjectRef numericIncAdd  (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef numericIncSub  (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef numericIncMul  (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef numericIncDiv  (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef numericIncMod  (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef numericIncPower(ObjectRef self, ObjectRef other) override;
+
+public:
+    virtual ObjectRef numericIncOr (ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef numericIncAnd(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef numericIncXor(ObjectRef self, ObjectRef other) override;
+
+public:
+    virtual ObjectRef numericIncLShift(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef numericIncRShift(ObjectRef self, ObjectRef other) override;
+
+/*** Iterator Protocol ***/
+
+public:
+    virtual ObjectRef iterableIter(ObjectRef self) override;
+    virtual ObjectRef iterableNext(ObjectRef self) override;
+
+/*** Sequence Protocol ***/
+
+public:
+    virtual ObjectRef sequenceLen    (ObjectRef self) override;
+    virtual void      sequenceDelItem(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef sequenceGetItem(ObjectRef self, ObjectRef other) override;
+    virtual void      sequenceSetItem(ObjectRef self, ObjectRef second, ObjectRef third) override;
+
+/*** Comparator Protocol ***/
+
+public:
+    virtual ObjectRef comparableEq(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef comparableLt(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef comparableGt(ObjectRef self, ObjectRef other) override;
+
+public:
+    virtual ObjectRef comparableNeq(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef comparableLeq(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef comparableGeq(ObjectRef self, ObjectRef other) override;
+
+public:
+    virtual ObjectRef comparableCompare(ObjectRef self, ObjectRef other) override;
+    virtual ObjectRef comparableContains(ObjectRef self, ObjectRef other) override;
 
 };
 }

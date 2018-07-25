@@ -8,10 +8,10 @@
 
 namespace RedScript::Runtime
 {
-class ExceptionBlockType : public ObjectType
+class ExceptionBlockType : public NativeType
 {
 public:
-    explicit ExceptionBlockType() : ObjectType("exception_block") {}
+    explicit ExceptionBlockType() : NativeType("exception_block") {}
 
 protected:
     virtual void addBuiltins(void) override {}

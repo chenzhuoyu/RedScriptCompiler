@@ -11,10 +11,10 @@
 
 namespace RedScript::Runtime
 {
-class MapType : public ObjectType
+class MapType : public NativeType
 {
 public:
-    explicit MapType() : ObjectType("map") {}
+    explicit MapType() : NativeType("map") {}
 
 protected:
     virtual void addBuiltins(void) override {}

@@ -134,14 +134,14 @@ public:
     Reference<T> &operator=(const Reference<T> &other) { assign(other); return *this; }
 
 private:
-    void ref(void) const
+    inline void ref(void) const
     {
         if (_object)
             _object->_refCount++;
     }
 
 private:
-    void unref()
+    inline void unref(void)
     {
         if (_object && !(--_object->_refCount))
         {

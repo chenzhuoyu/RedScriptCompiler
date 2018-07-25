@@ -73,7 +73,7 @@ public:
     void assign(const Integer &other);
 
 public:
-    bool isZero(void) const { return mpz_cmp_ui(_value, 0u) != 0; }
+    bool isZero(void) const { return mpz_cmp_ui(_value, 0u) == 0; }
     bool isSafeInt(void) const;
     bool isSafeUInt(void) const;
     bool isSafeNegativeUInt(void) const;

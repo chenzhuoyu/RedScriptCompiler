@@ -11,10 +11,10 @@
 
 namespace RedScript::Runtime
 {
-class TupleType : public ObjectType
+class TupleType : public NativeType
 {
 public:
-    explicit TupleType() : ObjectType("tuple") {}
+    explicit TupleType() : NativeType("tuple") {}
 
 protected:
     virtual void addBuiltins(void) override {}
@@ -67,10 +67,10 @@ public:
 
 };
 
-class TupleIteratorType : public ObjectType
+class TupleIteratorType : public NativeType
 {
 public:
-    explicit TupleIteratorType() : ObjectType("tuple_iterator") {}
+    explicit TupleIteratorType() : NativeType("tuple_iterator") {}
 
 protected:
     virtual void addBuiltins(void) override {}

@@ -9,10 +9,10 @@
 
 namespace RedScript::Runtime
 {
-class StringType : public ObjectType
+class StringType : public NativeType
 {
 public:
-    explicit StringType() : ObjectType("str") {}
+    explicit StringType() : NativeType("str") {}
 
 protected:
     virtual void addBuiltins(void) override {}
@@ -66,10 +66,10 @@ public:
 
 };
 
-class StringIteratorType : public ObjectType
+class StringIteratorType : public NativeType
 {
 public:
-    explicit StringIteratorType() : ObjectType("string_iterator") {}
+    explicit StringIteratorType() : NativeType("string_iterator") {}
 
 protected:
     virtual void addBuiltins(void) override {}

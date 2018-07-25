@@ -410,7 +410,7 @@ struct Unboxer<I, bool>
     static bool unbox(Runtime::ObjectRef value, const std::string &name)
     {
         /* convert to boolean */
-        return value->type()->objectIsTrue(value);
+        return value->isTrue();
     }
 };
 

@@ -13,10 +13,10 @@
 
 namespace RedScript::Runtime
 {
-class ArrayType : public ObjectType
+class ArrayType : public NativeType
 {
 public:
-    explicit ArrayType() : ObjectType("array") {}
+    explicit ArrayType() : NativeType("array") {}
 
 protected:
     virtual void addBuiltins(void) override {}
@@ -75,10 +75,10 @@ public:
 
 };
 
-class ArrayIteratorType : public ObjectType
+class ArrayIteratorType : public NativeType
 {
 public:
-    explicit ArrayIteratorType() : ObjectType("array_iterator") {}
+    explicit ArrayIteratorType() : NativeType("array_iterator") {}
 
 protected:
     virtual void addBuiltins(void) override {}

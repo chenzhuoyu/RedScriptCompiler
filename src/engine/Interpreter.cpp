@@ -919,8 +919,8 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                 /* evaluate condition */
                 auto value = _stack.back();
+                bool isTrue = value->isTrue();
                 auto offset = frame->nextOperand();
-                bool isTrue = value->type()->objectIsTrue(value);
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wswitch"

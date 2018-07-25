@@ -19,7 +19,7 @@ uint64_t BoolType::nativeObjectHash(ObjectRef self)
 
 std::string BoolType::nativeObjectRepr(ObjectRef self)
 {
-    if (self.as<BoolObject>()->_value)
+    if (self.isIdenticalWith(TrueObject))
         return "true";
     else
         return "false";
@@ -28,7 +28,7 @@ std::string BoolType::nativeObjectRepr(ObjectRef self)
 bool BoolType::nativeObjectIsTrue(ObjectRef self)
 {
     /* get the bool value */
-    return self.as<BoolObject>()->_value;
+    return self.isIdenticalWith(TrueObject);
 }
 
 ObjectRef BoolObject::fromBool(bool value)
