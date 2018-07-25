@@ -14,64 +14,27 @@ namespace
 struct MemoryTag
 {
     uint64_t size;
-    uint64_t type;
 };
-}
-
-/* check for memory tag alignment */
-static_assert(sizeof(MemoryTag) == MEM_ALIGN, "Unaligned memory tag");
-
-/*** Aligned Memory Allocator ***/
-
-static void freeAligned(void *ptr)
-{
-    /* simply call standard free */
-    std::free(ptr);
-}
-
-static void *allocAligned(size_t size)
-{
-    /* allocate memory with alignment `MEM_ALIGN` */
-    void *mem;
-    return posix_memalign(&mem, MEM_ALIGN, size) ? throw std::bad_alloc() : mem;
 }
 
 /*** Tagged Memory Allocator ***/
 
-static size_t freeTag(uint64_t type, MemoryTag *tag)
+static inline size_t freeTag(MemoryTag *tag) __attribute__((always_inline));
+static inline size_t freeTag(MemoryTag *tag)
 {
-    /* get the address */
-    size_t size;
-    uintptr_t addr = reinterpret_cast<uintptr_t>(tag);
-
-    /* validate pointer */
-    if ((addr & MEM_ALIGN_MASK))
-    {
-        fprintf(stderr, "*** FATAL: invalid free address %p\n", tag);
-        abort();
-    }
-
-    /* check for object type */
-    if (tag->type != type)
-    {
-        fprintf(stderr, "*** FATAL: memory type mismatch on block %p: %" PRIu64 " -> %" PRIu64 "\n", tag, type, tag->type);
-        abort();
-    }
-
-    /* extract the size, and release the memory tag */
-    size = tag->size;
-    freeAligned(reinterpret_cast<void *>(tag));
+    size_t size = tag->size;
+    free(reinterpret_cast<void *>(tag));
     return size;
 }
 
-static MemoryTag *allocTag(uint64_t type, size_t size)
+static inline MemoryTag *allocTag(size_t size) __attribute__((always_inline));
+static inline MemoryTag *allocTag(size_t size)
 {
     /* allocate memory */
     size_t alloc = size + sizeof(MemoryTag);
-    MemoryTag *tag = reinterpret_cast<MemoryTag *>(allocAligned(alloc));
+    MemoryTag *tag = reinterpret_cast<MemoryTag *>(malloc(alloc));
 
     /* initialize memory tag */
-    tag->type = type;
     tag->size = alloc;
     return tag;
 }
@@ -101,14 +64,14 @@ void Memory::free(void *ptr)
     if (ptr != nullptr)
     {
         __sync_sub_and_fetch(&_objectCount, 1);
-        __sync_sub_and_fetch(&_objectUsage, freeTag(MEM_OBJECT, reinterpret_cast<MemoryTag *>(ptr) - 1));
+        __sync_sub_and_fetch(&_objectUsage, freeTag(reinterpret_cast<MemoryTag *>(ptr) - 1));
     }
 }
 
 void *Memory::alloc(size_t size)
 {
     /* allocate memory with tag */
-    MemoryTag *tag = allocTag(MEM_OBJECT, size);
+    MemoryTag *tag = allocTag(size);
 
     /* update object counter and usage */
     __sync_add_and_fetch(&_objectCount, 1);
@@ -117,18 +80,6 @@ void *Memory::alloc(size_t size)
     /* skip tag header */
     return reinterpret_cast<void *>(tag + 1);
 }
-
-int Memory::typeOf(void *ptr)
-{
-    /* get memory type from memory tag */
-    return static_cast<int>((reinterpret_cast<MemoryTag *>(ptr) - 1)->type);
-}
-
-size_t Memory::sizeOf(void *ptr)
-{
-    /* get size info from memory tag */
-    return (reinterpret_cast<MemoryTag *>(ptr) - 1)->size;
-}
 }
 
 /*** System `new` and `delete` monitor ***/
@@ -136,7 +87,7 @@ size_t Memory::sizeOf(void *ptr)
 void *operator new(size_t size)
 {
     /* allocate memory with tag */
-    MemoryTag *tag = allocTag(RedScript::Engine::Memory::MEM_RAW, size);
+    MemoryTag *tag = allocTag(size);
 
     /* update object counter and usage */
     __sync_add_and_fetch(&_rawCount, 1);
@@ -149,7 +100,7 @@ void *operator new(size_t size)
 void *operator new[](size_t size)
 {
     /* allocate memory with tag */
-    MemoryTag *tag = allocTag(RedScript::Engine::Memory::MEM_ARRAY, size);
+    MemoryTag *tag = allocTag(size);
 
     /* update object counter and usage */
     __sync_add_and_fetch(&_arrayCount, 1);
@@ -164,7 +115,7 @@ void operator delete(void *ptr) noexcept
     if (ptr != nullptr)
     {
         __sync_sub_and_fetch(&_rawCount, 1);
-        __sync_sub_and_fetch(&_rawUsage, freeTag(RedScript::Engine::Memory::MEM_RAW, reinterpret_cast<MemoryTag *>(ptr) - 1));
+        __sync_sub_and_fetch(&_rawUsage, freeTag(reinterpret_cast<MemoryTag *>(ptr) - 1));
     }
 }
 
@@ -173,6 +124,6 @@ void operator delete[](void *ptr) noexcept
     if (ptr != nullptr)
     {
         __sync_sub_and_fetch(&_arrayCount, 1);
-        __sync_sub_and_fetch(&_arrayUsage, freeTag(RedScript::Engine::Memory::MEM_ARRAY, reinterpret_cast<MemoryTag *>(ptr) - 1));
+        __sync_sub_and_fetch(&_arrayUsage, freeTag(reinterpret_cast<MemoryTag *>(ptr) - 1));
     }
 }

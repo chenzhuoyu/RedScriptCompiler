@@ -17,11 +17,6 @@ private:
     friend void ::operator delete[](void *) noexcept;
 
 public:
-    static constexpr int MEM_RAW    = 1;
-    static constexpr int MEM_ARRAY  = 2;
-    static constexpr int MEM_OBJECT = 3;
-
-public:
     static size_t rawCount(void);
     static size_t arrayCount(void);
     static size_t objectCount(void);
@@ -34,10 +29,6 @@ public:
 public:
     static void free(void *ptr);
     static void *alloc(size_t size);
-
-public:
-    static int typeOf(void *ptr);
-    static size_t sizeOf(void *ptr);
 
 /*** Object Construction and Destruction ***/
 

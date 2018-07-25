@@ -5,15 +5,6 @@
 
 namespace RedScript::Runtime
 {
-/* thread-local, so no atomic operations required */
-static thread_local bool _isStaticObject = true;
-
-ReferenceCounted::ReferenceCounted() : _refCount(1)
-{
-    _isStatic = _isStaticObject;
-    _isStaticObject = true;
-}
-
 void ReferenceCounted::track(void) const
 {
     if (!_isStatic)
@@ -34,29 +25,15 @@ bool ReferenceCounted::isTracked(void) const
 
 void *ReferenceCounted::operator new(size_t size)
 {
-    /* check for minimun required size */
-    if (size < sizeof(ReferenceCounted))
-        throw std::bad_alloc();
-
-    /* mark as dynamic created object, and allocate new object from GC */
-    _isStaticObject = false;
+    /* allocate from garbage collector */
     return Engine::GarbageCollector::alloc(size);
 }
 
 void ReferenceCounted::operator delete(void *self)
 {
-    /* should be compatible with nullptr */
-    if (self)
-    {
-        /* check for static object */
-        if (static_cast<ReferenceCounted *>(self)->_isStatic)
-        {
-            fprintf(stderr, "*** FATAL: free'ing static object %p\n", self);
-            abort();
-        }
-
-        /* just throw the object into GC */
+    /* just throw the object into GC
+     * should be compatible with nullptr */
+    if (self != nullptr)
         Engine::GarbageCollector::free(self);
-    }
 }
 }

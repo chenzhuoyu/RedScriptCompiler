@@ -15,15 +15,30 @@
 
 namespace RedScript::Runtime
 {
-template <typename F>
-struct _IsComparator : public std::false_type {};
+template <typename F> struct _IsStaticFlag : public std::false_type {};
+template <typename F> struct _IsComparator : public std::false_type {};
 
-template <typename T, typename U>
-struct _IsComparator<bool(T::*)(U *)> : public std::true_type {};
+template <>                       struct _IsStaticFlag<bool> : public std::true_type {};
+template <typename T, typename U> struct _IsComparator<bool(T::*)(U *)> : public std::true_type {};
 
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "OCSimplifyInspection"
 #pragma ide diagnostic ignored "NotImplementedFunctions"
+
+template <typename T>
+class _HasStaticMember
+{
+    struct _One {};
+    struct _Two { char _[2]; };
+
+private:
+    template <typename U> static _One __testIsStatic(decltype(&U::_isStatic));
+    template <typename U> static _Two __testIsStatic(...);
+
+public:
+    static constexpr bool value = (sizeof(__testIsStatic<T>(nullptr)) == sizeof(_One));
+
+};
 
 template <typename T>
 class _HasComparatorMethods
@@ -45,8 +60,18 @@ public:
         (sizeof(__testIsNotEquals<T>(nullptr)) == sizeof(_One));
 };
 
+template <typename T, bool hasStaticFlag>
+struct _HasStaticFlagImpl : public std::false_type {};
+
 template <typename T, bool hasComparator>
 struct _HasComparatorImpl : public std::false_type {};
+
+template <typename T>
+struct _HasStaticFlagImpl<T, true>
+{
+    typedef decltype(&T::_isStatic) StaticFlagType;
+    static constexpr bool value = _IsStaticFlag<StaticFlagType>::value;
+};
 
 template <typename T>
 struct _HasComparatorImpl<T, true>
@@ -54,6 +79,28 @@ struct _HasComparatorImpl<T, true>
     static constexpr bool value =
         _IsComparator<decltype(&T::isEquals)>::value &&
         _IsComparator<decltype(&T::isNotEquals)>::value;
+};
+
+template <typename T, bool hasStaticFlag>
+struct _StaticFlagSetterImpl
+{
+    static T *set(T *object, bool)
+    {
+        /* no static flags, do nothing
+         * and return the object untouched */
+        return object;
+    }
+};
+
+template <typename T>
+struct _StaticFlagSetterImpl<T, true>
+{
+    static T *set(T *object, bool value)
+    {
+        /* set the static object flag */
+        object->_isStatic = value;
+        return object;
+    }
 };
 
 template <typename T, typename U, bool hasComparator>
@@ -70,7 +117,10 @@ struct _ReferenceComparatorImpl<T, U, true>
     static bool isNotEquals(T *self, U *other) { return self->isNotEquals(other); }
 };
 
+template <typename T> using _HasStaticFlag = _HasStaticFlagImpl<T, _HasStaticMember<T>::value>;
 template <typename T> using _HasComparator = _HasComparatorImpl<T, _HasComparatorMethods<T>::value>;
+
+template <typename T> using _StaticFlagSetter = _StaticFlagSetterImpl<T, _HasStaticFlag<T>::value>;
 template <typename T, typename U> using _ReferenceComparator = _ReferenceComparatorImpl<T, U, _HasComparator<T>::value>;
 
 #pragma clang diagnostic pop
@@ -233,40 +283,26 @@ public:
     }
 
 public:
-    template <typename U>
-    static inline Reference<T> borrow(U *object)
-    {
-        return Reference<T>(
-            static_cast<T *>(object),
-            TagBorrowed()
-        );
-    }
-
-public:
-    template <typename U>
-    static inline Reference<T> retain(U *object)
-    {
-        if (object && object->_isStatic)
-            throw std::invalid_argument("Object cannot be static");
-        else
-            return Reference<T>(object, TagChecked());
-    }
+    static inline Reference<T> retain(T *object) { return Reference<T>(object, TagChecked()); }
+    static inline Reference<T> borrow(T *object) { return Reference<T>(object, TagBorrowed()); }
 
 public:
     static inline Reference<T> refStatic(T &object)
     {
-        if (!(object._isStatic))
-            throw std::invalid_argument("Object must be static");
-        else
-            return Reference<T>(&object, TagChecked());
+        return Reference<T>(
+            _StaticFlagSetter<T>::set(&object, true),
+            TagChecked()
+        );
     }
 
 public:
     template <typename ... Args>
     static inline Reference<T> newObject(Args && ... args)
     {
-        T *object = new T(std::forward<Args>(args) ...);
-        return Reference<T>(object, TagNew());
+        return Reference<T>(
+            new T(std::forward<Args>(args) ...),
+            TagNew()
+        );
     }
 };
 
@@ -281,7 +317,7 @@ private:
 
 protected:
     virtual ~ReferenceCounted() = default;
-    explicit ReferenceCounted();
+    explicit ReferenceCounted() : _isStatic(false), _refCount(1) {}
 
 public:
     typedef std::function<void(ReferenceCounted *)> VisitFunction;
@@ -300,8 +336,7 @@ public:
     virtual void referenceTraverse(VisitFunction visit) {}
 
 protected:
-    /* override `new` and `delete` operators to identify static
-     * and heap objects, and can only be created by `Reference<T>` */
+    /* heap objects can only be created by `Reference<T>` */
     static void *operator new(size_t size);
     static void  operator delete(void *self);
 
