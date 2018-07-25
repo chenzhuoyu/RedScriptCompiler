@@ -110,7 +110,7 @@ public:
 public:
     static ObjectRef fromInt(int64_t value);
     static ObjectRef fromUInt(uint64_t value);
-    static ObjectRef fromInteger(const Utils::Integer &value);
+    static ObjectRef fromInteger(const Utils::Integer &value) { return Object::newObject<IntObject>(value); }
 
 public:
     static void shutdown(void);
