@@ -29,6 +29,18 @@ static thread_local std::unordered_set<Object *> _reprScope;
 
 /*** Object Implementations ***/
 
+bool Object::isTrue(void)
+{
+    if (this == TrueObject)
+        return true;
+    else if (this == NullObject)
+        return false;
+    else if (this == FalseObject)
+        return false;
+    else
+        return _type->objectIsTrue(self());
+}
+
 bool Object::isEquals(Object *other)
 {
     if (this == other)
@@ -61,18 +73,6 @@ bool Object::enterReprScope(void)
     /* add to object list */
     _reprScope.emplace(this);
     return true;
-}
-
-bool Object::isTrue(void)
-{
-    if (this == TrueObject.get())
-        return true;
-    else if (this == NullObject.get())
-        return false;
-    else if (this == FalseObject.get())
-        return false;
-    else
-        return _type->objectIsTrue(self());
 }
 
 void Object::initialize(void)

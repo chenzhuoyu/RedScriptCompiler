@@ -32,12 +32,6 @@ class Object : public ReferenceCounted
     Dict _attrs;
     TypeRef _type;
 
-private:
-    template <typename> friend class Reference;
-    template <typename> friend class _HasComparatorMethods;
-    template <typename, bool> friend struct _HasComparatorImpl;
-    template <typename, typename, bool> friend struct _ReferenceComparatorImpl;
-
 public:
     class Repr final
     {
@@ -57,10 +51,11 @@ public:
     virtual ~Object() = default;
     explicit Object(TypeRef type) : _type(type) {}
 
-private:
+public:
     /* used by `_HasComparator<T>` and `_ReferenceComparator<T, U>` to perform equality test */
-    bool isEquals(Object *other);
-    bool isNotEquals(Object *other);
+    bool isTrue(void) __attribute__((always_inline));
+    bool isEquals(Object *other) __attribute__((always_inline));
+    bool isNotEquals(Object *other) __attribute__((always_inline));
 
 private:
     /* used by `Object::Repr` to control infinite recursion in `repr` */
@@ -76,7 +71,6 @@ public:
     ObjectRef self(void) { return ObjectRef::borrow(this); }
 
 public:
-    bool isTrue(void);
     bool isInstanceOf(TypeRef type) { return _type.isIdenticalWith(type); }
     bool isNotInstanceOf(TypeRef type) { return _type.isNotIdenticalWith(type); }
 

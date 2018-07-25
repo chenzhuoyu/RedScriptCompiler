@@ -52,7 +52,7 @@ public:
         inline const auto &line(void) const { return _lines[_pc - _begin]; }
 
     public:
-        inline void jump(int32_t offset)
+        inline void jump(int32_t offset) __attribute__((always_inline))
         {
             /* calculate the jump target */
             const char *p = _pc + offset;
@@ -67,7 +67,7 @@ public:
         }
 
     public:
-        inline OpCode next(void)
+        inline OpCode next(void) __attribute__((always_inline))
         {
             if (_pc >= _end)
                 throw Exceptions::InternalError("Unexpected termination of bytecode stream");
@@ -76,7 +76,7 @@ public:
         }
 
     public:
-        inline uint32_t nextOperand(void)
+        inline uint32_t nextOperand(void) __attribute__((always_inline))
         {
             /* move to next instruction or operand */
             auto p = _pc;
