@@ -1,6 +1,5 @@
-#include <cfloat>
-#include <stdexcept>
-#include <bid_dfp.h>
+
+#include <utils/Decimal.h>
 
 #include "utils/Decimal.h"
 #include "utils/Strings.h"
@@ -13,6 +12,18 @@ static inline std::string repeat(char ch, ssize_t times)
 
 namespace RedScript::Utils
 {
+BID_UINT128 Decimal::_zero;
+BID_UINT128 Decimal::_maxInt64;
+BID_UINT128 Decimal::_minInt64;
+BID_UINT128 Decimal::_maxUInt64;
+
+BID_UINT128 Decimal::_maxFloat;
+BID_UINT128 Decimal::_minFloat;
+BID_UINT128 Decimal::_maxDouble;
+BID_UINT128 Decimal::_minDouble;
+BID_UINT128 Decimal::_maxLongDouble;
+BID_UINT128 Decimal::_minLongDouble;
+
 Decimal::Decimal(Integer other)
 {
     if (other.isSafeInt())
@@ -23,91 +34,37 @@ Decimal::Decimal(Integer other)
         _value = withFlagsChecked(bid128_from_string, other.toString().c_str());
 }
 
-const BID_UINT128 &Decimal::maxInt64(void)
-{
-    static thread_local BID_UINT128 value = bid128_from_int64(INT64_MAX);
-    return value;
-}
-
-const BID_UINT128 &Decimal::minInt64(void)
-{
-    static thread_local BID_UINT128 value = bid128_from_int64(INT64_MIN);
-    return value;
-}
-
-const BID_UINT128 &Decimal::maxUInt64(void)
-{
-    static thread_local BID_UINT128 value = bid128_from_uint64(UINT64_MAX);
-    return value;
-}
-
-const BID_UINT128 &Decimal::maxFloat(void)
-{
-    static thread_local BID_UINT128 value = withFlagsChecked(binary32_to_bid128, FLT_MAX);
-    return value;
-}
-
-const BID_UINT128 &Decimal::minFloat(void)
-{
-    static thread_local BID_UINT128 value = withFlagsChecked(binary32_to_bid128, -FLT_MAX);
-    return value;
-}
-
-const BID_UINT128 &Decimal::maxDouble(void)
-{
-    static thread_local BID_UINT128 value = withFlagsChecked(binary64_to_bid128, DBL_MAX);
-    return value;
-}
-
-const BID_UINT128 &Decimal::minDouble(void)
-{
-    static thread_local BID_UINT128 value = withFlagsChecked(binary64_to_bid128, -DBL_MAX);
-    return value;
-}
-
-const BID_UINT128 &Decimal::maxLongDouble(void)
-{
-    static thread_local BID_UINT128 value = withFlagsChecked(binary80_to_bid128, LDBL_MAX);
-    return value;
-}
-
-const BID_UINT128 &Decimal::minLongDouble(void)
-{
-    static thread_local BID_UINT128 value = withFlagsChecked(binary80_to_bid128, -LDBL_MAX);
-    return value;
-}
-
 bool Decimal::isSafeFloat(void) const
 {
     /* -FLT_MAX <= value <= FLT_MAX */
-    return withFlagsChecked(bid128_quiet_less_equal, _value, maxFloat()) &&
-           withFlagsChecked(bid128_quiet_greater_equal, _value, minFloat());
+    return withFlagsChecked(bid128_quiet_less_equal, _value, _maxFloat) &&
+           withFlagsChecked(bid128_quiet_greater_equal, _value, _minFloat);
 }
 
 bool Decimal::isSafeDouble(void) const
 {
     /* -DBL_MAX <= value <= DBL_MAX */
-    return withFlagsChecked(bid128_quiet_less_equal, _value, maxDouble()) &&
-           withFlagsChecked(bid128_quiet_greater_equal, _value, minDouble());
+    return withFlagsChecked(bid128_quiet_less_equal, _value, _maxDouble) &&
+           withFlagsChecked(bid128_quiet_greater_equal, _value, _minDouble);
 }
 
 bool Decimal::isSafeLongDouble(void) const
 {
     /* -LDBL_MAX <= value <= LDBL_MAX */
-    return withFlagsChecked(bid128_quiet_less_equal, _value, maxLongDouble()) &&
-           withFlagsChecked(bid128_quiet_greater_equal, _value, minLongDouble());
+    return withFlagsChecked(bid128_quiet_less_equal, _value, _maxLongDouble) &&
+           withFlagsChecked(bid128_quiet_greater_equal, _value, _minLongDouble);
 }
 
 Integer Decimal::toInt(void) const
 {
     /* INT64_MIN <= value <= INT64_MAX */
-    if (withFlagsChecked(bid128_quiet_less_equal, _value, maxInt64()) &&
-        withFlagsChecked(bid128_quiet_greater_equal, _value, minInt64()))
+    if (withFlagsChecked(bid128_quiet_less_equal, _value, _maxInt64) &&
+        withFlagsChecked(bid128_quiet_greater_equal, _value, _minInt64))
         return withFlagsChecked(bid128_to_int64_int, _value);
 
-    /* INT64_MAX <= value <= UINT64_MAX */
-    if (withFlagsChecked(bid128_quiet_less_equal, _value, maxUInt64()) &&
-        withFlagsChecked(bid128_quiet_greater_equal, _value, maxInt64()))
+    /* 0 <= value <= UINT64_MAX */
+    if (withFlagsChecked(bid128_quiet_greater, _value, _zero) &&
+        withFlagsChecked(bid128_quiet_less_equal, _value, _maxUInt64))
         return withFlagsChecked(bid128_to_uint64_int, _value);
 
     /* try convert through string */
@@ -202,5 +159,22 @@ std::string Decimal::toString(void) const
     /* other "normal" sized floating point numbers */
     base.insert(static_cast<size_t>(base.size() + exp), ".");
     return sign + base;
+}
+
+void Decimal::initialize(void)
+{
+    /* integer constants */
+    _zero       = bid128_from_int32(0);
+    _maxInt64   = bid128_from_int64(INT64_MAX);
+    _minInt64   = bid128_from_int64(INT64_MIN);
+    _maxUInt64  = bid128_from_uint64(UINT64_MAX);
+
+    /* decimal constants */
+    _maxFloat       = withFlagsChecked(binary32_to_bid128,  FLT_MAX);
+    _minFloat       = withFlagsChecked(binary32_to_bid128, -FLT_MAX);
+    _maxDouble      = withFlagsChecked(binary64_to_bid128,  DBL_MAX);
+    _minDouble      = withFlagsChecked(binary64_to_bid128, -DBL_MAX);
+    _maxLongDouble  = withFlagsChecked(binary80_to_bid128,  LDBL_MAX);
+    _minLongDouble  = withFlagsChecked(binary80_to_bid128, -LDBL_MAX);
 }
 }

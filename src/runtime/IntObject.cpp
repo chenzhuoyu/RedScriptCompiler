@@ -181,6 +181,9 @@ void IntObject::shutdown(void)
     /* clear all integers in pool */
     for (auto &item : _pool)
         item = nullptr;
+
+    /* shutdown integer */
+    Utils::Integer::shutdown();
 }
 
 void IntObject::initialize(void)

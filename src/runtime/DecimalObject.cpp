@@ -1,3 +1,6 @@
+
+#include <runtime/DecimalObject.h>
+
 #include "runtime/IntObject.h"
 #include "runtime/BoolObject.h"
 #include "runtime/DecimalObject.h"
@@ -100,8 +103,17 @@ ObjectRef DecimalType::nativeComparableLeq    (ObjectRef self, ObjectRef other) 
 ObjectRef DecimalType::nativeComparableGeq    (ObjectRef self, ObjectRef other) { return BoolObject::fromBool(compare(self, other, [](int ret){ return ret >= 0; })); }
 ObjectRef DecimalType::nativeComparableCompare(ObjectRef self, ObjectRef other) { return IntObject::fromInt(self.as<DecimalObject>()->_value.cmp(toDecimal(other)));  }
 
+void DecimalObject::shutdown(void)
+{
+    /* shutdown decimal */
+    Utils::Decimal::shutdown();
+}
+
 void DecimalObject::initialize(void)
 {
+    /* initialize decimal */
+    Utils::Decimal::initialize();
+
     /* decimal type object */
     static DecimalType decimalType;
     DecimalTypeObject = Reference<DecimalType>::refStatic(decimalType);

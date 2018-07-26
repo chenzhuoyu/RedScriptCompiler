@@ -94,7 +94,7 @@ public:
     static ObjectRef fromDecimal(const Utils::Decimal &value) { return Object::newObject<DecimalObject>(value); }
 
 public:
-    static void shutdown(void) {}
+    static void shutdown(void);
     static void initialize(void);
 
 };

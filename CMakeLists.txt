@@ -16,6 +16,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 if (${CMAKE_BUILD_TYPE} MATCHES "Debug")
     add_definitions(-D_GLIBCXX_DEBUG)
+    add_compile_options(-Og)
 else ()
     add_compile_options(-O3)
     add_compile_options(-flto=full)
@@ -30,16 +31,24 @@ add_definitions(-DONE_SOURCE=0)
 add_definitions(-DTCC_TARGET_X86_64)
 add_definitions(-DCONFIG_TRIPLET="x86_64-linux-gnu")
 
-link_directories(/usr/local/lib)
+link_directories(
+        /usr/local/lib
+        ${CMAKE_SOURCE_DIR}/libbid/lib
+        ${CMAKE_SOURCE_DIR}/libmpir/lib)
+
 include_directories(
         /usr/local/include
         ${CMAKE_SOURCE_DIR}/libbid/include
+        ${CMAKE_SOURCE_DIR}/libmpir/include
         ${CMAKE_SOURCE_DIR}/libtcc-mt
         ${CMAKE_SOURCE_DIR}/include)
 
 set(LIBBID
         libbid/include/bid_conf.h
         libbid/include/bid_dfp.h)
+
+set(LIBMPIR
+        libmpir/include/mpir.h)
 
 set(LIBTCC_MT
         libtcc-mt/tccelf.h
@@ -62,6 +71,7 @@ set(LIBTCC_MT
 
 set(SOURCE_FILES
         ${LIBBID}
+        ${LIBMPIR}
         ${LIBTCC_MT}
         include/compiler/AST.h
         include/compiler/CodeGenerator.h
@@ -104,6 +114,7 @@ set(SOURCE_FILES
         include/runtime/TupleObject.h
         include/runtime/UnboundMethodObject.h
         include/utils/Decimal.h
+        include/utils/FreeList.h
         include/utils/Immovable.h
         include/utils/Integer.h
         include/utils/Lists.h
@@ -148,4 +159,4 @@ set(SOURCE_FILES
         src/main.cpp)
 
 add_executable(rsc ${SOURCE_FILES})
-target_link_libraries(rsc -L${CMAKE_SOURCE_DIR}/libbid/lib dl fmt mpir jemalloc bid_${CMAKE_SYSTEM_NAME})
+target_link_libraries(rsc dl fmt jemalloc bid_${CMAKE_SYSTEM_NAME} mpir_${CMAKE_SYSTEM_NAME})

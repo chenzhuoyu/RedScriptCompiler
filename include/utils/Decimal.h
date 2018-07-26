@@ -1,6 +1,7 @@
 #ifndef REDSCRIPT_UTILS_DECIMAL_H
 #define REDSCRIPT_UTILS_DECIMAL_H
 
+#include <cfloat>
 #include <string>
 #include <bid_dfp.h>
 
@@ -34,20 +35,21 @@ private:
     }
 
 private:
-    static const BID_UINT128 &maxInt64(void);
-    static const BID_UINT128 &minInt64(void);
-    static const BID_UINT128 &maxUInt64(void);
+    static BID_UINT128 _zero;
+    static BID_UINT128 _maxInt64;
+    static BID_UINT128 _minInt64;
+    static BID_UINT128 _maxUInt64;
 
 private:
-    static const BID_UINT128 &maxFloat(void);
-    static const BID_UINT128 &minFloat(void);
-    static const BID_UINT128 &maxDouble(void);
-    static const BID_UINT128 &minDouble(void);
-    static const BID_UINT128 &maxLongDouble(void);
-    static const BID_UINT128 &minLongDouble(void);
+    static BID_UINT128 _maxFloat;
+    static BID_UINT128 _minFloat;
+    static BID_UINT128 _maxDouble;
+    static BID_UINT128 _minDouble;
+    static BID_UINT128 _maxLongDouble;
+    static BID_UINT128 _minLongDouble;
 
 public:
-    Decimal() : _value(bid128_from_int32(0)) {}
+    Decimal() : _value(_zero) {}
     Decimal(BID_UINT128 value) : _value(value) {}
 
 public:
@@ -56,8 +58,8 @@ public:
 
 public:
     Decimal(Integer other);
-    Decimal(Decimal &&other)      : _value(bid128_from_int32(0)) { swap(other);   }
-    Decimal(const Decimal &other) : _value(bid128_from_int32(0)) { assign(other); }
+    Decimal(Decimal &&other)      : _value(_zero) { swap(other);   }
+    Decimal(const Decimal &other) : _value(_zero) { assign(other); }
 
 public:
     bool isInf(void) const { return bid128_isInf(_value) != 0; }
@@ -81,8 +83,8 @@ public:
     std::string toString(void) const;
 
 public:
-    void swap(Decimal &other)         { std::swap(_value, other._value);    }
-    void assign(const Decimal &other) { _value = bid128_copy(other._value); }
+    void swap(Decimal &other)         { std::swap(_value, other._value); }
+    void assign(const Decimal &other) { _value = other._value; }
 
 public:
     int32_t cmp(const Decimal &other) const { return (*this) == other ? 0 : (*this) > other ? 1 : -1;    }
@@ -107,7 +109,7 @@ public:
 /** Arithmetic Operators **/
 
 public:
-    Decimal operator+(void) const { return bid128_copy(_value); }
+    Decimal operator+(void) const { return _value; }
     Decimal operator-(void) const { return bid128_negate(_value); }
 
 public:
@@ -135,6 +137,12 @@ public:
     bool operator<=(const Decimal &other) const { return withFlagsChecked(bid128_quiet_less_equal   , _value, other._value) != 0; }
     bool operator>=(const Decimal &other) const { return withFlagsChecked(bid128_quiet_greater_equal, _value, other._value) != 0; }
     bool operator!=(const Decimal &other) const { return withFlagsChecked(bid128_quiet_not_equal    , _value, other._value) != 0; }
+
+/** Decimal Initialization **/
+
+public:
+    static void shutdown(void) {}
+    static void initialize(void);
 
 };
 }
