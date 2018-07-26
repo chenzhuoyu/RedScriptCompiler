@@ -158,6 +158,11 @@ public:
     bool operator>=(const Integer &other) const { return mpz_cmp(_value, other._value) >= 0; }
     bool operator!=(const Integer &other) const { return mpz_cmp(_value, other._value) != 0; }
 
+/** Integer Initialization **/
+
+public:
+    static void initialize(void);
+
 };
 }
 

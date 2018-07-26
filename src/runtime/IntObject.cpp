@@ -1,4 +1,5 @@
 #include <array>
+#include <engine/Memory.h>
 
 #include "runtime/IntObject.h"
 #include "runtime/BoolObject.h"
@@ -184,6 +185,9 @@ void IntObject::shutdown(void)
 
 void IntObject::initialize(void)
 {
+    /* initialize integer */
+    Utils::Integer::initialize();
+
     /* integer type object */
     static IntType intType;
     IntTypeObject = Reference<IntType>::refStatic(intType);

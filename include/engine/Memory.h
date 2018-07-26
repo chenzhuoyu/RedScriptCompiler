@@ -1,34 +1,16 @@
 #ifndef REDSCRIPT_ENGINE_MEMORY_H
 #define REDSCRIPT_ENGINE_MEMORY_H
 
-#include <cstdio>
-#include <memory>
+#include <cstdlib>
 #include <utility>
 
 namespace RedScript::Engine
 {
-class Memory
+struct Memory
 {
-    friend void *::operator new(size_t);
-    friend void *::operator new[](size_t);
-
-private:
-    friend void ::operator delete(void *) noexcept;
-    friend void ::operator delete[](void *) noexcept;
-
-public:
-    static size_t rawCount(void);
-    static size_t arrayCount(void);
-    static size_t objectCount(void);
-
-public:
-    static size_t rawUsage(void);
-    static size_t arrayUsage(void);
-    static size_t objectUsage(void);
-
-public:
-    static void free(void *ptr);
-    static void *alloc(size_t size);
+    static inline void free(void *ptr) { ::free(ptr); }
+    static inline void *alloc(size_t size) { return ::malloc(size); }
+    static inline void *realloc(void *ptr, size_t size) { return ::realloc(ptr, size); }
 
 /*** Object Construction and Destruction ***/
 

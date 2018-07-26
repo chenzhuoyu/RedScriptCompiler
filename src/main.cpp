@@ -98,16 +98,6 @@ static void run(void)
     RedScript::Compiler::Parser parser(std::make_unique<RedScript::Compiler::Tokenizer>(source));
     RedScript::Compiler::CodeGenerator codegen(parser.parse());
     RedScript::Runtime::Reference<RedScript::Runtime::CodeObject> code = codegen.build().as<RedScript::Runtime::CodeObject>();
-    std::cout << "--------------------- MEM ---------------------" << std::endl;
-    std::cout << "raw usage: "
-              << RedScript::Engine::Memory::rawUsage() << " bytes, "
-              << RedScript::Engine::Memory::rawCount() << " blocks" << std::endl;
-    std::cout << "array usage: "
-              << RedScript::Engine::Memory::arrayUsage() << " bytes, "
-              << RedScript::Engine::Memory::arrayCount() << " blocks" << std::endl;
-    std::cout << "object usage: "
-              << RedScript::Engine::Memory::objectUsage() << " bytes, "
-              << RedScript::Engine::Memory::objectCount() << " objects" << std::endl;
     dis(code);
 
     RedScript::Engine::Interpreter intp(code, RedScript::Engine::Builtins::Globals);
@@ -130,16 +120,5 @@ int main()
     RedScript::initialize(16 * 1024 * 1024);
     run();
     RedScript::shutdown();
-
-    std::cout << "--------------------- MEM ---------------------" << std::endl;
-    std::cout << "raw usage: "
-              << RedScript::Engine::Memory::rawUsage() << " bytes, "
-              << RedScript::Engine::Memory::rawCount() << " blocks" << std::endl;
-    std::cout << "array usage: "
-              << RedScript::Engine::Memory::arrayUsage() << " bytes, "
-              << RedScript::Engine::Memory::arrayCount() << " blocks" << std::endl;
-    std::cout << "object usage: "
-              << RedScript::Engine::Memory::objectUsage() << " bytes, "
-              << RedScript::Engine::Memory::objectCount() << " objects" << std::endl;
     return 0;
 }

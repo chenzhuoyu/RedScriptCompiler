@@ -1,15 +1,9 @@
 #include "utils/Integer.h"
+#include "engine/Memory.h"
 #include "exceptions/ValueError.h"
 
 #define STRINGIZE_(val) #val
 #define STRINGIZE(val)  STRINGIZE_(val)
-
-static void mpfree(void *ptr, size_t size)
-{
-    void (*freefunc)(void *, size_t);
-    mp_get_memory_functions(nullptr, nullptr, &freefunc);
-    freefunc(ptr, size);
-}
 
 namespace RedScript::Utils
 {
@@ -86,18 +80,28 @@ uint64_t Integer::toHash(void) const
     uint64_t hash = std::hash<std::string>()(str);
 
     /* release the space */
-    mpfree(data, size);
+    Engine::Memory::free(data);
     return hash;
 }
 
 std::string Integer::toString(void) const
 {
     /* convert to string */
-    auto str = mpz_get_str(nullptr, 10, _value);
+    char *str = mpz_get_str(nullptr, 10, _value);
     std::string result = str;
 
     /* release the buffer */
-    mpfree(str, result.size() + 1);
+    Engine::Memory::free(str);
     return std::move(result);
+}
+
+void Integer::initialize(void)
+{
+    /* use custom memory functions */
+    mp_set_memory_functions(
+        [](size_t size)                     { return Engine::Memory::alloc(size); },
+        [](void *ptr, size_t, size_t size)  { return Engine::Memory::realloc(ptr, size); },
+        [](void *ptr, size_t)               { Engine::Memory::free(ptr); }
+    );
 }
 }
