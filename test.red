@@ -52,8 +52,30 @@
 #}
 #}
 
-i = 0
-while (i < 10000000) {
-    i += 1
+def fac(n) {
+    i = 2.0
+    r = 1.0
+    while (i <= n) {
+        r *= i
+        i += 1.0
+    }
+    return r
 }
-print('done')
+
+def calc(n) {
+    k = 0.0
+    t = 0.0
+    pi = 0.0
+    deno = 0.0
+    while (k < n) {
+        t = ((-1.0) ** k) * (fac(6.0 * k)) * (13591409.0 + 545140134.0 * k)
+        deno = fac(3.0 * k) * (fac(k) ** 3.0) * (640320.0 ** (3 * k))
+        pi += t / deno
+        k += 1.0
+    }
+    pi = pi * 12.0 / (640320.0 ** 1.5)
+    pi = 1.0 / pi
+    return pi
+}
+
+print(calc(350.0))

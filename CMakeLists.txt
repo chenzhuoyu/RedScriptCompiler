@@ -16,7 +16,6 @@ set(CMAKE_CXX_STANDARD 17)
 
 if (${CMAKE_BUILD_TYPE} MATCHES "Debug")
     add_definitions(-D_GLIBCXX_DEBUG)
-    add_compile_options(-Og)
 else ()
     add_compile_options(-O3)
     add_compile_options(-flto=full)
@@ -159,4 +158,4 @@ set(SOURCE_FILES
         src/main.cpp)
 
 add_executable(rsc ${SOURCE_FILES})
-target_link_libraries(rsc dl fmt jemalloc bid_${CMAKE_SYSTEM_NAME} mpir_${CMAKE_SYSTEM_NAME})
+target_link_libraries(rsc bid_${CMAKE_SYSTEM_NAME} mpir_${CMAKE_SYSTEM_NAME} dl fmt jemalloc)

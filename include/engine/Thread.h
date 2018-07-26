@@ -107,8 +107,7 @@ public:
                 throw Exceptions::RuntimeError("Maximum recursion depth exceeded");
 
             /* create a new execution frame */
-            Thread::current()->frames.emplace_back(std::make_unique<Frame>(code));
-            _frame = Thread::current()->frames.back().get();
+            _frame = Thread::current()->frames.emplace_back(std::make_unique<Frame>(code)).get();
         }
 
     public:
