@@ -40,7 +40,7 @@ static inline void vectorExtend(std::vector<T> &dest, std::vector<T> &&src)
     );
 }
 
-Runtime::ObjectRef CodeGenerator::build(void)
+Runtime::Reference<Runtime::CodeObject> CodeGenerator::build(void)
 {
     /* enclosure the whole module into a pseudo-function */
     CodeFrame cs(this, CodeType::FunctionCode);

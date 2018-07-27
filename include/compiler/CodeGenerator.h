@@ -203,7 +203,7 @@ private:
     };
 
 public:
-    Runtime::ObjectRef build(void);
+    Runtime::Reference<Runtime::CodeObject> build(void);
 
 /*** Language Structures ***/
 

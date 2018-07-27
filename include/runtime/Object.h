@@ -67,7 +67,7 @@ public:
     Dict &attrs(void) { return _attrs; }
 
 public:
-    TypeRef type(void) { return _type; }
+    TypeRef &type(void) { return _type; }
     ObjectRef self(void) { return ObjectRef::borrow(this); }
 
 public:
@@ -100,7 +100,7 @@ public:
     explicit Type(const std::string &name, TypeRef super) : Object(TypeObject), _name(name), _super(super) {}
 
 public:
-    TypeRef super(void) { return _super; }
+    TypeRef &super(void) { return _super; }
     std::string &name(void) { return _name; }
 
 public:

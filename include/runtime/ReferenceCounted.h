@@ -36,7 +36,7 @@ private:
     template <typename U> static _Two __testIsStatic(...);
 
 public:
-    static constexpr bool value = (sizeof(__testIsStatic<T>(nullptr)) == sizeof(_One));
+    static constexpr bool value = (sizeof(__testIsStatic<T>(false)) == sizeof(_One));
 
 };
 
@@ -84,37 +84,35 @@ struct _HasComparatorImpl<T, true>
 template <typename T, bool hasStaticFlag>
 struct _StaticFlagSetterImpl
 {
-    static T *set(T *object, bool)
+    static inline void set(T &object, bool)
     {
-        /* no static flags, do nothing
-         * and return the object untouched */
-        return object;
+        /* no static flags */
+        /* do nothing here */
     }
 };
 
 template <typename T>
 struct _StaticFlagSetterImpl<T, true>
 {
-    static T *set(T *object, bool value)
+    static inline void set(T &object, bool value)
     {
         /* set the static object flag */
-        object->_isStatic = value;
-        return object;
+        object._isStatic = value;
     }
 };
 
 template <typename T, typename U, bool hasComparator>
 struct _ReferenceComparatorImpl
 {
-    static bool isEquals(T *self, U *other) { return self == other; }
-    static bool isNotEquals(T *self, U *other) { return self != other; }
+    static inline bool isEquals(T *self, U *other) { return self == other; }
+    static inline bool isNotEquals(T *self, U *other) { return self != other; }
 };
 
 template <typename T, typename U>
 struct _ReferenceComparatorImpl<T, U, true>
 {
-    static bool isEquals(T *self, U *other) { return self->isEquals(other); }
-    static bool isNotEquals(T *self, U *other) { return self->isNotEquals(other); }
+    static inline bool isEquals(T *self, U *other) { return self->isEquals(other); }
+    static inline bool isNotEquals(T *self, U *other) { return self->isNotEquals(other); }
 };
 
 template <typename T> using _HasStaticFlag = _HasStaticFlagImpl<T, _HasStaticMember<T>::value>;
@@ -229,7 +227,7 @@ public:
     {
         return Reference<U>(
             static_cast<U *>(_object),
-            typename Reference<U>::TagChecked()
+            typename Reference<U>::TagBorrowed()
         );
     }
 
@@ -289,20 +287,16 @@ public:
 public:
     static inline Reference<T> refStatic(T &object)
     {
-        return Reference<T>(
-            _StaticFlagSetter<T>::set(&object, true),
-            TagChecked()
-        );
+        _StaticFlagSetter<T>::set(object, true);
+        return Reference<T>(&object, TagBorrowed());
     }
 
 public:
     template <typename ... Args>
     static inline Reference<T> newObject(Args && ... args)
     {
-        return Reference<T>(
-            new T(std::forward<Args>(args) ...),
-            TagNew()
-        );
+        auto object = new T(std::forward<Args>(args) ...);
+        return Reference<T>(object, TagNew());
     }
 };
 
@@ -313,7 +307,7 @@ class ReferenceCounted : public Utils::Immovable, public Utils::NonCopyable
 
 private:
     bool _isStatic;
-    uint32_t _refCount;
+    int32_t _refCount;
 
 protected:
     virtual ~ReferenceCounted() = default;

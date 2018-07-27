@@ -76,6 +76,7 @@ class DecimalObject : public Object
 
 public:
     virtual ~DecimalObject() = default;
+    explicit DecimalObject(Utils::Decimal &&value)      : Object(DecimalTypeObject), _value(std::move(value)) {}
     explicit DecimalObject(const Utils::Decimal &value) : Object(DecimalTypeObject), _value(value) {}
 
 public:
@@ -90,7 +91,8 @@ public:
     double toDouble(void) { return _value.toDouble(); }
 
 public:
-    static ObjectRef fromDouble(double value) { return Object::newObject<DecimalObject>(value); }
+    static ObjectRef fromDouble(double value)                 { return Object::newObject<DecimalObject>(value); }
+    static ObjectRef fromDecimal(Utils::Decimal &&value)      { return Object::newObject<DecimalObject>(std::move(value)); }
     static ObjectRef fromDecimal(const Utils::Decimal &value) { return Object::newObject<DecimalObject>(value); }
 
 public:

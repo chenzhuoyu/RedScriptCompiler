@@ -1019,7 +1019,7 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                 /* jump address when iterator drained */
                 auto off = frame->nextOperand();
-                auto iter = _stack.back();
+                auto &iter = _stack.back();
 
                 /* try push new object on stack top, don't destroy the iterator */
                 try

@@ -53,29 +53,29 @@
 #}
 
 def fac(n) {
-    i = 2.0
-    r = 1.0
+    i = 2
+    r = 1
     while (i <= n) {
         r *= i
-        i += 1.0
+        i += 1
     }
     return r
 }
 
 def calc(n) {
-    k = 0.0
+    k = 0
     t = 0.0
     pi = 0.0
     deno = 0.0
     while (k < n) {
-        t = ((-1.0) ** k) * (fac(6.0 * k)) * (13591409.0 + 545140134.0 * k)
-        deno = fac(3.0 * k) * (fac(k) ** 3.0) * (640320.0 ** (3 * k))
+        t = ((-1) ** k) * (fac(6 * k)) * (13591409.0 + 545140134.0 * k)
+        deno = fac(3 * k) * (fac(k) ** 3) * (640320.0 ** (3 * k))
         pi += t / deno
-        k += 1.0
+        k += 1
     }
-    pi = pi * 12.0 / (640320.0 ** 1.5)
+    pi = pi * 12 / (640320 ** 1.5)
     pi = 1.0 / pi
     return pi
 }
 
-print(calc(350.0))
+print(calc(350))

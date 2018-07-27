@@ -142,10 +142,31 @@ struct Boxer<const T &>
 template <> struct Boxer<bool>               { static Runtime::ObjectRef box(bool value)               { return Runtime::BoolObject::fromBool(value);       }};
 template <> struct Boxer<float>              { static Runtime::ObjectRef box(float value)              { return Runtime::DecimalObject::fromDouble(value);  }};
 template <> struct Boxer<double>             { static Runtime::ObjectRef box(double value)             { return Runtime::DecimalObject::fromDouble(value);  }};
-template <> struct Boxer<Decimal>            { static Runtime::ObjectRef box(const Decimal &value)     { return Runtime::DecimalObject::fromDecimal(value); }};
-template <> struct Boxer<Integer>            { static Runtime::ObjectRef box(const Integer &value)     { return Runtime::IntObject::fromInteger(value);     }};
-template <> struct Boxer<std::string>        { static Runtime::ObjectRef box(const std::string &value) { return Runtime::StringObject::fromString(value);   }};
 template <> struct Boxer<Runtime::ObjectRef> { static Runtime::ObjectRef box(Runtime::ObjectRef value) { return value;                                      }};
+
+/* high-precision decimal */
+template <>
+struct Boxer<Decimal>
+{
+    static Runtime::ObjectRef box(Decimal &&value)      { return Runtime::DecimalObject::fromDecimal(std::move(value)); }
+    static Runtime::ObjectRef box(const Decimal &value) { return Runtime::DecimalObject::fromDecimal(value); }
+};
+
+/* high-precision integer */
+template <>
+struct Boxer<Integer>
+{
+    static Runtime::ObjectRef box(Integer &&value)      { return Runtime::IntObject::fromInteger(std::move(value)); }
+    static Runtime::ObjectRef box(const Integer &value) { return Runtime::IntObject::fromInteger(value); }
+};
+
+/* STL string */
+template <>
+struct Boxer<std::string>
+{
+    static Runtime::ObjectRef box(std::string &&value)      { return Runtime::StringObject::fromString(std::move(value)); }
+    static Runtime::ObjectRef box(const std::string &value) { return Runtime::StringObject::fromString(value); }
+};
 
 /* STL vector (arrays) */
 template <typename Item>

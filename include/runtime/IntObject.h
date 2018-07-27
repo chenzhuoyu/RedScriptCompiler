@@ -92,6 +92,7 @@ class IntObject : public Object
 
 public:
     virtual ~IntObject() = default;
+    explicit IntObject(Utils::Integer &&value)      : Object(IntTypeObject), _value(std::move(value)) {}
     explicit IntObject(const Utils::Integer &value) : Object(IntTypeObject), _value(value) {}
 
 public:
@@ -110,6 +111,7 @@ public:
 public:
     static ObjectRef fromInt(int64_t value);
     static ObjectRef fromUInt(uint64_t value);
+    static ObjectRef fromInteger(Utils::Integer &&value);
     static ObjectRef fromInteger(const Utils::Integer &value);
 
 public:

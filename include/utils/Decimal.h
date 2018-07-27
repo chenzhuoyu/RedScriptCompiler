@@ -17,13 +17,13 @@ class Decimal
 private:
     static inline void throwByFlags(_IDEC_flags flags)
     {
-        if (flags & DEC_FE_INVALID  ) throw Exceptions::ValueError(flags, "Invalid input");
+        if (flags & DEC_FE_INVALID  ) throw Exceptions::ValueError(flags, "Invalid decimal operation");
         if (flags & DEC_FE_DIVBYZERO) throw Exceptions::ValueError(flags, "Divide by zero");
     }
 
 private:
     template <typename Func, typename ... Args>
-    static inline auto withFlagsChecked(Func func, Args &&... args)
+    static inline auto withFlagsChecked(Func func, Args && ... args)
     {
         /* execute the function with flags */
         auto flags = 0u;

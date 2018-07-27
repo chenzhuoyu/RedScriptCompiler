@@ -33,15 +33,15 @@ public:
     explicit Integer(const std::string &value, int radix);
 
 public:
-    Integer(Integer &&other)      { mpz_init2(_value, 1024); swap(other); }
-    Integer(const Integer &other) { mpz_init2(_value, 1024); assign(other); }
+    Integer(Integer &&other)      { memset(_value, 0, sizeof(mpz_t)); swap(other); }
+    Integer(const Integer &other) { memset(_value, 0, sizeof(mpz_t)); assign(other); }
 
 private:
-    template <typename Function>
-    explicit Integer(Function function)
+    template <typename F, typename ... Args>
+    explicit Integer(F operation, Args && ... args)
     {
         mpz_init2(_value, 1024);
-        function(_value);
+        operation(_value, std::forward<Args>(args) ...);
     }
 
 private:
@@ -66,7 +66,7 @@ private:
     }
 
 public:
-    void swap(Integer &other) { mpz_swap(_value, other._value); }
+    void swap(Integer &other) { std::swap(_value, other._value); }
     void assign(const Integer &other) { mpz_set(_value, other._value); }
 
 #define D (_value->_mp_d[0])
@@ -92,7 +92,7 @@ public:
 
 public:
     int32_t cmp(const Integer &other) const { return mpz_cmp(_value, other._value); }
-    Integer pow(uint64_t exp)         const { return Integer([&](mpz_t &result){ mpz_pow_ui(result, _value, exp); }); }
+    Integer pow(uint64_t exp)         const { return Integer(mpz_pow_ui, _value, exp); }
 
 /** Assignment Operators **/
 
@@ -114,31 +114,31 @@ public:
 
 public:
     Integer operator+(void) const { return *this; }
-    Integer operator-(void) const { return Integer([&](mpz_t &result){ mpz_neg(result, _value); }); }
-    Integer operator~(void) const { return Integer([&](mpz_t &result){ mpz_com(result, _value); }); }
+    Integer operator-(void) const { return Integer(mpz_neg, _value); }
+    Integer operator~(void) const { return Integer(mpz_com, _value); }
 
 public:
-    Integer operator+(const Integer &other) const { return Integer([&](mpz_t &result){ mpz_add   (result, _value, other._value);    }); }
-    Integer operator-(const Integer &other) const { return Integer([&](mpz_t &result){ mpz_sub   (result, _value, other._value);    }); }
-    Integer operator*(const Integer &other) const { return Integer([&](mpz_t &result){ mpz_mul   (result, _value, other._value);    }); }
-    Integer operator/(const Integer &other) const { return Integer([&](mpz_t &result){ mpz_tdiv_q(result, _value, zeroChecked(other)); }); }
-    Integer operator%(const Integer &other) const { return Integer([&](mpz_t &result){ mpz_tdiv_r(result, _value, zeroChecked(other)); }); }
+    Integer operator+(const Integer &other) const { return Integer(mpz_add   , _value, other._value); }
+    Integer operator-(const Integer &other) const { return Integer(mpz_sub   , _value, other._value); }
+    Integer operator*(const Integer &other) const { return Integer(mpz_mul   , _value, other._value); }
+    Integer operator/(const Integer &other) const { return Integer(mpz_tdiv_q, _value, zeroChecked(other)); }
+    Integer operator%(const Integer &other) const { return Integer(mpz_tdiv_r, _value, zeroChecked(other)); }
 
 public:
-    Integer operator^(const Integer &other) const { return Integer([&](mpz_t &result){ mpz_xor(result, _value, other._value); }); }
-    Integer operator&(const Integer &other) const { return Integer([&](mpz_t &result){ mpz_and(result, _value, other._value); }); }
-    Integer operator|(const Integer &other) const { return Integer([&](mpz_t &result){ mpz_ior(result, _value, other._value); }); }
+    Integer operator^(const Integer &other) const { return Integer(mpz_xor, _value, other._value); }
+    Integer operator&(const Integer &other) const { return Integer(mpz_and, _value, other._value); }
+    Integer operator|(const Integer &other) const { return Integer(mpz_ior, _value, other._value); }
 
 public:
-    Integer operator<<(const Integer &other) const { return Integer([&](mpz_t &result){ mpz_mul_2exp   (result, _value, bitChecked(other)); }); }
-    Integer operator>>(const Integer &other) const { return Integer([&](mpz_t &result){ mpz_tdiv_q_2exp(result, _value, bitChecked(other)); }); }
+    Integer operator<<(const Integer &other) const { return Integer(mpz_mul_2exp   , _value, bitChecked(other)); }
+    Integer operator>>(const Integer &other) const { return Integer(mpz_tdiv_q_2exp, _value, bitChecked(other)); }
 
 /** Inplace Arithmetic Operators **/
 
 public:
-    Integer &operator+=(const Integer &other) { mpz_add   (_value, _value, other._value);    return *this; }
-    Integer &operator-=(const Integer &other) { mpz_sub   (_value, _value, other._value);    return *this; }
-    Integer &operator*=(const Integer &other) { mpz_mul   (_value, _value, other._value);    return *this; }
+    Integer &operator+=(const Integer &other) { mpz_add   (_value, _value, other._value);       return *this; }
+    Integer &operator-=(const Integer &other) { mpz_sub   (_value, _value, other._value);       return *this; }
+    Integer &operator*=(const Integer &other) { mpz_mul   (_value, _value, other._value);       return *this; }
     Integer &operator/=(const Integer &other) { mpz_tdiv_q(_value, _value, zeroChecked(other)); return *this; }
     Integer &operator%=(const Integer &other) { mpz_tdiv_r(_value, _value, zeroChecked(other)); return *this; }
 

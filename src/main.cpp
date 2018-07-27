@@ -97,7 +97,7 @@ static void run(void)
 
     RedScript::Compiler::Parser parser(std::make_unique<RedScript::Compiler::Tokenizer>(source));
     RedScript::Compiler::CodeGenerator codegen(parser.parse());
-    RedScript::Runtime::Reference<RedScript::Runtime::CodeObject> code = codegen.build().as<RedScript::Runtime::CodeObject>();
+    RedScript::Runtime::Reference<RedScript::Runtime::CodeObject> code = codegen.build();
     dis(code);
 
     RedScript::Engine::Interpreter intp(code, RedScript::Engine::Builtins::Globals);

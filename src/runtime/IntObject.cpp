@@ -178,6 +178,23 @@ ObjectRef IntObject::fromUInt(uint64_t value)
         return Object::newObject<IntObject>(value);
 }
 
+ObjectRef IntObject::fromInteger(Utils::Integer &&value)
+{
+    /* definately not within pool range */
+    if (!(value.isSafeInt()))
+        return Object::newObject<IntObject>(std::move(value));
+
+    /* get it's value and pool index */
+    int64_t val = value.toInt();
+    int64_t index = val - POOL_LOWER;
+
+    /* read from integer pool if within range */
+    if ((val >= POOL_LOWER) && (val <= POOL_UPPER))
+        return _pool[index];
+    else
+        return Object::newObject<IntObject>(std::move(value));
+}
+
 ObjectRef IntObject::fromInteger(const Utils::Integer &value)
 {
     /* definately not within pool range */
