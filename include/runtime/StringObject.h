@@ -94,6 +94,7 @@ class StringObject : public Object
 
 public:
     virtual ~StringObject() = default;
+    explicit StringObject(std::string &&value)      : Object(StringTypeObject), _value(std::move(value)) {}
     explicit StringObject(const std::string &value) : Object(StringTypeObject), _value(value) {}
 
 public:
@@ -102,7 +103,10 @@ public:
 
 public:
     static ObjectRef newEmpty(void);
+    static ObjectRef fromChar(char value);
+    static ObjectRef fromString(std::string &&value);
     static ObjectRef fromString(const std::string &value);
+    static ObjectRef fromStringInterned(std::string &&value);
     static ObjectRef fromStringInterned(const std::string &value);
 
 public:
@@ -129,7 +133,7 @@ public:
 
         /* check for iterator position */
         if (_pos < _string->_value.size())
-            return StringObject::fromStringInterned(std::string(1, _string->_value[_pos++]));
+            return StringObject::fromChar(_string->_value[_pos++]);
 
         /* clear the reference before throwing the exception
          * to prevent cyclic reference to the string object */

@@ -1,5 +1,7 @@
 #include <array>
 #include <unordered_map>
+#include <runtime/StringObject.h>
+
 
 #include "runtime/IntObject.h"
 #include "runtime/BoolObject.h"
@@ -133,7 +135,7 @@ ObjectRef StringType::nativeSequenceGetItem(ObjectRef self, ObjectRef other)
 {
     /* extract the item */
     Reference<StringObject> string = self.as<StringObject>();
-    return StringObject::fromStringInterned(std::string(1, string->_value[Utils::Lists::indexConstraint(string, other)]));
+    return StringObject::fromChar(string->_value[Utils::Lists::indexConstraint(string, other)]);
 }
 
 ObjectRef StringType::nativeSequenceGetSlice(ObjectRef self, ObjectRef begin, ObjectRef end, ObjectRef step)
@@ -183,26 +185,68 @@ ObjectRef StringType::nativeSequenceGetSlice(ObjectRef self, ObjectRef begin, Ob
 
 /*** Comparator Protocol ***/
 
-#define BOOL_OP(op) {                                                           \
-    return BoolObject::fromBool(                                                \
-        other->type()->objectIsInstanceOf(other, StringTypeObject) &&           \
-        (self.as<StringObject>()->_value op other.as<StringObject>()->_value)   \
-    );                                                                          \
+ObjectRef StringType::nativeComparableEq(ObjectRef self, ObjectRef other)
+{
+    return BoolObject::fromBool(
+        self.isIdenticalWith(other) ||
+        (other->isInstanceOf(StringTypeObject) &&
+        (self.as<StringObject>()->_value == other.as<StringObject>()->_value))
+    );
 }
 
-ObjectRef StringType::nativeComparableEq (ObjectRef self, ObjectRef other) BOOL_OP(==)
-ObjectRef StringType::nativeComparableLt (ObjectRef self, ObjectRef other) BOOL_OP(< )
-ObjectRef StringType::nativeComparableGt (ObjectRef self, ObjectRef other) BOOL_OP(> )
-ObjectRef StringType::nativeComparableNeq(ObjectRef self, ObjectRef other) BOOL_OP(!=)
-ObjectRef StringType::nativeComparableLeq(ObjectRef self, ObjectRef other) BOOL_OP(<=)
-ObjectRef StringType::nativeComparableGeq(ObjectRef self, ObjectRef other) BOOL_OP(>=)
+ObjectRef StringType::nativeComparableLt(ObjectRef self, ObjectRef other)
+{
+    return BoolObject::fromBool(
+        self.isNotIdenticalWith(other) &&
+        (other->isInstanceOf(StringTypeObject) &&
+        (self.as<StringObject>()->_value < other.as<StringObject>()->_value))
+    );
+}
 
-#undef BOOL_OP
+ObjectRef StringType::nativeComparableGt(ObjectRef self, ObjectRef other)
+{
+    return BoolObject::fromBool(
+        self.isNotIdenticalWith(other) &&
+        (other->isInstanceOf(StringTypeObject) &&
+        (self.as<StringObject>()->_value > other.as<StringObject>()->_value))
+    );
+}
+
+ObjectRef StringType::nativeComparableNeq(ObjectRef self, ObjectRef other)
+{
+    return BoolObject::fromBool(
+        self.isNotIdenticalWith(other) &&
+        (other->isNotInstanceOf(StringTypeObject) ||
+        (self.as<StringObject>()->_value != other.as<StringObject>()->_value))
+    );
+}
+
+ObjectRef StringType::nativeComparableLeq(ObjectRef self, ObjectRef other)
+{
+    return BoolObject::fromBool(
+        self.isIdenticalWith(other) ||
+        (other->isInstanceOf(StringTypeObject) &&
+        (self.as<StringObject>()->_value <= other.as<StringObject>()->_value))
+    );
+}
+
+ObjectRef StringType::nativeComparableGeq(ObjectRef self, ObjectRef other)
+{
+    return BoolObject::fromBool(
+        self.isIdenticalWith(other) ||
+        (other->isInstanceOf(StringTypeObject) &&
+        (self.as<StringObject>()->_value >= other.as<StringObject>()->_value))
+    );
+}
 
 ObjectRef StringType::nativeComparableCompare(ObjectRef self, ObjectRef other)
 {
+    /* identical objects */
+    if (self.isIdenticalWith(other))
+        return IntObject::fromInt(0);
+
     /* string type check */
-    if (!(other->type()->objectIsInstanceOf(other, StringTypeObject)))
+    if (other->isNotInstanceOf(StringTypeObject))
     {
         throw Exceptions::TypeError(Utils::Strings::format(
             "\"%s\" is not comparable with \"str\"",
@@ -217,8 +261,9 @@ ObjectRef StringType::nativeComparableCompare(ObjectRef self, ObjectRef other)
 ObjectRef StringType::nativeComparableContains(ObjectRef self, ObjectRef other)
 {
     return BoolObject::fromBool(
-        other->type()->objectIsInstanceOf(other, StringTypeObject) &&
-        (self.as<StringObject>()->_value.find(other.as<StringObject>()->_value) != std::string::npos)
+        self.isIdenticalWith(other) ||
+        (other->isInstanceOf(StringTypeObject) &&
+        (self.as<StringObject>()->_value.find(other.as<StringObject>()->_value) != std::string::npos))
     );
 }
 
@@ -226,6 +271,26 @@ ObjectRef StringObject::newEmpty(void)
 {
     /* we have an empty string already */
     return _empty;
+}
+
+ObjectRef StringObject::fromChar(char value)
+{
+    /* all single character strings are cached */
+    return _chars[value];
+}
+
+ObjectRef StringObject::fromString(std::string &&value)
+{
+    /* empty string */
+    if (value.empty())
+        return _empty;
+
+    /* single-character strings */
+    if (value.size() == 1)
+        return _chars[value[0]];
+
+    /* otherwise create a new string object */
+    return Object::newObject<StringObject>(std::move(value));
 }
 
 ObjectRef StringObject::fromString(const std::string &value)
@@ -242,6 +307,31 @@ ObjectRef StringObject::fromString(const std::string &value)
     return Object::newObject<StringObject>(value);
 }
 
+ObjectRef StringObject::fromStringInterned(std::string &&value)
+{
+    /* empty string */
+    if (value.empty())
+        return _empty;
+
+    /* single-character strings */
+    if (value.size() == 1)
+        return _chars[value[0]];
+
+    /* find in interning map */
+    auto iter = _interned.find(value);
+
+    /* use the interned value if any */
+    if (iter != _interned.end())
+        return iter->second;
+
+    /* create a new string */
+    auto result = Object::newObject<StringObject>(std::move(value));
+
+    /* add to interned pool */
+    _interned.emplace(value, result);
+    return std::move(result);
+}
+
 ObjectRef StringObject::fromStringInterned(const std::string &value)
 {
     /* empty string */
@@ -252,12 +342,19 @@ ObjectRef StringObject::fromStringInterned(const std::string &value)
     if (value.size() == 1)
         return _chars[value[0]];
 
-    /* intern string if not already */
-    if (_interned.find(value) == _interned.end())
-        _interned.emplace(value, Object::newObject<StringObject>(value));
+    /* find in interning map */
+    auto iter = _interned.find(value);
 
-    /* read from pool */
-    return _interned.at(value);
+    /* use the interned value if any */
+    if (iter != _interned.end())
+        return iter->second;
+
+    /* create a new string */
+    auto result = Object::newObject<StringObject>(value);
+
+    /* add to interned pool */
+    _interned.emplace(value, result);
+    return std::move(result);
 }
 
 void StringObject::shutdown(void)
