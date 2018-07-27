@@ -127,7 +127,7 @@ Runtime::ObjectRef Interpreter::eval(void)
 {
     /* create a new execution frame */
     OpCode opcode;
-    Thread::FrameScope frame(_code);
+    Thread::FrameScope frame(_name, _code);
 
     /* loop until code ends */
     for (;;) try
@@ -1288,7 +1288,7 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                 /* create a new interpreter for class body,
                  * and a static map object for class attribues */
-                Interpreter vm(classCode, classClosure);
+                Interpreter vm(name, classCode, classClosure);
                 Runtime::Reference<Runtime::MapObject> dict = Runtime::MapObject::newOrdered();
 
                 /* execute the class body */

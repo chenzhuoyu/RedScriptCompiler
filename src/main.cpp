@@ -11,6 +11,7 @@
 #include "engine/Memory.h"
 #include "engine/Builtins.h"
 #include "engine/Interpreter.h"
+#include "compiler/CodeGenerator.h"
 
 #include "utils/Strings.h"
 #include "runtime/Object.h"
@@ -19,10 +20,6 @@
 #include "runtime/NullObject.h"
 #include "runtime/TupleObject.h"
 #include "runtime/NativeFunctionObject.h"
-
-#include "compiler/Parser.h"
-#include "compiler/Tokenizer.h"
-#include "compiler/CodeGenerator.h"
 
 static void dis(RedScript::Runtime::Reference<RedScript::Runtime::CodeObject> code)
 {
@@ -92,15 +89,14 @@ static void dis(RedScript::Runtime::Reference<RedScript::Runtime::CodeObject> co
 
 static void run(void)
 {
-    std::ifstream ifs("/Users/Oxygen/ClionProjects/RedScriptCompiler/test.red");
+    const char *fname = "/Users/Oxygen/ClionProjects/RedScriptCompiler/test.red";
+    std::ifstream ifs(fname);
     std::string source((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
 
-    RedScript::Compiler::Parser parser(std::make_unique<RedScript::Compiler::Tokenizer>(source));
-    RedScript::Compiler::CodeGenerator codegen(parser.parse());
-    RedScript::Runtime::Reference<RedScript::Runtime::CodeObject> code = codegen.build();
+    auto code = RedScript::Compiler::CodeGenerator::compile(source, fname);
     dis(code);
 
-    RedScript::Engine::Interpreter intp(code, RedScript::Engine::Builtins::Globals);
+    RedScript::Engine::Interpreter intp("__main__", code, RedScript::Engine::Builtins::Globals);
     std::cout << "--------------------- EVAL ---------------------" << std::endl;
     timespec begin;
     clock_gettime(CLOCK_MONOTONIC, &begin);

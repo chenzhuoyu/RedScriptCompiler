@@ -236,7 +236,14 @@ public:
     T *operator->(void) { return _object; }
 
 public:
+    const T &operator*(void) const { return *_object; }
+    const T *operator->(void) const { return _object; }
+
+public:
     T *get(void) { return _object; }
+    const T *get(void) const { return _object; }
+
+public:
     bool isStatic(void) const { return _object ? _object->isStatic() : true; }
     size_t refCount(void) const { return _object ? _object->refCount() : SIZE_MAX; }
 
@@ -250,7 +257,7 @@ public:
 
 public:
     operator T *(void) { return _object; }
-    operator bool(void) const { return _object != nullptr; }
+    operator const T *(void) const { return _object; }
 
 public:
     bool operator!=(std::nullptr_t) const { return _object != nullptr; }

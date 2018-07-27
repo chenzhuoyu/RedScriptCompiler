@@ -31,6 +31,7 @@ class CodeObject : public Object
     friend class CodeType;
 
 private:
+    std::string _file;
     std::string _vargs;
     std::string _kwargs;
 
@@ -50,9 +51,10 @@ private:
 
 public:
     virtual ~CodeObject() = default;
-    explicit CodeObject() : Object(CodeTypeObject) {}
+    explicit CodeObject(const std::string &file) : Object(CodeTypeObject), _file(file) {}
 
 public:
+    const std::string &file(void) const { return _file; }
     const std::string &vargs(void) const { return _vargs; }
     const std::string &kwargs(void) const { return _kwargs; }
 

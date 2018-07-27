@@ -24,17 +24,22 @@ public:
         const char *_end;
         const char *_begin;
 
+    public:
+        typedef const std::string &Name;
+        typedef Runtime::Reference<Runtime::CodeObject> Code;
+
     private:
+        Code _code;
+        Name _name;
         std::pair<int, int> *_lines;
-        Runtime::Reference<Runtime::CodeObject> _code;
 
     public:
-        Frame(Runtime::Reference<Runtime::CodeObject> code) : _code(code)
+        Frame(Name name, Code &&code) : _name(name), _code(std::move(code))
         {
-            _pc    = code->buffer().data();
-            _end   = code->buffer().data() + code->buffer().size();
-            _begin = code->buffer().data();
-            _lines = code->lineNums().data();
+            _pc    = _code->buffer().data();
+            _end   = _code->buffer().data() + _code->buffer().size();
+            _begin = _code->buffer().data();
+            _lines = _code->lineNums().data();
         }
 
     public:
@@ -48,7 +53,8 @@ public:
         }
 
     public:
-        inline const char *pc(void) const { return _pc; }
+        inline const auto &name(void) const { return _name; }
+        inline const auto &file(void) const { return _code->file(); }
         inline const auto &line(void) const { return _lines[_pc - _begin]; }
 
     public:
@@ -100,22 +106,19 @@ public:
         inline Frame *operator->(void) const { return _frame; }
 
     public:
-        FrameScope(Runtime::Reference<Runtime::CodeObject> code)
-        {
-            /* check for maximum recursion depth */
-            if (Thread::current()->frames.size() >= Thread::MAX_RECURSION)
-                throw Exceptions::RuntimeError("Maximum recursion depth exceeded");
+       ~FrameScope() { Thread::self()->framePop(); }
+        FrameScope(Frame::Name name, Frame::Code code) :
+            _frame(Thread::self()->framePush(name, std::move(code))) {}
 
-            /* create a new execution frame */
-            _frame = Thread::current()->frames.emplace_back(std::make_unique<Frame>(code)).get();
-        }
+    };
 
-    public:
-        ~FrameScope()
-        {
-            _frame = nullptr;
-            Thread::current()->frames.pop_back();
-        }
+public:
+    struct FrameSnapshot
+    {
+        int row;
+        int col;
+        std::string file;
+        std::string name;
     };
 
 public:
@@ -125,7 +128,37 @@ public:
     Thread() { frames.reserve(MAX_RECURSION); }
 
 public:
-    static Thread *current(void)
+    inline void framePop(void) { frames.pop_back(); }
+    inline Frame *framePush(Frame::Name name, Frame::Code &&code)
+    {
+        if (frames.size() >= MAX_RECURSION)
+            throw Exceptions::RuntimeError("Maximum recursion depth exceeded");
+        else
+            return frames.emplace_back(std::make_unique<Frame>(name, std::move(code))).get();
+    }
+
+public:
+    void sample(std::vector<FrameSnapshot> &traceback) const
+    {
+        /* frame count and buffer */
+        auto size = frames.size();
+        auto *stack = frames.data();
+
+        /* reserve space for traceback */
+        traceback.resize(size);
+
+        /* traverse each frame */
+        for (size_t i = 0; i < size; i++)
+        {
+            traceback[i].row  = stack[i]->line().first;
+            traceback[i].col  = stack[i]->line().second;
+            traceback[i].file = stack[i]->file();
+            traceback[i].name = stack[i]->name();
+        }
+    }
+
+public:
+    static Thread *self(void)
     {
         static thread_local Thread thread;
         return &thread;

@@ -91,7 +91,7 @@ public:
         Write(RWLock &lock) : _lock(lock)
         {
             _lock.writeLock();
-            _lock._owner = Engine::Thread::current();
+            _lock._owner = Engine::Thread::self();
         }
     };
 };

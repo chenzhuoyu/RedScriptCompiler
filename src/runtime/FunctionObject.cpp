@@ -54,7 +54,7 @@ ObjectRef FunctionObject::invoke(Reference<TupleObject> args, Reference<MapObjec
         throw Exceptions::TypeError("Too many default values");
 
     /* create a new interpreter */
-    Engine::Interpreter vm(_code, _closure);
+    Engine::Interpreter vm(_name, _code, _closure);
     std::vector<ObjectRef> argv(_code->args().size());
 
     /* check positional arguments */

@@ -20,6 +20,7 @@ class Interpreter
     const std::unordered_map<std::string, ClosureRef> &_names;
 
 private:
+    std::string _name;
     std::vector<Runtime::ObjectRef> _stack;
     std::vector<Runtime::ObjectRef> _locals;
     std::vector<std::unique_ptr<Closure::Context>> _closures;
@@ -31,8 +32,9 @@ private:
 
 public:
     Interpreter(
+        const std::string &name,
         Runtime::Reference<Runtime::CodeObject> code,
-        const std::unordered_map<std::string, ClosureRef> &names) : _code(code), _names(names)
+        const std::unordered_map<std::string, ClosureRef> &names) : _name(name), _code(code), _names(names)
     {
         _stack.reserve(1024);
         _locals.resize(code->locals().size());

@@ -38,7 +38,7 @@ public:
         Scope(SpinLock &lock) : _lock(lock)
         {
             while (__sync_lock_test_and_set(&(_lock._flags), 1));
-            _lock._owner = Engine::Thread::current();
+            _lock._owner = Engine::Thread::self();
         }
     };
 };

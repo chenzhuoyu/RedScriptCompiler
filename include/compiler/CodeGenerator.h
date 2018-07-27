@@ -7,11 +7,14 @@
 #include <vector>
 #include <unordered_map>
 
-#include "engine/Bytecode.h"
 #include "compiler/AST.h"
+#include "compiler/Parser.h"
+#include "compiler/Tokenizer.h"
 
 #include "runtime/Object.h"
 #include "runtime/CodeObject.h"
+
+#include "engine/Bytecode.h"
 #include "exceptions/RuntimeError.h"
 #include "exceptions/InternalError.h"
 
@@ -37,9 +40,9 @@ private:
         std::stack<std::vector<uint32_t>> continueStack;
 
     public:
-        GenerationFrame(CodeType type) :
+        GenerationFrame(CodeType type, const std::string &file) :
             type(type),
-            code(Runtime::Object::newObject<Runtime::CodeObject>()) {}
+            code(Runtime::Object::newObject<Runtime::CodeObject>(file)) {}
 
     };
 
@@ -48,12 +51,13 @@ private:
     std::stack<std::string> _currentFunctionName;
 
 private:
+    std::string _file;
     std::vector<GenerationFrame> _frames;
     std::unique_ptr<AST::CompoundStatement> _block;
 
 public:
     virtual ~CodeGenerator() = default;
-    explicit CodeGenerator(std::unique_ptr<AST::CompoundStatement> &&block) : _block(std::move(block)) {}
+    explicit CodeGenerator(std::unique_ptr<AST::CompoundStatement> &&block, const std::string &file) : _file(file), _block(std::move(block)) {}
 
 private:
     inline auto &code(void) { return _frames.back().code; }
@@ -103,7 +107,7 @@ private:
 
     public:
        ~CodeFrame() { if (!_left) _self->_frames.pop_back(); }
-        CodeFrame(CodeGenerator *self, CodeType type) : _left(false), _self(self) { self->_frames.emplace_back(type); }
+        CodeFrame(CodeGenerator *self, CodeType type) : _left(false), _self(self) { self->_frames.emplace_back(type, _self->_file); }
 
     public:
         GenerationFrame::CodeReference leave(void)
@@ -273,6 +277,14 @@ private:
 private:
     virtual void visitStatement(const std::unique_ptr<AST::Statement> &node) override;
 
+/** Compiler Interface **/
+
+public:
+    static Runtime::Reference<Runtime::CodeObject> compile(const std::string &source, const std::string &filename)
+    {
+        Parser parser(std::make_unique<Tokenizer>(source));
+        return CodeGenerator(parser.parse(), filename).build();
+    }
 };
 }
 
