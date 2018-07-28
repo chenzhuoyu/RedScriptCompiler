@@ -59,7 +59,7 @@ public:
     static ObjectRef fromCallableObject(ObjectRef func) { return Object::newObject<UnboundMethodObject>(func); }
 
 public:
-    static void shutdown(void) {}
+    static void shutdown(void);
     static void initialize(void);
 
 };

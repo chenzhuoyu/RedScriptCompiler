@@ -1,7 +1,5 @@
 #include <array>
 #include <unordered_map>
-#include <runtime/StringObject.h>
-
 
 #include "runtime/IntObject.h"
 #include "runtime/BoolObject.h"
@@ -365,6 +363,8 @@ void StringObject::shutdown(void)
 
     /* clear all interned strings */
     _interned.clear();
+    StringTypeObject = nullptr;
+    StringIteratorTypeObject = nullptr;
 }
 
 void StringObject::initialize(void)

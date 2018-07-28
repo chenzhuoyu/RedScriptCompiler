@@ -43,7 +43,7 @@ public:
     static ObjectRef newReadWrite(ObjectRef getter, ObjectRef setter) { return Object::newObject<ProxyObject>(getter, setter, nullptr); }
 
 public:
-    static void shutdown(void) {}
+    static void shutdown(void);
     static void initialize(void);
 
 };

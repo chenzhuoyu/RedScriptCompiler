@@ -211,6 +211,12 @@ void FunctionObject::referenceTraverse(VisitFunction visit)
     visit(_defaults);
 }
 
+void FunctionObject::shutdown(void)
+{
+    /* clear type instance */
+    FunctionTypeObject = nullptr;
+}
+
 void FunctionObject::initialize(void)
 {
     /* function type object */

@@ -100,7 +100,7 @@ public:
     static Reference<MapObject> newOrdered(void) { return Object::newObject<MapObject>(Mode::Ordered); }
 
 public:
-    static void shutdown(void) {}
+    static void shutdown(void);
     static void initialize(void);
 
 };

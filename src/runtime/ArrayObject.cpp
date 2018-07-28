@@ -611,6 +611,12 @@ Reference<ArrayObject> ArrayObject::concatCopy(Reference<ArrayObject> items)
     return ArrayObject::fromArray(std::move(result));
 }
 
+void ArrayObject::shutdown(void)
+{
+    ArrayTypeObject = nullptr;
+    ArrayIteratorTypeObject = nullptr;
+}
+
 void ArrayObject::initialize(void)
 {
     /* array type object */

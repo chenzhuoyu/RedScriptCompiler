@@ -1,18 +1,16 @@
 #ifndef REDSCRIPT_EXCEPTIONS_STOPITERATION_H
 #define REDSCRIPT_EXCEPTIONS_STOPITERATION_H
 
-#include <exception>
+#include "exceptions/BaseException.h"
 
 namespace RedScript::Exceptions
 {
-class StopIteration : public std::exception
+class StopIteration : public BaseException
 {
 public:
-    virtual const char *what() const noexcept override
-    {
-        /* theoratically, this is not an exception */
-        return "StopIteration";
-    }
+    StopIteration() : BaseException("StopIteration", "Iterator drained") {}
+    virtual const char *what() const noexcept override { return "StopIteration"; }
+
 };
 }
 

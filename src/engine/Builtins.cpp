@@ -4,6 +4,7 @@
 #include "runtime/NullObject.h"
 #include "runtime/TupleObject.h"
 #include "runtime/StringObject.h"
+#include "runtime/ExceptionObject.h"
 
 #include "engine/Builtins.h"
 #include "exceptions/TypeError.h"
@@ -64,6 +65,20 @@ void Builtins::initialize(void)
     /* built-in objects */
     Globals.emplace("type"  , Closure::ref(Runtime::TypeObject));
     Globals.emplace("object", Closure::ref(Runtime::ObjectTypeObject));
+
+    /* built-in exceptions */
+    Globals.emplace("NameError"         , Closure::ref(Runtime::NameErrorTypeObject));
+    Globals.emplace("TypeError"         , Closure::ref(Runtime::TypeErrorTypeObject));
+    Globals.emplace("IndexError"        , Closure::ref(Runtime::IndexErrorTypeObject));
+    Globals.emplace("ValueError"        , Closure::ref(Runtime::ValueErrorTypeObject));
+    Globals.emplace("SyntaxError"       , Closure::ref(Runtime::SyntaxErrorTypeObject));
+    Globals.emplace("RuntimeError"      , Closure::ref(Runtime::RuntimeErrorTypeObject));
+    Globals.emplace("BaseException"     , Closure::ref(Runtime::BaseExceptionTypeObject));
+    Globals.emplace("StopIteration"     , Closure::ref(Runtime::StopIterationTypeObject));
+    Globals.emplace("InternalError"     , Closure::ref(Runtime::InternalErrorTypeObject));
+    Globals.emplace("AttributeError"    , Closure::ref(Runtime::AttributeErrorTypeObject));
+    Globals.emplace("ZeroDivisionError" , Closure::ref(Runtime::ZeroDivisionErrorTypeObject));
+    Globals.emplace("NativeSyntaxError" , Closure::ref(Runtime::NativeSyntaxErrorTypeObject));
 
     /* built-in print function */
     Globals.emplace(

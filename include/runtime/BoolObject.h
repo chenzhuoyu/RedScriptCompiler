@@ -47,7 +47,7 @@ public:
     static ObjectRef fromBool(bool value);
 
 public:
-    static void shutdown(void) {}
+    static void shutdown(void);
     static void initialize(void);
 
 };

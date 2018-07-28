@@ -9,12 +9,14 @@
 #include "runtime/TupleObject.h"
 #include "runtime/StringObject.h"
 #include "runtime/FunctionObject.h"
+#include "runtime/ExceptionObject.h"
 #include "runtime/NativeClassObject.h"
 
 #include "exceptions/NameError.h"
 #include "exceptions/TypeError.h"
 #include "exceptions/ValueError.h"
 #include "exceptions/RuntimeError.h"
+#include "exceptions/BaseException.h"
 #include "exceptions/StopIteration.h"
 
 namespace RedScript::Engine
@@ -985,8 +987,30 @@ Runtime::ObjectRef Interpreter::eval(void)
             /* throw exception */
             case OpCode::RAISE:
             {
-                // TODO: implement these
-                throw Exceptions::InternalError("not implemented yet");
+                /* check stack */
+                if (_stack.empty())
+                    throw Exceptions::InternalError("Stack is empty");
+
+                /* pop the exception object from stack */
+                auto value = std::move(_stack.back());
+                _stack.pop_back();
+
+                /* try casting to native exception */
+                auto *object = value.get();
+                auto *exception = dynamic_cast<Runtime::ExceptionObject *>(object);
+
+                /* must be an exception */
+                if (exception == nullptr)
+                {
+                    throw Exceptions::TypeError(Utils::Strings::format(
+                        "Exceptions must be derived from BaseException, not \"%s\"",
+                        object->type()->name()
+                    ));
+                }
+
+                /* throw the exception */
+                exception->throwObject();
+                break;
             }
 
             /* setup exception handling block */
@@ -1360,7 +1384,7 @@ Runtime::ObjectRef Interpreter::eval(void)
     }
 
     /* exceptions occured when executing, try exception recovery */
-    catch (const std::logic_error &e)
+    catch (int)
     {
         // TODO: exception recovery
         throw;

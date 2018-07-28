@@ -75,6 +75,12 @@ bool Object::enterReprScope(void)
     return true;
 }
 
+void Object::shutdown(void)
+{
+    TypeObject = nullptr;
+    ObjectTypeObject = nullptr;
+}
+
 void Object::initialize(void)
 {
     /* the meta class */

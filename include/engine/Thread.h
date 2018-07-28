@@ -113,15 +113,6 @@ public:
     };
 
 public:
-    struct FrameSnapshot
-    {
-        int row;
-        int col;
-        std::string file;
-        std::string name;
-    };
-
-public:
     std::vector<std::unique_ptr<Frame>> frames;
 
 public:
@@ -135,26 +126,6 @@ public:
             throw Exceptions::RuntimeError("Maximum recursion depth exceeded");
         else
             return frames.emplace_back(std::make_unique<Frame>(name, std::move(code))).get();
-    }
-
-public:
-    void sample(std::vector<FrameSnapshot> &traceback) const
-    {
-        /* frame count and buffer */
-        auto size = frames.size();
-        auto *stack = frames.data();
-
-        /* reserve space for traceback */
-        traceback.resize(size);
-
-        /* traverse each frame */
-        for (size_t i = 0; i < size; i++)
-        {
-            traceback[i].row  = stack[i]->line().first;
-            traceback[i].col  = stack[i]->line().second;
-            traceback[i].file = stack[i]->file();
-            traceback[i].name = stack[i]->name();
-        }
     }
 
 public:

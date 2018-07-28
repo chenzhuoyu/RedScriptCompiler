@@ -1,6 +1,3 @@
-
-#include <runtime/DecimalObject.h>
-
 #include "runtime/IntObject.h"
 #include "runtime/BoolObject.h"
 #include "runtime/DecimalObject.h"
@@ -106,6 +103,7 @@ ObjectRef DecimalType::nativeComparableCompare(ObjectRef self, ObjectRef other) 
 void DecimalObject::shutdown(void)
 {
     /* shutdown decimal */
+    DecimalTypeObject = nullptr;
     Utils::Decimal::shutdown();
 }
 

@@ -1,6 +1,3 @@
-
-#include <utils/Decimal.h>
-
 #include "utils/Decimal.h"
 #include "utils/Strings.h"
 
@@ -138,15 +135,21 @@ std::string Decimal::toString(void) const
     ssize_t exp = std::atoll(delim + 1);
 
     /* remove trailing zeros for small numbers */
-    while ((exp < 0) && (pos > start) && (pos[-1] == '0'))
+    while ((exp < 0) && (pos > start + 1) && (pos[-1] == '0'))
     {
         exp++;
         pos--;
     }
 
     /* base part and sign string */
-    std::string base(start + 1, pos - start - 1);
+    std::string base;
     std::string sign(start[0] == '+' ? "" : "-");
+
+    /* empty base */
+    if (pos == start + 1)
+        base = "0";
+    else
+        base.assign(start + 1, pos - start - 1);
 
     /* floating point number with nopn-negative exponent */
     if (exp >= 0)

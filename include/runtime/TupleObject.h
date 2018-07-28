@@ -120,7 +120,7 @@ public:
     virtual void referenceTraverse(VisitFunction visit) override;
 
 public:
-    static void shutdown(void) {}
+    static void shutdown(void);
     static void initialize(void);
 
 };

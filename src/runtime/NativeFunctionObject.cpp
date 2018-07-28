@@ -108,6 +108,12 @@ ObjectRef NativeFunctionObject::newTernary(TernaryFunction function)
     });
 }
 
+void NativeFunctionObject::shutdown(void)
+{
+    /* clear type instance */
+    NativeFunctionTypeObject = nullptr;
+}
+
 void NativeFunctionObject::initialize(void)
 {
     /* native function type object */

@@ -41,7 +41,7 @@ public:
     const std::vector<Exceptions::NativeSyntaxError> &errors(void) const { return _errors; }
 
 public:
-    static void shutdown(void) {}
+    static void shutdown(void);
     static void initialize(void);
 
 };

@@ -6,6 +6,7 @@
 
 // TODO: remove this
 #include <iostream>
+
 namespace RedScript::Runtime
 {
 /* type object for native class */
@@ -138,6 +139,12 @@ NativeClassObject::NativeClassObject(
 
         return 1;
     }, nullptr);
+}
+
+void NativeClassObject::shutdown(void)
+{
+    /* clear type instance */
+    NativeClassTypeObject = nullptr;
 }
 
 void NativeClassObject::initialize(void)

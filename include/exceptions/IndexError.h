@@ -2,31 +2,17 @@
 #define REDSCRIPT_EXCEPTIONS_INDEXERROR_H
 
 #include <string>
-#include <exception>
 
-#include "utils/Strings.h"
+#include "exceptions/BaseException.h"
 
 namespace RedScript::Exceptions
 {
-class IndexError : public std::exception
+class IndexError : public BaseException
 {
-    int _code;
-    std::string _message;
-
 public:
-    explicit IndexError(const std::string &message) : IndexError(-1, message) {}
-    explicit IndexError(int code, const std::string &message) : _code(code), _message(message) {}
+    IndexError(const std::string &message) :
+        BaseException("IndexError", message) {}
 
-public:
-    int code(void) const { return _code; }
-    const std::string &message(void) const { return _message; }
-
-public:
-    const char *what() const noexcept override
-    {
-        static thread_local std::string what;
-        return (what = Utils::Strings::format("IndexError: [%d] %s", _code, _message)).c_str();
-    }
 };
 }
 

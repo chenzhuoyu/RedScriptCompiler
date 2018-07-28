@@ -1,13 +1,11 @@
 #include <array>
-#include <engine/Memory.h>
-#include <runtime/IntObject.h>
-
 
 #include "runtime/IntObject.h"
 #include "runtime/BoolObject.h"
 #include "runtime/DecimalObject.h"
 #include "runtime/UnboundMethodObject.h"
 
+#include "utils/Decimal.h"
 #include "exceptions/TypeError.h"
 #include "exceptions/ValueError.h"
 
@@ -219,6 +217,7 @@ void IntObject::shutdown(void)
         item = nullptr;
 
     /* shutdown integer */
+    IntTypeObject = nullptr;
     Utils::Integer::shutdown();
 }
 

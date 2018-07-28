@@ -76,6 +76,12 @@ ObjectRef UnboundMethodObject::newUnboundVariadic(UnboundVariadicFunction functi
     });
 }
 
+void UnboundMethodObject::shutdown(void)
+{
+    /* clear type instance */
+    UnboundMethodTypeObject = nullptr;
+}
+
 void UnboundMethodObject::initialize(void)
 {
     /* unbound method type object */

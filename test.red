@@ -78,4 +78,6 @@ def calc(n) {
     return pi
 }
 
-print(calc(350))
+# print(1.0 % 0.3)
+# print(calc(350))
+raise ValueError('hello, world')

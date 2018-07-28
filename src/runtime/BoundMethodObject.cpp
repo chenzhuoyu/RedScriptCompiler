@@ -54,6 +54,12 @@ ObjectRef BoundMethodObject::invoke(Reference<TupleObject> args, Reference<MapOb
     return _func->type()->objectInvoke(_func, std::move(tuple), std::move(kwargs));
 }
 
+void BoundMethodObject::shutdown(void)
+{
+    /* clear type instance */
+    BoundMethodTypeObject = nullptr;
+}
+
 void BoundMethodObject::initialize(void)
 {
     /* bound method type object */

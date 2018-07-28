@@ -276,6 +276,12 @@ void TupleObject::referenceTraverse(VisitFunction visit)
             visit(_items[i]);
 }
 
+void TupleObject::shutdown(void)
+{
+    TupleTypeObject = nullptr;
+    TupleIteratorTypeObject = nullptr;
+}
+
 void TupleObject::initialize(void)
 {
     /* tuple type object */

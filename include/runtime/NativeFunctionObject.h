@@ -48,7 +48,7 @@ public:
     NativeFunction function(void) const { return _function; }
 
 public:
-    static void shutdown(void) {}
+    static void shutdown(void);
     static void initialize(void);
 
 public:

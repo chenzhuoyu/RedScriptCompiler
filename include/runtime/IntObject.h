@@ -3,7 +3,6 @@
 
 #include <string>
 #include <cstdint>
-#include <utils/Decimal.h>
 
 #include "utils/Integer.h"
 #include "runtime/Object.h"

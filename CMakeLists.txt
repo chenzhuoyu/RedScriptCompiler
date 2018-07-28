@@ -84,6 +84,7 @@ set(SOURCE_FILES
         include/engine/Memory.h
         include/engine/Thread.h
         include/exceptions/AttributeError.h
+        include/exceptions/BaseException.h
         include/exceptions/IndexError.h
         include/exceptions/InternalError.h
         include/exceptions/NameError.h
@@ -93,12 +94,14 @@ set(SOURCE_FILES
         include/exceptions/SyntaxError.h
         include/exceptions/TypeError.h
         include/exceptions/ValueError.h
+        include/exceptions/ZeroDivisionError.h
         include/runtime/ArrayObject.h
         include/runtime/BoolObject.h
         include/runtime/BoundMethodObject.h
         include/runtime/CodeObject.h
         include/runtime/DecimalObject.h
         include/runtime/ExceptionBlockObject.h
+        include/runtime/ExceptionObject.h
         include/runtime/FunctionObject.h
         include/runtime/IntObject.h
         include/runtime/MapObject.h
@@ -132,12 +135,14 @@ set(SOURCE_FILES
         src/engine/GarbageCollector.cpp
         src/engine/Interpreter.cpp
         src/engine/Memory.cpp
+        src/exceptions/BaseException.cpp
         src/runtime/ArrayObject.cpp
         src/runtime/BoolObject.cpp
         src/runtime/BoundMethodObject.cpp
         src/runtime/CodeObject.cpp
         src/runtime/DecimalObject.cpp
         src/runtime/ExceptionBlockObject.cpp
+        src/runtime/ExceptionObject.cpp
         src/runtime/FunctionObject.cpp
         src/runtime/IntObject.cpp
         src/runtime/MapObject.cpp

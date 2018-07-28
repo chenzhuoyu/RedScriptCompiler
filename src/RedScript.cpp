@@ -19,6 +19,7 @@
 #include "runtime/StringObject.h"
 #include "runtime/DecimalObject.h"
 #include "runtime/FunctionObject.h"
+#include "runtime/ExceptionObject.h"
 #include "runtime/BoundMethodObject.h"
 #include "runtime/NativeClassObject.h"
 #include "runtime/UnboundMethodObject.h"
@@ -60,6 +61,10 @@ void shutdown(void)
 
     /* shutdown built-in globals */
     Engine::Builtins::shutdown();
+
+    /* built-in exceptions */
+    Runtime::ExceptionWrapper::typeShutdown();
+    Runtime::ExceptionWrapper::shutdown();
 
     /* generic objects */
     Runtime::ExceptionBlockTypeObject->typeShutdown();
@@ -179,6 +184,10 @@ void initialize(size_t stack)
     Runtime::UnboundMethodTypeObject->typeInitialize();
     Runtime::NativeFunctionTypeObject->typeInitialize();
     Runtime::ExceptionBlockTypeObject->typeInitialize();
+
+    /* built-in exceptions */
+    Runtime::ExceptionWrapper::initialize();
+    Runtime::ExceptionWrapper::typeInitialize();
 
     /* built-in globals */
     Engine::Builtins::initialize();

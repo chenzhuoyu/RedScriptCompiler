@@ -39,6 +39,13 @@ ObjectRef BoolObject::fromBool(bool value)
         return FalseObject;
 }
 
+void BoolObject::shutdown(void)
+{
+    TrueObject = nullptr;
+    FalseObject = nullptr;
+    BoolTypeObject = nullptr;
+}
+
 void BoolObject::initialize(void)
 {
     /* boolean type object */

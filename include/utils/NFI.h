@@ -238,13 +238,14 @@ struct Boxer<std::unordered_map<Key, Value>>
 /** Object Unboxer **/
 
 template <size_t I>
-static inline Exceptions::TypeError TypeCheckFailed(Runtime::TypeRef type, const std::string &name)
+static inline Exceptions::TypeError TypeCheckFailed(Runtime::TypeRef type, const std::string &name, Runtime::ObjectRef object)
 {
     return Exceptions::TypeError(Utils::Strings::format(
-        "Argument at position %zu%s must be a \"%s\" object",
+        "Argument at position %zu%s must be a \"%s\" object, not \"%s\"",
         I,
         name.empty() ? "" : Utils::Strings::format("(%s)", name),
-        type->name()
+        type->name(),
+        object->type()->name()
     ));
 }
 
@@ -357,7 +358,7 @@ struct UnboxerHelper<I, true, false, T>
     {
         /* object type check */
         if (value->isNotInstanceOf(Runtime::IntTypeObject))
-            throw TypeCheckFailed<I>(Runtime::IntTypeObject, name);
+            throw TypeCheckFailed<I>(Runtime::IntTypeObject, name, value);
 
         /* convert to int object */
         auto integer = value.as<Runtime::IntObject>();
@@ -378,7 +379,7 @@ struct UnboxerHelper<I, false, true, T>
     {
         /* object type check */
         if (value->isNotInstanceOf(Runtime::IntTypeObject))
-            throw TypeCheckFailed<I>(Runtime::IntTypeObject, name);
+            throw TypeCheckFailed<I>(Runtime::IntTypeObject, name, value);
 
         /* convert to int object */
         auto integer = value.as<Runtime::IntObject>();
@@ -443,7 +444,7 @@ struct Unboxer<I, float>
     {
         /* object type check */
         if (value->isNotInstanceOf(Runtime::DecimalTypeObject))
-            throw TypeCheckFailed<I>(Runtime::DecimalTypeObject, name);
+            throw TypeCheckFailed<I>(Runtime::DecimalTypeObject, name, value);
 
         /* convert to decimal object */
         auto decimal = value.as<Runtime::DecimalObject>();
@@ -465,7 +466,7 @@ struct Unboxer<I, double>
     {
         /* object type check */
         if (value->isNotInstanceOf(Runtime::DecimalTypeObject))
-            throw TypeCheckFailed<I>(Runtime::DecimalTypeObject, name);
+            throw TypeCheckFailed<I>(Runtime::DecimalTypeObject, name, value);
 
         /* convert to decimal object */
         auto decimal = value.as<Runtime::DecimalObject>();
@@ -498,7 +499,7 @@ struct Unboxer<I, std::string>
     {
         /* object type checking */
         if (value->isNotInstanceOf(Runtime::StringTypeObject))
-            throw TypeCheckFailed<I>(Runtime::StringTypeObject, name);
+            throw TypeCheckFailed<I>(Runtime::StringTypeObject, name, value);
         else
             return value.as<Runtime::StringObject>()->value();
     }
@@ -512,7 +513,7 @@ struct Unboxer<I, Utils::Decimal>
     {
         /* object type checking */
         if (value->isNotInstanceOf(Runtime::DecimalTypeObject))
-            throw TypeCheckFailed<I>(Runtime::DecimalTypeObject, name);
+            throw TypeCheckFailed<I>(Runtime::DecimalTypeObject, name, value);
         else
             return value.as<Runtime::DecimalObject>()->value();
     }
@@ -526,7 +527,7 @@ struct Unboxer<I, Utils::Integer>
     {
         /* object type checking */
         if (value->isNotInstanceOf(Runtime::IntTypeObject))
-            throw TypeCheckFailed<I>(Runtime::IntTypeObject, name);
+            throw TypeCheckFailed<I>(Runtime::IntTypeObject, name, value);
         else
             return value.as<Runtime::IntObject>()->value();
     }
@@ -799,6 +800,13 @@ constexpr auto makeFunction(F &&f, R (T::*)(Args ...) const)
     /* wrap the object by `std::function` */
     return std::function<R(Args ...)>(f);
 }
+
+template <typename Class, typename Tuple, size_t ... I>
+constexpr auto invokeConstructor(Tuple &&args, std::index_sequence<I ...>)
+{
+    /* invoke the constructor */
+    return Class(std::get<I>(args) ...);
+}
 }
 
 /** Object Boxer and Unboxer **/
@@ -844,6 +852,16 @@ struct MetaFunction<void, Args ...>
         return Runtime::NullObject;
     };
 };
+
+template <typename Class, typename ... Args>
+constexpr auto construct(std::tuple<Args ...> &&args)
+{
+    /* forward to implementation */
+    return Details::invokeConstructor<Class>(
+        std::move(args),
+        std::index_sequence_for<Args ...>()
+    );
+}
 
 template <typename Function>
 constexpr auto forwardAsFunction(Function &&f)

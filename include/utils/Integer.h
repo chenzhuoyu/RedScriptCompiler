@@ -6,6 +6,7 @@
 #include <mpir.h>
 
 #include "exceptions/ValueError.h"
+#include "exceptions/ZeroDivisionError.h"
 
 namespace RedScript::Utils
 {
@@ -60,7 +61,7 @@ private:
     static inline const mpz_t &zeroChecked(const Integer &val)
     {
         if (val.isZero())
-            throw Exceptions::ValueError("Divide by zero");
+            throw Exceptions::ZeroDivisionError("Integer division or modulo by zero");
         else
             return val._value;
     }

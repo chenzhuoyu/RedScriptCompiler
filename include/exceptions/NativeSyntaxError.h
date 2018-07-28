@@ -1,7 +1,10 @@
 #ifndef REDSCRIPT_EXCEPTIONS_NATIVESYNTAXERROR_H
 #define REDSCRIPT_EXCEPTIONS_NATIVESYNTAXERROR_H
 
-#include "SyntaxError.h"
+#include <string>
+
+#include "utils/Strings.h"
+#include "exceptions/SyntaxError.h"
 
 namespace RedScript::Exceptions
 {
@@ -11,8 +14,8 @@ class NativeSyntaxError : public SyntaxError
     std::string _filename;
 
 public:
-    explicit NativeSyntaxError(const std::string &filename, int row, bool isWarning, const std::string &message) :
-        SyntaxError(row, -1, message), _isWarning(isWarning), _filename(filename) {}
+    NativeSyntaxError(const std::string &filename, int row, bool isWarning, const std::string &message) :
+        SyntaxError(row, -1, message), _filename(filename), _isWarning(isWarning) {}
 
 public:
     bool isWarning(void) const { return _isWarning; }
@@ -22,7 +25,7 @@ public:
     virtual const char *what() const noexcept override
     {
         static thread_local std::string what;
-        return (what = Utils::Strings::format("(%s:%d) %s :: %s", _filename, row(), _isWarning ? "WARNING" : "ERROR", message())).c_str();
+        return (what = Utils::Strings::format("SyntaxError: (%s:%d) %s :: %s", _filename, row(), _isWarning ? "WARNING" : "ERROR", message())).c_str();
     }
 };
 }

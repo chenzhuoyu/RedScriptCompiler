@@ -2,7 +2,6 @@
 #define REDSCRIPT_RUNTIME_NULLOBJECT_H
 
 #include <string>
-#include <cstdint>
 
 #include "runtime/Object.h"
 
@@ -35,7 +34,7 @@ public:
     explicit _NullObject() : Object(NullTypeObject) {}
 
 public:
-    static void shutdown(void) {}
+    static void shutdown(void);
     static void initialize(void);
 
 };

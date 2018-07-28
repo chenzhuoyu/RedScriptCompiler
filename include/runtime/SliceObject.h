@@ -34,7 +34,7 @@ public:
         _begin(begin) {}
 
 public:
-    static void shutdown(void) {}
+    static void shutdown(void);
     static void initialize(void);
 
 };

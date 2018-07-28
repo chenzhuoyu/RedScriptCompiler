@@ -182,6 +182,12 @@ void MapObject::enumerateCopy(MapObject::EnumeratorFunc func)
             break;
 }
 
+void MapObject::shutdown(void)
+{
+    /* clear type instance */
+    MapTypeObject = nullptr;
+}
+
 void MapObject::initialize(void)
 {
     /* map type object */

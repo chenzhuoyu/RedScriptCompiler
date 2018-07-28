@@ -70,7 +70,7 @@ public:
     ObjectRef invoke(Reference<TupleObject> args, Reference<MapObject> kwargs);
 
 public:
-    static void shutdown(void) {}
+    static void shutdown(void);
     static void initialize(void);
 
 };

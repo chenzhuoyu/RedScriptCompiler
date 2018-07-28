@@ -51,7 +51,7 @@ public:
     void setFinally(uint32_t value) { _finally = value; _hasFinally = true; }
 
 public:
-    static void shutdown(void) {}
+    static void shutdown(void);
     static void initialize(void);
 
 };

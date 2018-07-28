@@ -130,6 +130,12 @@ uint32_t CodeObject::emitOperand2(int row, int col, Engine::OpCode op, int32_t v
     return static_cast<uint32_t>(pc);
 }
 
+void CodeObject::shutdown(void)
+{
+    /* clear type instance */
+    CodeTypeObject = nullptr;
+}
+
 void CodeObject::initialize(void)
 {
     /* code type object */

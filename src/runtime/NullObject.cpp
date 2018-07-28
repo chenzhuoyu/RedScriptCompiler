@@ -8,6 +8,12 @@ TypeRef NullTypeObject;
 /* null constant */
 ObjectRef NullObject;
 
+void _NullObject::shutdown(void)
+{
+    NullObject = nullptr;
+    NullTypeObject = nullptr;
+}
+
 void _NullObject::initialize(void)
 {
     /* null type object */

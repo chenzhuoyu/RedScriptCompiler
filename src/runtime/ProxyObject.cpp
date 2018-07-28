@@ -5,6 +5,12 @@ namespace RedScript::Runtime
 /* type object for proxy */
 TypeRef ProxyTypeObject;
 
+void ProxyObject::shutdown(void)
+{
+    /* clear type instance */
+    ProxyTypeObject = nullptr;
+}
+
 void ProxyObject::initialize(void)
 {
     /* proxy type object */

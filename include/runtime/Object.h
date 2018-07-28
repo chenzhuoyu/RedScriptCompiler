@@ -76,7 +76,7 @@ public:
 
 public:
     /* for object system initialization and destruction, internal use only! */
-    static void shutdown(void) {}
+    static void shutdown(void);
     static void initialize(void);
 
 public:
