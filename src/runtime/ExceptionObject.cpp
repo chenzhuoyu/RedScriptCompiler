@@ -10,6 +10,7 @@
 #include "exceptions/StopIteration.h"
 #include "exceptions/InternalError.h"
 #include "exceptions/AttributeError.h"
+#include "exceptions/UserDefinedError.h"
 #include "exceptions/ZeroDivisionError.h"
 #include "exceptions/NativeSyntaxError.h"
 
@@ -28,6 +29,27 @@ TypeRef InternalErrorTypeObject;
 TypeRef AttributeErrorTypeObject;
 TypeRef ZeroDivisionErrorTypeObject;
 TypeRef NativeSyntaxErrorTypeObject;
+
+class UserExceptionObject : public ExceptionObject
+{
+public:
+    using ExceptionObject::ExceptionObject;
+    virtual void throwObject(void) override { throw Exceptions::UserDefinedError(self()); }
+
+};
+
+ObjectRef ExceptionType::nativeObjectNew(TypeRef type, Reference<TupleObject> args, Reference<MapObject> kwargs)
+{
+    /* create the exception object */
+    return Object::newObject<UserExceptionObject>(type);
+}
+
+ObjectRef ExceptionType::nativeObjectInit(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
+{
+    /* store the exception arguments */
+    self->attrs().emplace("args", args);
+    return self;
+}
 
 namespace ExceptionWrapper
 {
@@ -48,14 +70,14 @@ void shutdown(void)
 }
 
 #define DECL_EXC(type, ...)                                                                                             \
-    static ExceptionWrapperType<Exceptions::type, ## __VA_ARGS__> __exc_ ## type(#type, BaseExceptionTypeObject);       \
-    type ## TypeObject = Reference<ExceptionWrapperType<Exceptions::type, ## __VA_ARGS__>>::refStatic(__exc_ ## type)
+    static NativeExceptionType<Exceptions::type, ## __VA_ARGS__> __exc_ ## type(#type, BaseExceptionTypeObject);        \
+    type ## TypeObject = Reference<NativeExceptionType<Exceptions::type, ## __VA_ARGS__>>::refStatic(__exc_ ## type)
 
 void initialize(void)
 {
     /* base exception type */
-    static ExceptionWrapperType<Exceptions::BaseException, const std::string &> baseExceptionType("BaseException", ObjectTypeObject);
-    BaseExceptionTypeObject = Reference<ExceptionWrapperType<Exceptions::BaseException, const std::string &>>::refStatic(baseExceptionType);
+    static NativeExceptionType<Exceptions::BaseException, const std::string &> baseExceptionType("BaseException", ObjectTypeObject);
+    BaseExceptionTypeObject = Reference<NativeExceptionType<Exceptions::BaseException, const std::string &>>::refStatic(baseExceptionType);
 
     /* derivative exceptions */
     DECL_EXC(NameError, int, int, const std::string &);

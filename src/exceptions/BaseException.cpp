@@ -3,7 +3,7 @@
 
 namespace RedScript::Exceptions
 {
-BaseException::BaseException(const char *name, const std::string &message) : _name(name), _message(message)
+BaseException::BaseException(const std::string &name, const std::string &message) : _name(name), _message(message)
 {
     /* frame count and buffer */
     auto size = Engine::Thread::self()->frames.size();

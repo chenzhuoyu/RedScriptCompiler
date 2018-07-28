@@ -21,18 +21,18 @@ struct BaseException : public std::exception
     };
 
 private:
-    const char *_name;
+    std::string _name;
     std::string _message;
     std::vector<Traceback> _traceback;
 
 public:
     explicit BaseException(const std::string &message) : BaseException("BaseException", message) {}
-    explicit BaseException(const char *name, const std::string &message);
+    explicit BaseException(const std::string &name, const std::string &message);
 
 public:
-    const char *name(void) const { return _name; }
-    const std::string &message(void) const { return _message; }
-    const std::vector<Traceback> &traceback(void) const { return _traceback; }
+    const auto &name(void) const { return _name; }
+    const auto &message(void) const { return _message; }
+    const auto &traceback(void) const { return _traceback; }
 
 public:
     virtual const char *what() const noexcept override

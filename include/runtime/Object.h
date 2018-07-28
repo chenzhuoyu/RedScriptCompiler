@@ -121,7 +121,7 @@ private:
     };
 
 protected:
-    ObjectRef findUserMethod(ObjectRef self, const char *name, const char *alternative);
+    ObjectRef findUserMethod(const char *name, const char *alternative);
     DescriptorType resolveDescriptor(ObjectRef obj, ObjectRef *getter, ObjectRef *setter, ObjectRef *deleter);
 
 protected:

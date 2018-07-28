@@ -144,27 +144,35 @@ void Type::addBuiltins(void)
             self->type()->nativeObjectSetAttr(self, name, value);
         })
     );
+
+    /* built-in "__init__" function */
+    attrs().emplace(
+        "__init__",
+        UnboundMethodObject::newUnboundVariadic([](ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
+        {
+            /* invoke the object protocol */
+            return self->type()->nativeObjectInit(self, args, kwargs);
+        })
+    );
 }
 
-ObjectRef Type::findUserMethod(ObjectRef self, const char *name, const char *alternative)
+ObjectRef Type::findUserMethod(const char *name, const char *alternative)
 {
     /* type reference and dict iterator */
-    TypeRef type;
+    Dict &ref = dict();
     Dict::iterator iter;
 
-    /* search through super class chain */
-    for (type = self->type(); type.isNotNull(); type = type->_super)
-        if ((iter = type->dict().find(name)) != type->dict().end())
-            return iter->second;
+    /* search the method */
+    if ((iter = ref.find(name)) != ref.end())
+        return iter->second;
 
     /* no alternative name available */
     if (alternative == nullptr)
         return nullptr;
 
-    /* search through super class chain again, with alternative name */
-    for (type = self->type(); type.isNotNull(); type = type->_super)
-        if ((iter = type->dict().find(alternative)) != type->dict().end())
-            return iter->second;
+    /* search the method, with alternative name */
+    if ((iter = ref.find(alternative)) != ref.end())
+        return iter->second;
 
     /* not found */
     return nullptr;
@@ -230,7 +238,7 @@ ObjectRef Type::applyTernaryMethod(ObjectRef method, ObjectRef self, ObjectRef s
 #define NOT_IMPL(self, func) {                                  \
     throw Exceptions::AttributeError(Utils::Strings::format(    \
         "\"%s\" object doesn't support \"" #func "\" action",   \
-        self->type()->name()                                    \
+        name()                                                  \
     ));                                                         \
 }
 
@@ -668,8 +676,8 @@ ObjectRef Type::nativeObjectInvoke(ObjectRef self, Reference<TupleObject> args, 
         return std::move(result);
 
     /* call the object's "__init__" method to initialize it */
-    return result->type()->objectInit(
-        result,
+    return type->objectInit(
+        std::move(result),
         std::move(args),
         std::move(kwargs)
     );
@@ -801,7 +809,7 @@ ObjectRef Type::nativeComparableCompare(ObjectRef self, ObjectRef other)
         return IntObject::fromInt(0);
 
     /* compare "greater than" */
-    ObjectRef gt = self->type()->comparableGt(self, other);
+    ObjectRef gt = comparableGt(self, other);
 
     /* must not be null */
     if (gt.isNull())
@@ -812,7 +820,7 @@ ObjectRef Type::nativeComparableCompare(ObjectRef self, ObjectRef other)
         return IntObject::fromInt(1);
 
     /* compare "less than" */
-    ObjectRef lt = self->type()->comparableLt(self, other);
+    ObjectRef lt = comparableLt(self, other);
 
     /* must not be null */
     if (lt.isNull())
@@ -825,7 +833,7 @@ ObjectRef Type::nativeComparableCompare(ObjectRef self, ObjectRef other)
     /* obejcts are unordered */
     throw Exceptions::TypeError(Utils::Strings::format(
         "\"%s\" and \"%s\" objects are unordered",
-        self->type()->name(),
+        name(),
         other->type()->name()
     ));
 }
@@ -892,7 +900,7 @@ ObjectRef NativeType::nativeObjectInit(ObjectRef self, Reference<TupleObject> ar
     {
         throw Exceptions::TypeError(Utils::Strings::format(
             "\"__init__\" of \"%s\" object takes no arguments, but %zu given",
-            self->type()->name(),
+            name(),
             args->size()
         ));
     }
@@ -902,7 +910,7 @@ ObjectRef NativeType::nativeObjectInit(ObjectRef self, Reference<TupleObject> ar
     {
         throw Exceptions::TypeError(Utils::Strings::format(
             "\"__init__\" of \"%s\" object doesn't accept keyword argument \"%s\"",
-            self->type()->name(),
+            name(),
             kwargs->front()->type()->objectStr(kwargs->front())
         ));
     }
@@ -915,28 +923,61 @@ ObjectRef NativeType::nativeObjectInvoke(ObjectRef self, Reference<TupleObject> 
 {
     throw Exceptions::TypeError(Utils::Strings::format(
         "\"%s\" object is not callable",
-        self->type()->name()
+        name()
     ));
 }
 
 /***** NativeType Implementations *****/
 
-#define APPLY_UNARY(name, func, self) {                                     \
-    ObjectRef m = findUserMethod(self, #name, nullptr);                     \
-    return m.isNull() ? native ## func(std::move(self))                     \
-                      : applyUnaryMethod(std::move(m), std::move(self));    \
+#define APPLY_UNARY(name, func, native, self) {                         \
+    /* find the user function */                                        \
+    ObjectRef method = findUserMethod(#name, nullptr);                  \
+                                                                        \
+    /* have user-defined function */                                    \
+    if (method.isNotNull())                                             \
+        return applyUnaryMethod(std::move(method), std::move(self));    \
+                                                                        \
+    /* don't have user-defined function, but have super class */        \
+    else if (super().isNotNull())                                       \
+        return super()->func(std::move(self));                          \
+                                                                        \
+    /* don't have both */                                               \
+    else                                                                \
+        return native(std::move(self));                                 \
 }
 
-#define APPLY_BINARY(name, func, self, arg1) {                                              \
-    ObjectRef m = findUserMethod(self, #name, nullptr);                                     \
-    return m.isNull() ? native ## func(std::move(self), std::move(arg1))                    \
-                      : applyBinaryMethod(std::move(m), std::move(self), std::move(arg1));  \
+#define APPLY_BINARY(name, func, native, self, arg1) {                                  \
+    /* find the user function */                                                        \
+    ObjectRef method = findUserMethod(#name, nullptr);                                  \
+                                                                                        \
+    /* have user-defined function */                                                    \
+    if (method.isNotNull())                                                             \
+        return applyBinaryMethod(std::move(method), std::move(self), std::move(arg1));  \
+                                                                                        \
+    /* don't have user-defined function, but have super class */                        \
+    else if (super().isNotNull())                                                       \
+        return super()->func(std::move(self), std::move(arg1));                         \
+                                                                                        \
+    /* don't have both */                                                               \
+    else                                                                                \
+        return native(std::move(self), std::move(arg1));                                \
 }
 
-#define APPLY_BINARY_ALT(name, alt, func, self, arg1) {                                     \
-    ObjectRef m = findUserMethod(self, #name, #alt);                                        \
-    return m.isNull() ? native ## func(std::move(self), std::move(arg1))                    \
-                      : applyBinaryMethod(std::move(m), std::move(self), std::move(arg1));  \
+#define APPLY_BINARY_ALT(name, alt, func, native, self, arg1) {                         \
+    /* find the user function */                                                        \
+    ObjectRef method = findUserMethod(#name, #alt);                                     \
+                                                                                        \
+    /* have user-defined function */                                                    \
+    if (method.isNotNull())                                                             \
+        return applyBinaryMethod(std::move(method), std::move(self), std::move(arg1));  \
+                                                                                        \
+    /* don't have user-defined function, but have super class */                        \
+    else if (super().isNotNull())                                                       \
+        return super()->func(std::move(self), std::move(arg1));                         \
+                                                                                        \
+    /* don't have both */                                                               \
+    else                                                                                \
+        return native(std::move(self), std::move(arg1));                                \
 }
 
 /*** Object Protocol ***/
@@ -944,11 +985,17 @@ ObjectRef NativeType::nativeObjectInvoke(ObjectRef self, Reference<TupleObject> 
 uint64_t ObjectType::objectHash(ObjectRef self)
 {
     /* find the "__hash__" function */
-    ObjectRef ret = findUserMethod(self, "__hash__", nullptr);
+    ObjectRef ret = findUserMethod("__hash__", nullptr);
 
     /* doesn't have user-defined "__hash__" function */
     if (ret.isNull())
-        return nativeObjectHash(self);
+    {
+        /* don't have super classes either */
+        if (super().isNull())
+            return nativeObjectHash(std::move(self));
+        else
+            return super()->objectHash(std::move(self));
+    }
 
     /* apply the user method */
     if ((ret = applyUnaryMethod(std::move(ret), std::move(self))).isNull())
@@ -977,12 +1024,18 @@ uint64_t ObjectType::objectHash(ObjectRef self)
 StringList ObjectType::objectDir(ObjectRef self)
 {
     /* apply the "__dir__" function */
-    ObjectRef ret = findUserMethod(self, "__dir__", nullptr);
+    ObjectRef ret = findUserMethod("__dir__", nullptr);
     StringList result;
 
     /* doesn't have user-defined "__dir__" function */
     if (ret.isNull())
-        return nativeObjectDir(self);
+    {
+        /* don't have super classes either */
+        if (super().isNull())
+            return nativeObjectDir(std::move(self));
+        else
+            return super()->objectDir(std::move(self));
+    }
 
     /* apply the user method */
     if ((ret = applyUnaryMethod(std::move(ret), std::move(self))).isNull())
@@ -1013,11 +1066,17 @@ StringList ObjectType::objectDir(ObjectRef self)
 std::string ObjectType::objectStr(ObjectRef self)
 {
     /* apply the "__str__" function */
-    ObjectRef ret = findUserMethod(self, "__str__", nullptr);
+    ObjectRef ret = findUserMethod("__str__", nullptr);
 
     /* doesn't have user-defined "__str__" function */
     if (ret.isNull())
-        return nativeObjectStr(self);
+    {
+        /* don't have super classes either */
+        if (super().isNull())
+            return nativeObjectStr(std::move(self));
+        else
+            return super()->objectStr(std::move(self));
+    }
 
     /* apply the user method */
     if ((ret = applyUnaryMethod(std::move(ret), std::move(self))).isNull())
@@ -1039,11 +1098,17 @@ std::string ObjectType::objectStr(ObjectRef self)
 std::string ObjectType::objectRepr(ObjectRef self)
 {
     /* apply the "__repr__" function */
-    ObjectRef ret = findUserMethod(self, "__repr__", nullptr);
+    ObjectRef ret = findUserMethod("__repr__", nullptr);
 
     /* doesn't have user-defined "__repr__" function */
     if (ret.isNull())
-        return nativeObjectRepr(self);
+    {
+        /* don't have super classes either */
+        if (super().isNull())
+            return nativeObjectRepr(std::move(self));
+        else
+            return super()->objectRepr(std::move(self));
+    }
 
     /* apply the user method */
     if ((ret = applyUnaryMethod(std::move(ret), std::move(self))).isNull())
@@ -1065,11 +1130,17 @@ std::string ObjectType::objectRepr(ObjectRef self)
 bool ObjectType::objectIsTrue(ObjectRef self)
 {
     /* apply the "__bool__" function */
-    ObjectRef ret = findUserMethod(self, "__bool__", nullptr);
+    ObjectRef ret = findUserMethod("__bool__", nullptr);
 
     /* doesn't have user-defined "__bool__" function */
     if (ret.isNull())
-        return nativeObjectIsTrue(self);
+    {
+        /* don't have super classes either */
+        if (super().isNull())
+            return nativeObjectIsTrue(std::move(self));
+        else
+            return super()->objectIsTrue(std::move(self));
+    }
 
     /* apply the user method */
     if ((ret = applyUnaryMethod(std::move(ret), std::move(self))).isNull())
@@ -1091,11 +1162,17 @@ bool ObjectType::objectIsTrue(ObjectRef self)
 bool ObjectType::objectIsSubclassOf(ObjectRef self, TypeRef type)
 {
     /* apply the "__is_subclass_of__" function */
-    ObjectRef ret = findUserMethod(self, "__is_subclass_of__", nullptr);
+    ObjectRef ret = findUserMethod("__is_subclass_of__", nullptr);
 
     /* doesn't have user-defined "__is_subclass_of__" function */
     if (ret.isNull())
-        return nativeObjectIsSubclassOf(self, type);
+    {
+        /* don't have super classes either */
+        if (super().isNull())
+            return nativeObjectIsSubclassOf(std::move(self), std::move(type));
+        else
+            return super()->objectIsSubclassOf(std::move(self), std::move(type));
+    }
 
     /* apply the user method */
     if ((ret = applyBinaryMethod(std::move(ret), std::move(self), std::move(type))).isNull())
@@ -1117,11 +1194,17 @@ bool ObjectType::objectIsSubclassOf(ObjectRef self, TypeRef type)
 bool ObjectType::objectIsInstanceOf(ObjectRef self, TypeRef type)
 {
     /* apply the "__is_instance_of__" function */
-    ObjectRef ret = findUserMethod(self, "__is_instance_of__", nullptr);
+    ObjectRef ret = findUserMethod("__is_instance_of__", nullptr);
 
     /* doesn't have user-defined "__is_instance_of__" function */
     if (ret.isNull())
-        return nativeObjectIsSubclassOf(self, type);
+    {
+        /* don't have super classes either */
+        if (super().isNull())
+            return nativeObjectIsInstanceOf(std::move(self), std::move(type));
+        else
+            return super()->objectIsInstanceOf(std::move(self), std::move(type));
+    }
 
     /* apply the user method */
     if ((ret = applyBinaryMethod(std::move(ret), std::move(self), std::move(type))).isNull())
@@ -1143,98 +1226,166 @@ bool ObjectType::objectIsInstanceOf(ObjectRef self, TypeRef type)
 void ObjectType::objectDelAttr(ObjectRef self, const std::string &name)
 {
     /* find the user method */
-    ObjectRef method = findUserMethod(self, "__delattr__", nullptr);
+    ObjectRef method = findUserMethod("__delattr__", nullptr);
 
-    /* doesn't have one, call the native method */
-    if (method.isNull())
+    /* have "__delattr__" method */
+    if (method.isNotNull())
     {
-        nativeObjectDelAttr(std::move(self), name);
-        return;
+        applyBinaryMethod(
+            std::move(method),
+            std::move(self),
+            StringObject::fromStringInterned(name)
+        );
     }
 
-    /* otherwise, apply the user method */
-    applyBinaryMethod(
-        std::move(method),
-        std::move(self),
-        StringObject::fromStringInterned(name)
-    );
+    /* don't have "__delattr__" method, but have super class */
+    else if (super().isNotNull())
+    {
+        super()->objectDelAttr(
+            std::move(self),
+            name
+        );
+    }
+
+    /* don't have both */
+    else
+    {
+        nativeObjectDelAttr(
+            std::move(self),
+            name
+        );
+    }
 }
 
 ObjectRef ObjectType::objectGetAttr(ObjectRef self, const std::string &name)
 {
     /* find the user method */
-    ObjectRef method = findUserMethod(self, "__getattr__", nullptr);
+    ObjectRef method = findUserMethod("__getattr__", nullptr);
 
-    /* doesn't have one, call the native method */
-    if (method.isNull())
-        return nativeObjectGetAttr(std::move(self), name);
+    /* have "__getattr__" method */
+    if (method.isNotNull())
+    {
+        return applyBinaryMethod(
+            std::move(method),
+            std::move(self),
+            StringObject::fromStringInterned(name)
+        );
+    }
 
-    /* otherwise, apply the user method */
-    return applyBinaryMethod(
-        std::move(method),
-        std::move(self),
-        StringObject::fromStringInterned(name)
-    );
+    /* don't have "__getattr__" method, but have super class */
+    else if (super().isNotNull())
+    {
+        return super()->objectGetAttr(
+            std::move(self),
+            name
+        );
+    }
+
+    /* don't have both */
+    else
+    {
+        return nativeObjectGetAttr(
+            std::move(self),
+            name
+        );
+    }
 }
 
 void ObjectType::objectSetAttr(ObjectRef self, const std::string &name, ObjectRef value)
 {
     /* find the user method */
-    ObjectRef method = findUserMethod(self, "__setattr__", nullptr);
+    ObjectRef method = findUserMethod("__setattr__", nullptr);
 
-    /* doesn't have one, call the native method */
-    if (method.isNull())
+    /* have "__setattr__" method */
+    if (method.isNotNull())
     {
-        nativeObjectSetAttr(std::move(self), name, std::move(value));
-        return;
+        applyTernaryMethod(
+            std::move(method),
+            std::move(self),
+            StringObject::fromStringInterned(name),
+            std::move(value)
+        );
     }
 
-    /* otherwise, apply the user method */
-    applyTernaryMethod(
-        std::move(method),
-        std::move(self),
-        StringObject::fromStringInterned(name),
-        std::move(value)
-    );
+    /* don't have "__setattr__" method, but have super class */
+    else if (super().isNotNull())
+    {
+        super()->objectSetAttr(
+            std::move(self),
+            name,
+            std::move(value)
+        );
+    }
+
+    /* don't have both */
+    else
+    {
+        nativeObjectSetAttr(
+            std::move(self),
+            name,
+            std::move(value)
+        );
+    }
 }
 
 ObjectRef ObjectType::objectNew(TypeRef type, Reference<TupleObject> args, Reference<MapObject> kwargs)
 {
     /* type reference and dict iterator */
-    TypeRef ref;
-    Dict::iterator iter;
+    Dict &dict = type->dict();
+    Dict::iterator iter = dict.find("__new__");
 
-    /* search through super class chain */
-    for (ref = type; ref.isNotNull(); ref = ref->super())
-        if ((iter = ref->dict().find("__new__")) != ref->dict().end())
-            break;
-
-    /* don't have "__new__" method */
-    if (ref.isNull())
-        return nativeObjectNew(std::move(type), std::move(args), std::move(kwargs));
-
-    /* must be an unbound method */
-    if (iter->second->isNotInstanceOf(UnboundMethodTypeObject))
+    /* have "__new__" method */
+    if (iter != dict.end())
     {
-        throw Exceptions::TypeError(Utils::Strings::format(
-            "\"__new__\" must be an unbound method, not \"%s\"",
-            iter->second->type()->name()
-        ));
+        /* must be an unbound method */
+        if (iter->second->isNotInstanceOf(UnboundMethodTypeObject))
+        {
+            throw Exceptions::TypeError(Utils::Strings::format(
+                "\"__new__\" must be an unbound method, not \"%s\"",
+                iter->second->type()->name()
+            ));
+        }
+
+        /* invoke the method */
+        auto func = iter->second.as<UnboundMethodObject>()->bind(type);
+        return func->type()->objectInvoke(std::move(func), std::move(args), std::move(kwargs));
     }
 
-    /* invoke the method */
-    auto func = iter->second.as<UnboundMethodObject>()->bind(type);
-    return func->type()->objectInvoke(std::move(func), std::move(args), std::move(kwargs));
+    /* don't have "__new__" method, but have super class */
+    else if (type->super().isNotNull())
+    {
+        return type->super()->objectNew(
+            std::move(type),
+            std::move(args),
+            std::move(kwargs)
+        );
+    }
+
+    /* don't have both */
+    else
+    {
+        return type->nativeObjectNew(
+            std::move(type),
+            std::move(args),
+            std::move(kwargs)
+        );
+    }
 }
 
 ObjectRef ObjectType::objectInit(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
 {
     /* find the user method */
-    ObjectRef method = findUserMethod(self, "__init__", nullptr);
+    ObjectRef method = findUserMethod("__init__", nullptr);
 
     /* don't have "__init__" method */
     if (method.isNull())
-        return nativeObjectInit(std::move(self), std::move(args), std::move(kwargs));
+    {
+        /* don't have super classes either */
+        if (super().isNull())
+            return nativeObjectInit(std::move(self), std::move(args), std::move(kwargs));
+        else
+            return super()->objectInit(std::move(self), std::move(args), std::move(kwargs));
+    }
 
     /* must be an unbound method */
     if (method->isNotInstanceOf(UnboundMethodTypeObject))
@@ -1269,11 +1420,17 @@ ObjectRef ObjectType::objectInit(ObjectRef self, Reference<TupleObject> args, Re
 ObjectRef ObjectType::objectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
 {
     /* find the user method */
-    ObjectRef method = findUserMethod(self, "__invoke__", nullptr);
+    ObjectRef method = findUserMethod("__invoke__", nullptr);
 
     /* don't have "__invoke__" method */
     if (method.isNull())
-        return nativeObjectInvoke(std::move(self), std::move(args), std::move(kwargs));
+    {
+        /* don't have super classes either */
+        if (super().isNull())
+            return nativeObjectInvoke(std::move(self), std::move(args), std::move(kwargs));
+        else
+            return super()->objectInvoke(std::move(self), std::move(args), std::move(kwargs));
+    }
 
     /* must be an unbound method */
     if (method->isNotInstanceOf(UnboundMethodTypeObject))
@@ -1291,105 +1448,135 @@ ObjectRef ObjectType::objectInvoke(ObjectRef self, Reference<TupleObject> args, 
 
 /*** Boolean Protocol ***/
 
-ObjectRef ObjectType::boolOr (ObjectRef self, ObjectRef other)            APPLY_BINARY(__bool_or__ , BoolOr , self, other)
-ObjectRef ObjectType::boolAnd(ObjectRef self, ObjectRef other)            APPLY_BINARY(__bool_and__, BoolAnd, self, other)
-ObjectRef ObjectType::boolNot(ObjectRef self)                             APPLY_UNARY (__bool_not__, BoolNot, self)
+ObjectRef ObjectType::boolOr (ObjectRef self, ObjectRef other)            APPLY_BINARY(__bool_or__ , boolOr , nativeBoolOr , self, other)
+ObjectRef ObjectType::boolAnd(ObjectRef self, ObjectRef other)            APPLY_BINARY(__bool_and__, boolAnd, nativeBoolAnd, self, other)
+ObjectRef ObjectType::boolNot(ObjectRef self)                             APPLY_UNARY (__bool_not__, boolNot, nativeBoolNot, self)
 
 /*** Numeric Protocol ***/
 
-ObjectRef ObjectType::numericPos(ObjectRef self)                          APPLY_UNARY (__pos__   , NumericPos   , self)
-ObjectRef ObjectType::numericNeg(ObjectRef self)                          APPLY_UNARY (__neg__   , NumericNeg   , self)
+ObjectRef ObjectType::numericPos(ObjectRef self)                          APPLY_UNARY (__pos__   , numericPos   , nativeNumericPos   , self)
+ObjectRef ObjectType::numericNeg(ObjectRef self)                          APPLY_UNARY (__neg__   , numericPos   , nativeNumericNeg   , self)
 
-ObjectRef ObjectType::numericAdd  (ObjectRef self, ObjectRef other)       APPLY_BINARY(__add__   , NumericAdd   , self, other)
-ObjectRef ObjectType::numericSub  (ObjectRef self, ObjectRef other)       APPLY_BINARY(__sub__   , NumericSub   , self, other)
-ObjectRef ObjectType::numericMul  (ObjectRef self, ObjectRef other)       APPLY_BINARY(__mul__   , NumericMul   , self, other)
-ObjectRef ObjectType::numericDiv  (ObjectRef self, ObjectRef other)       APPLY_BINARY(__div__   , NumericDiv   , self, other)
-ObjectRef ObjectType::numericMod  (ObjectRef self, ObjectRef other)       APPLY_BINARY(__mod__   , NumericMod   , self, other)
-ObjectRef ObjectType::numericPower(ObjectRef self, ObjectRef other)       APPLY_BINARY(__power__ , NumericPower , self, other)
+ObjectRef ObjectType::numericAdd  (ObjectRef self, ObjectRef other)       APPLY_BINARY(__add__   , numericAdd   , nativeNumericAdd   , self, other)
+ObjectRef ObjectType::numericSub  (ObjectRef self, ObjectRef other)       APPLY_BINARY(__sub__   , numericSub   , nativeNumericSub   , self, other)
+ObjectRef ObjectType::numericMul  (ObjectRef self, ObjectRef other)       APPLY_BINARY(__mul__   , numericMul   , nativeNumericMul   , self, other)
+ObjectRef ObjectType::numericDiv  (ObjectRef self, ObjectRef other)       APPLY_BINARY(__div__   , numericDiv   , nativeNumericDiv   , self, other)
+ObjectRef ObjectType::numericMod  (ObjectRef self, ObjectRef other)       APPLY_BINARY(__mod__   , numericMod   , nativeNumericMod   , self, other)
+ObjectRef ObjectType::numericPower(ObjectRef self, ObjectRef other)       APPLY_BINARY(__power__ , numericPower , nativeNumericPower , self, other)
 
-ObjectRef ObjectType::numericOr (ObjectRef self, ObjectRef other)         APPLY_BINARY(__or__    , NumericOr    , self, other)
-ObjectRef ObjectType::numericAnd(ObjectRef self, ObjectRef other)         APPLY_BINARY(__and__   , NumericAnd   , self, other)
-ObjectRef ObjectType::numericXor(ObjectRef self, ObjectRef other)         APPLY_BINARY(__xor__   , NumericXor   , self, other)
-ObjectRef ObjectType::numericNot(ObjectRef self)                          APPLY_UNARY (__not__   , NumericNot   , self)
+ObjectRef ObjectType::numericOr (ObjectRef self, ObjectRef other)         APPLY_BINARY(__or__    , numericOr    , nativeNumericOr    , self, other)
+ObjectRef ObjectType::numericAnd(ObjectRef self, ObjectRef other)         APPLY_BINARY(__and__   , numericAnd   , nativeNumericAnd   , self, other)
+ObjectRef ObjectType::numericXor(ObjectRef self, ObjectRef other)         APPLY_BINARY(__xor__   , numericXor   , nativeNumericXor   , self, other)
+ObjectRef ObjectType::numericNot(ObjectRef self)                          APPLY_UNARY (__not__   , numericNot   , nativeNumericNot   , self)
 
-ObjectRef ObjectType::numericLShift(ObjectRef self, ObjectRef other)      APPLY_BINARY(__lshift__, NumericLShift, self, other)
-ObjectRef ObjectType::numericRShift(ObjectRef self, ObjectRef other)      APPLY_BINARY(__rshift__, NumericRShift, self, other)
+ObjectRef ObjectType::numericLShift(ObjectRef self, ObjectRef other)      APPLY_BINARY(__lshift__, numericLShift, nativeNumericLShift, self, other)
+ObjectRef ObjectType::numericRShift(ObjectRef self, ObjectRef other)      APPLY_BINARY(__rshift__, numericRShift, nativeNumericRShift, self, other)
 
-ObjectRef ObjectType::numericIncAdd  (ObjectRef self, ObjectRef other)    APPLY_BINARY_ALT(__inc_add__   , __add__   , NumericIncAdd   , self, other)
-ObjectRef ObjectType::numericIncSub  (ObjectRef self, ObjectRef other)    APPLY_BINARY_ALT(__inc_sub__   , __sub__   , NumericIncSub   , self, other)
-ObjectRef ObjectType::numericIncMul  (ObjectRef self, ObjectRef other)    APPLY_BINARY_ALT(__inc_mul__   , __mul__   , NumericIncMul   , self, other)
-ObjectRef ObjectType::numericIncDiv  (ObjectRef self, ObjectRef other)    APPLY_BINARY_ALT(__inc_div__   , __div__   , NumericIncDiv   , self, other)
-ObjectRef ObjectType::numericIncMod  (ObjectRef self, ObjectRef other)    APPLY_BINARY_ALT(__inc_mod__   , __mod__   , NumericIncMod   , self, other)
-ObjectRef ObjectType::numericIncPower(ObjectRef self, ObjectRef other)    APPLY_BINARY_ALT(__inc_power__ , __power__ , NumericIncPower , self, other)
+ObjectRef ObjectType::numericIncAdd  (ObjectRef self, ObjectRef other)    APPLY_BINARY_ALT(__inc_add__   , __add__   , numericIncAdd   , nativeNumericIncAdd   , self, other)
+ObjectRef ObjectType::numericIncSub  (ObjectRef self, ObjectRef other)    APPLY_BINARY_ALT(__inc_sub__   , __sub__   , numericIncSub   , nativeNumericIncSub   , self, other)
+ObjectRef ObjectType::numericIncMul  (ObjectRef self, ObjectRef other)    APPLY_BINARY_ALT(__inc_mul__   , __mul__   , numericIncMul   , nativeNumericIncMul   , self, other)
+ObjectRef ObjectType::numericIncDiv  (ObjectRef self, ObjectRef other)    APPLY_BINARY_ALT(__inc_div__   , __div__   , numericIncDiv   , nativeNumericIncDiv   , self, other)
+ObjectRef ObjectType::numericIncMod  (ObjectRef self, ObjectRef other)    APPLY_BINARY_ALT(__inc_mod__   , __mod__   , numericIncMod   , nativeNumericIncMod   , self, other)
+ObjectRef ObjectType::numericIncPower(ObjectRef self, ObjectRef other)    APPLY_BINARY_ALT(__inc_power__ , __power__ , numericIncPower , nativeNumericIncPower , self, other)
 
-ObjectRef ObjectType::numericIncOr (ObjectRef self, ObjectRef other)      APPLY_BINARY_ALT(__inc_or__    , __or__    , NumericIncOr    , self, other)
-ObjectRef ObjectType::numericIncAnd(ObjectRef self, ObjectRef other)      APPLY_BINARY_ALT(__inc_and__   , __and__   , NumericIncAnd   , self, other)
-ObjectRef ObjectType::numericIncXor(ObjectRef self, ObjectRef other)      APPLY_BINARY_ALT(__inc_xor__   , __xor__   , NumericIncXor   , self, other)
+ObjectRef ObjectType::numericIncOr (ObjectRef self, ObjectRef other)      APPLY_BINARY_ALT(__inc_or__    , __or__    , numericIncOr    , nativeNumericIncOr    , self, other)
+ObjectRef ObjectType::numericIncAnd(ObjectRef self, ObjectRef other)      APPLY_BINARY_ALT(__inc_and__   , __and__   , numericIncAnd   , nativeNumericIncAnd   , self, other)
+ObjectRef ObjectType::numericIncXor(ObjectRef self, ObjectRef other)      APPLY_BINARY_ALT(__inc_xor__   , __xor__   , numericIncXor   , nativeNumericIncXor   , self, other)
 
-ObjectRef ObjectType::numericIncLShift(ObjectRef self, ObjectRef other)   APPLY_BINARY_ALT(__inc_lshift__, __lshift__, NumericIncLShift, self, other)
-ObjectRef ObjectType::numericIncRShift(ObjectRef self, ObjectRef other)   APPLY_BINARY_ALT(__inc_rshift__, __rshift__, NumericIncRShift, self, other)
+ObjectRef ObjectType::numericIncLShift(ObjectRef self, ObjectRef other)   APPLY_BINARY_ALT(__inc_lshift__, __lshift__, numericIncLShift, nativeNumericIncLShift, self, other)
+ObjectRef ObjectType::numericIncRShift(ObjectRef self, ObjectRef other)   APPLY_BINARY_ALT(__inc_rshift__, __rshift__, numericIncRShift, nativeNumericIncRShift, self, other)
 
 /*** Iterator Protocol ***/
 
-ObjectRef ObjectType::iterableIter(ObjectRef self)                        APPLY_UNARY (__iter__, IterableIter, self)
-ObjectRef ObjectType::iterableNext(ObjectRef self)                        APPLY_UNARY (__next__, IterableNext, self)
+ObjectRef ObjectType::iterableIter(ObjectRef self)                        APPLY_UNARY (__iter__, iterableIter, nativeIterableIter, self)
+ObjectRef ObjectType::iterableNext(ObjectRef self)                        APPLY_UNARY (__next__, iterableNext, nativeIterableNext, self)
 
 /*** Sequence Protocol ***/
 
-ObjectRef ObjectType::sequenceLen(ObjectRef self)                         APPLY_UNARY (__len__    , SequenceLen, self)
-ObjectRef ObjectType::sequenceGetItem(ObjectRef self, ObjectRef other)    APPLY_BINARY(__getitem__, SequenceGetItem, self, other)
+ObjectRef ObjectType::sequenceLen(ObjectRef self)                         APPLY_UNARY (__len__    , sequenceLen    , nativeSequenceLen    , self)
+ObjectRef ObjectType::sequenceGetItem(ObjectRef self, ObjectRef other)    APPLY_BINARY(__getitem__, sequenceGetItem, nativeSequenceGetItem, self, other)
 
 void ObjectType::sequenceDelItem(ObjectRef self, ObjectRef other)
 {
     /* find the user method */
-    ObjectRef method = findUserMethod(self, "__delitem__", nullptr);
+    ObjectRef method = findUserMethod("__delitem__", nullptr);
 
-    /* doesn't have one, call the native method */
-    if (method.isNull())
+    /* have "__delitem__" method */
+    if (method.isNotNull())
     {
-        nativeSequenceDelItem(std::move(self), std::move(other));
-        return;
+        applyBinaryMethod(
+            std::move(method),
+            std::move(self),
+            std::move(other)
+        );
     }
 
-    /* otherwise, apply the user method */
-    applyBinaryMethod(
-        std::move(method),
-        std::move(self),
-        std::move(other)
-    );
+    /* don't have "__delitem__" method, but have super class */
+    else if (super().isNotNull())
+    {
+        super()->sequenceDelItem(
+            std::move(self),
+            std::move(other)
+        );
+    }
+
+    /* don't have both */
+    else
+    {
+        nativeSequenceDelItem(
+            std::move(self),
+            std::move(other)
+        );
+    }
 }
 
 void ObjectType::sequenceSetItem(ObjectRef self, ObjectRef second, ObjectRef third)
 {
     /* find the user method */
-    ObjectRef method = findUserMethod(self, "__setitem__", nullptr);
+    ObjectRef method = findUserMethod("__setitem__", nullptr);
 
-    /* doesn't have one, call the native method */
-    if (method.isNull())
+    /* have "__setitem__" method */
+    if (method.isNotNull())
     {
-        nativeSequenceSetItem(std::move(self), std::move(second), std::move(third));
-        return;
+        applyTernaryMethod(
+            std::move(method),
+            std::move(self),
+            std::move(second),
+            std::move(third)
+        );
     }
 
-    /* otherwise, apply the user method */
-    applyTernaryMethod(
-        std::move(method),
-        std::move(self),
-        std::move(second),
-        std::move(third)
-    );
+    /* don't have "__setitem__" method, but have super class */
+    else if (super().isNotNull())
+    {
+        super()->sequenceSetItem(
+            std::move(self),
+            std::move(second),
+            std::move(third)
+        );
+    }
+
+    /* don't have both */
+    else
+    {
+        nativeSequenceSetItem(
+            std::move(self),
+            std::move(second),
+            std::move(third)
+        );
+    }
 }
 
 /*** Comparator Protocol ***/
 
-ObjectRef ObjectType::comparableEq      (ObjectRef self, ObjectRef other) APPLY_BINARY(__eq__      , ComparableEq      , self, other)
-ObjectRef ObjectType::comparableLt      (ObjectRef self, ObjectRef other) APPLY_BINARY(__lt__      , ComparableLt      , self, other)
-ObjectRef ObjectType::comparableGt      (ObjectRef self, ObjectRef other) APPLY_BINARY(__gt__      , ComparableGt      , self, other)
-ObjectRef ObjectType::comparableNeq     (ObjectRef self, ObjectRef other) APPLY_BINARY(__neq__     , ComparableNeq     , self, other)
-ObjectRef ObjectType::comparableLeq     (ObjectRef self, ObjectRef other) APPLY_BINARY(__leq__     , ComparableLeq     , self, other)
-ObjectRef ObjectType::comparableGeq     (ObjectRef self, ObjectRef other) APPLY_BINARY(__geq__     , ComparableGeq     , self, other)
-ObjectRef ObjectType::comparableCompare (ObjectRef self, ObjectRef other) APPLY_BINARY(__compare__ , ComparableCompare , self, other)
-ObjectRef ObjectType::comparableContains(ObjectRef self, ObjectRef other) APPLY_BINARY(__contains__, ComparableContains, self, other)
+ObjectRef ObjectType::comparableEq      (ObjectRef self, ObjectRef other) APPLY_BINARY(__eq__      , comparableEq      , nativeComparableEq      , self, other)
+ObjectRef ObjectType::comparableLt      (ObjectRef self, ObjectRef other) APPLY_BINARY(__lt__      , comparableLt      , nativeComparableLt      , self, other)
+ObjectRef ObjectType::comparableGt      (ObjectRef self, ObjectRef other) APPLY_BINARY(__gt__      , comparableGt      , nativeComparableGt      , self, other)
+ObjectRef ObjectType::comparableNeq     (ObjectRef self, ObjectRef other) APPLY_BINARY(__neq__     , comparableNeq     , nativeComparableNeq     , self, other)
+ObjectRef ObjectType::comparableLeq     (ObjectRef self, ObjectRef other) APPLY_BINARY(__leq__     , comparableLeq     , nativeComparableLeq     , self, other)
+ObjectRef ObjectType::comparableGeq     (ObjectRef self, ObjectRef other) APPLY_BINARY(__geq__     , comparableGeq     , nativeComparableGeq     , self, other)
+ObjectRef ObjectType::comparableCompare (ObjectRef self, ObjectRef other) APPLY_BINARY(__compare__ , comparableCompare , nativeComparableCompare , self, other)
+ObjectRef ObjectType::comparableContains(ObjectRef self, ObjectRef other) APPLY_BINARY(__contains__, comparableContains, nativeComparableContains, self, other)
 
 #undef APPLY_UNARY
 #undef APPLY_BINARY

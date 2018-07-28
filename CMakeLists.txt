@@ -160,7 +160,7 @@ set(SOURCE_FILES
         src/utils/Integer.cpp
         src/utils/Strings.cpp
         src/RedScript.cpp
-        src/main.cpp)
+        src/main.cpp include/exceptions/UserDefinedError.h)
 
 add_executable(rsc ${SOURCE_FILES})
 target_link_libraries(rsc bid_${CMAKE_SYSTEM_NAME} mpir_${CMAKE_SYSTEM_NAME} dl fmt jemalloc)

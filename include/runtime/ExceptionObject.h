@@ -8,6 +8,15 @@
 
 namespace RedScript::Runtime
 {
+class ExceptionType : public NativeType
+{
+public:
+    using NativeType::NativeType;
+    virtual ObjectRef nativeObjectNew(TypeRef type, Reference<TupleObject> args, Reference<MapObject> kwargs) override;
+    virtual ObjectRef nativeObjectInit(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs) override;
+
+};
+
 class ExceptionObject : public Object
 {
 public:
@@ -17,15 +26,15 @@ public:
 };
 
 template <typename Exception, typename ... Args>
-class ExceptionWrapperType : public NativeType
+class NativeExceptionType : public ExceptionType
 {
-    class ExceptionWrapperObject : public ExceptionObject
+    class NativeExceptionObject : public ExceptionObject
     {
         Exception _exc;
 
     public:
-        virtual ~ExceptionWrapperObject() = default;
-        explicit ExceptionWrapperObject(TypeRef type, Exception &&exc) : ExceptionObject(type), _exc(std::move(exc)) {}
+        virtual ~NativeExceptionObject() = default;
+        explicit NativeExceptionObject(TypeRef type, Exception &&exc) : ExceptionObject(type), _exc(std::move(exc)) {}
 
     public:
         virtual void throwObject(void) override { throw _exc; }
@@ -33,28 +42,21 @@ class ExceptionWrapperType : public NativeType
     };
 
 public:
-    using NativeType::NativeType;
+    using ExceptionType::ExceptionType;
     virtual ObjectRef nativeObjectNew(TypeRef type, Reference<TupleObject> args, Reference<MapObject> kwargs) override
     {
-        /* for convenience, using the specific symbols we use here */
+        /* for convenience, importing these specific symbols we will be using */
         using Utils::NFI::construct;
         using Utils::NFI::ArgsUnboxer;
         using Utils::NFI::KeywordNames;
 
         /* type check */
         if (type.get() != this)
-            throw Exceptions::InternalError("Invalid exception construction");
+            return ExceptionType::nativeObjectNew(std::move(type), std::move(args), std::move(kwargs));
 
         /* construct the exception object */
         KeywordNames names(sizeof ... (Args));
-        return Object::newObject<ExceptionWrapperObject>(type, construct<Exception>(ArgsUnboxer<Args ...>::unbox(args, kwargs, names, {})));
-    }
-
-public:
-    virtual ObjectRef nativeObjectInit(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs) override
-    {
-        /* already initialized properly, just return as is */
-        return self;
+        return Object::newObject<NativeExceptionObject>(type, construct<Exception>(ArgsUnboxer<Args ...>::unbox(args, kwargs, names, {})));
     }
 };
 

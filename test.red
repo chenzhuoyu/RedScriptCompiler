@@ -52,32 +52,33 @@
 #}
 #}
 
-def fac(n) {
-    i = 2
-    r = 1
-    while (i <= n) {
-        r *= i
-        i += 1
-    }
-    return r
-}
+# def fac(n) {
+#     i = 2
+#     r = 1
+#     while (i <= n) {
+#         r *= i
+#         i += 1
+#     }
+#     return r
+# }
 
-def calc(n) {
-    k = 0
-    t = 0.0
-    pi = 0.0
-    deno = 0.0
-    while (k < n) {
-        t = ((-1) ** k) * (fac(6 * k)) * (13591409.0 + 545140134.0 * k)
-        deno = fac(3 * k) * (fac(k) ** 3) * (640320.0 ** (3 * k))
-        pi += t / deno
-        k += 1
-    }
-    pi = pi * 12 / (640320 ** 1.5)
-    pi = 1.0 / pi
-    return pi
-}
+# def calc(n) {
+#     k = 0
+#     t = 0.0
+#     pi = 0.0
+#     deno = 0.0
+#     while (k < n) {
+#         t = ((-1) ** k) * (fac(6 * k)) * (13591409.0 + 545140134.0 * k)
+#         deno = fac(3 * k) * (fac(k) ** 3) * (640320.0 ** (3 * k))
+#         pi += t / deno
+#         k += 1
+#     }
+#     pi = pi * 12 / (640320 ** 1.5)
+#     pi = 1.0 / pi
+#     return pi
+# }
 
 # print(1.0 % 0.3)
 # print(calc(350))
-raise ValueError('hello, world')
+class Foo : ValueError {}
+raise Foo('hello, world')
