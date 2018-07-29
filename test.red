@@ -86,35 +86,30 @@ def test()
 {
     try 
     {
-        # print('in try')
-        raise ValueError('hello, world')
+        print('in try')
+        return 'hello, world'
     }
-    except (ValueError) 
+    finally
     {
-        # print('caught')
+        print('in finally')
     }
-    # finally
-    # {
-    #     # raise TypeError('nested')
-    #     print('in finally')
-    # }
 }
 
 def foo()
 {
     try
     {
-        test()
+        print(test())
     }
-    except (TypeError as f)
+    except (Exception as f)
     {
-        # print('in outer except')
-        # print(f)
+        print('in outer except')
+        print(f)
     }
-    # finally
-    # {
-        # raise AttributeError('also nested')
-    # }
+    finally
+    {
+        raise AttributeError('also nested')
+    }
 }
 
 try
@@ -123,7 +118,7 @@ try
 }
 except (Exception as e)
 {
-    # print('exception traceback below:')
-    # print()
-    # print(e.__traceback__())
+    print('exception traceback below:')
+    print()
+    print(e.__traceback__())
 }

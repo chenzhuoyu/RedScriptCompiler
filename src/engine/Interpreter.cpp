@@ -19,8 +19,8 @@ namespace RedScript::Engine
 namespace
 {
 static const size_t EF_INIT     = 0x00;
-static const size_t EF_CAUGHT   = 0x01;
-static const size_t EF_HANDLING = 0x02;
+static const size_t EF_FIRED    = 0x01;
+static const size_t EF_CAUGHT   = 0x02;
 static const size_t EF_FINALLY  = 0x04;
 
 struct Block
@@ -1027,14 +1027,14 @@ Runtime::ObjectRef Interpreter::eval(void)
             case OpCode::EXC_STORE:
             {
                 /* local ID and jump offset */
-                uint32_t index = 0;
-                uint32_t start = frame->pc();
-                uint32_t offset = frame->nextOperand();
+                size_t start = frame->pc();
+                int32_t offset = frame->nextOperand();
+                uint32_t eindex = UINT32_MAX;
 
                 /* extract the local ID as needed */
                 if (opcode == OpCode::EXC_STORE)
-                    if ((index = frame->nextOperand()) >= _locals.size())
-                        throw Runtime::Exceptions::InternalError(Utils::Strings::format("Local ID %u out of range", index));
+                    if ((eindex = frame->nextOperand()) >= _locals.size())
+                        throw Runtime::Exceptions::InternalError(Utils::Strings::format("Local ID %u out of range", eindex));
 
                 /* check for exception blocks */
                 if (blocks.empty())
@@ -1069,7 +1069,7 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                 /* save the exception object as needed */
                 if (opcode == OpCode::EXC_STORE)
-                    _locals[index] = exception;
+                    _locals[eindex] = exception;
 
                 /* set the "matched" flag */
                 blocks.top().flags |= EF_CAUGHT;
@@ -1131,7 +1131,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                 }
 
                 /* exceptions occured but not handled, rethrow the exception */
-                if (block.flags && !(block.flags & EF_CAUGHT))
+                if ((block.flags & EF_FIRED) && !(block.flags & EF_CAUGHT))
                     throw block.exception;
 
                 /* we got an return value, flush remaining blocks if any */
@@ -1528,10 +1528,10 @@ Runtime::ObjectRef Interpreter::eval(void)
             }
 
             /* the first time exception occures */
-            if (!(block->flags & EF_HANDLING))
+            if (!(block->flags & EF_FIRED))
             {
                 /* set handing flags and exception object */
-                block->flags |= EF_HANDLING;
+                block->flags |= EF_FIRED;
                 block->exception = std::move(exc);
 
                 /* unwind the stack to the position before entering
