@@ -1556,7 +1556,9 @@ Runtime::ObjectRef Interpreter::eval(void)
             /* exceptions occured in "finally" block */
             else
             {
-                /* no more rescure blocks, we cannot handle it, propagate to parent */
+                /* no more rescure blocks, we cannot handle it, propagate to parent;
+                 * must write "throw exc" here, cause a single "throw" will lose the
+                 * exception chaining information */
                 if (blocks.size() == 1)
                     throw exc;
 
