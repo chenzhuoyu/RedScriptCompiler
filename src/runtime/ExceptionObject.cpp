@@ -54,11 +54,31 @@ ObjectRef ExceptionType::nativeObjectInit(ObjectRef self, Reference<TupleObject>
 
 void ExceptionType::shutdown(void)
 {
-    /* built-in base exceptions */
+    /* shutdown all built-in non-error exceptions */
+    StopIterationTypeObject->typeShutdown();
+    SystemExitTypeObject->typeShutdown();
+
+    /* shutdown all built-in exception objects */
+    NativeSyntaxErrorTypeObject->typeShutdown();
+    ZeroDivisionErrorTypeObject->typeShutdown();
+    AttributeErrorTypeObject->typeShutdown();
+    InternalErrorTypeObject->typeShutdown();
+    RuntimeErrorTypeObject->typeShutdown();
+    SyntaxErrorTypeObject->typeShutdown();
+    ValueErrorTypeObject->typeShutdown();
+    IndexErrorTypeObject->typeShutdown();
+    TypeErrorTypeObject->typeShutdown();
+    NameErrorTypeObject->typeShutdown();
+
+    /* shutdown all built-in base exceptions */
+    BaseExceptionTypeObject->typeShutdown();
+    ExceptionTypeObject->typeShutdown();
+
+    /* clear all built-in base exceptions */
     ExceptionTypeObject = nullptr;
     BaseExceptionTypeObject = nullptr;
 
-    /* built-in exception objects */
+    /* clear all built-in exception objects */
     NameErrorTypeObject = nullptr;
     TypeErrorTypeObject = nullptr;
     IndexErrorTypeObject = nullptr;
@@ -70,7 +90,7 @@ void ExceptionType::shutdown(void)
     ZeroDivisionErrorTypeObject = nullptr;
     NativeSyntaxErrorTypeObject = nullptr;
 
-    /* built-in non-error exceptions */
+    /* clear all built-in non-error exceptions */
     SystemExitTypeObject = nullptr;
     StopIterationTypeObject = nullptr;
 }
@@ -111,6 +131,26 @@ void ExceptionType::initialize(void)
     /* native syntax error, it's a sub-class of `SyntaxError` */
     static ExceptionType nativeSyntaxErrorType("NativeSyntaxError", SyntaxErrorTypeObject);
     NativeSyntaxErrorTypeObject = Reference<ExceptionType>::refStatic(nativeSyntaxErrorType);
+
+    /* built-in base exceptions */
+    ExceptionTypeObject->typeInitialize();
+    BaseExceptionTypeObject->typeInitialize();
+
+    /* built-in exception objects */
+    NameErrorTypeObject->typeInitialize();
+    TypeErrorTypeObject->typeInitialize();
+    IndexErrorTypeObject->typeInitialize();
+    ValueErrorTypeObject->typeInitialize();
+    SyntaxErrorTypeObject->typeInitialize();
+    RuntimeErrorTypeObject->typeInitialize();
+    InternalErrorTypeObject->typeInitialize();
+    AttributeErrorTypeObject->typeInitialize();
+    ZeroDivisionErrorTypeObject->typeInitialize();
+    NativeSyntaxErrorTypeObject->typeInitialize();
+
+    /* built-in non-error exceptions */
+    SystemExitTypeObject->typeInitialize();
+    StopIterationTypeObject->typeInitialize();
 }
 
 #undef DECL_EXC

@@ -58,22 +58,8 @@ void shutdown(void)
 {
     /** clear built-in attributes and functions **/
 
-    /* shutdown built-in globals */
+    /* shutdown built-in globals and exceptions */
     Engine::Builtins::shutdown();
-
-    /* built-in exceptions */
-    // TODO: complete the exception list
-    Runtime::NativeSyntaxErrorTypeObject->typeShutdown();
-    Runtime::ZeroDivisionErrorTypeObject->typeShutdown();
-    Runtime::AttributeErrorTypeObject->typeShutdown();
-    Runtime::StopIterationTypeObject->typeShutdown();
-    Runtime::BaseExceptionTypeObject->typeShutdown();
-    Runtime::RuntimeErrorTypeObject->typeShutdown();
-    Runtime::SyntaxErrorTypeObject->typeShutdown();
-    Runtime::ValueErrorTypeObject->typeShutdown();
-    Runtime::IndexErrorTypeObject->typeShutdown();
-    Runtime::TypeErrorTypeObject->typeShutdown();
-    Runtime::NameErrorTypeObject->typeShutdown();
     Runtime::ExceptionType::shutdown();
 
     /* generic objects */
@@ -191,21 +177,8 @@ void initialize(size_t stack)
     Runtime::UnboundMethodTypeObject->typeInitialize();
     Runtime::NativeFunctionTypeObject->typeInitialize();
 
-    /* built-in exceptions */
+    /* built-in globals and exceptions */
     Runtime::ExceptionType::initialize();
-    Runtime::NameErrorTypeObject->typeInitialize();
-    Runtime::TypeErrorTypeObject->typeInitialize();
-    Runtime::IndexErrorTypeObject->typeInitialize();
-    Runtime::ValueErrorTypeObject->typeInitialize();
-    Runtime::SyntaxErrorTypeObject->typeInitialize();
-    Runtime::RuntimeErrorTypeObject->typeInitialize();
-    Runtime::BaseExceptionTypeObject->typeInitialize();
-    Runtime::StopIterationTypeObject->typeInitialize();
-    Runtime::AttributeErrorTypeObject->typeInitialize();
-    Runtime::ZeroDivisionErrorTypeObject->typeInitialize();
-    Runtime::NativeSyntaxErrorTypeObject->typeInitialize();
-
-    /* built-in globals */
     Engine::Builtins::initialize();
 }
 }
