@@ -351,7 +351,7 @@ void CodeGenerator::visitNative(const std::unique_ptr<AST::Native> &node)
 void CodeGenerator::visitSwitch(const std::unique_ptr<AST::Switch> &node)
 {
     /* build switch expression */
-    std::vector<uint32_t> jumps;
+    std::vector<uint32_t> jumps = {};
     visitExpression(node->expr);
 
     /* generate each case values */
@@ -365,7 +365,7 @@ void CodeGenerator::visitSwitch(const std::unique_ptr<AST::Switch> &node)
 
     /* default value jump */
     uint32_t def = emitJump(node, Engine::OpCode::BR);
-    std::vector<uint32_t> breaks;
+    std::vector<uint32_t> breaks = {};
 
     /* generate each case body */
     for (size_t i = 0; i < jumps.size(); i++)

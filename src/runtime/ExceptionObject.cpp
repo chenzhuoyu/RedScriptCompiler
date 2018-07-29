@@ -149,17 +149,91 @@ ExceptionObject::ExceptionObject(TypeRef type, const std::string &message) : Obj
     /* traverse each frame */
     for (size_t i = 0; i < size; i++)
     {
+        /* basic traceback properties */
         _traceback[i].row  = stack[i]->line().first;
         _traceback[i].col  = stack[i]->line().second;
         _traceback[i].file = stack[i]->file();
         _traceback[i].name = stack[i]->name();
+
+        /* source line, if available */
+        if ((_traceback[i].row > 0) &&
+            (_traceback[i].row <= stack[i]->lines()))
+            _traceback[i].line = stack[i]->source(_traceback[i].row - 1);
     }
 }
 
 std::string ExceptionObject::format(void) const
 {
-    // TODO: implement this
-    return std::string();
+    /* exception pointer and text */
+    auto exc = this;
+    std::vector<std::string> lines = {};
+
+    /* dump the exception tree */
+    while (exc)
+    {
+        /* add a clause if not the first exception */
+        if (!(lines.empty()))
+        {
+            lines.emplace_back("");
+            lines.emplace_back("When handling another exception:");
+            lines.emplace_back("");
+        }
+
+        /* exception header */
+        lines.emplace_back("Traceback (most recent call last):");
+
+        /* append every traceback */
+        for (const auto &tb : exc->_traceback)
+        {
+            /* traceback line */
+            lines.emplace_back(Utils::Strings::format(
+                "  File \"%s\", line %d, in %s",
+                tb.file,
+                tb.row,
+                tb.name
+            ));
+
+            /* source line, if available */
+            if (!(tb.line.empty()))
+            {
+                /* source line */
+                std::string source = tb.line;
+                Utils::Strings::strip(source);
+                lines.emplace_back(Utils::Strings::format("    %s", source));
+
+                /* trimed line length and orignal line length */
+                ssize_t slen = source.size();
+                ssize_t delta = tb.line.size() - slen;
+
+                /* column marker, if available */
+                if (tb.col >= delta)
+                {
+                    if (tb.col == delta)
+                    {
+                        lines.emplace_back(Utils::Strings::format(
+                            "    ^%s",
+                            std::string(static_cast<size_t>(slen - 1), '~')
+                        ));
+                    }
+                    else
+                    {
+                        lines.emplace_back(Utils::Strings::format(
+                            "    %s^%s",
+                            std::string(static_cast<size_t>(tb.col - delta - 1), '~'),
+                            std::string(static_cast<size_t>(slen - tb.col + delta), '~')
+                        ));
+                    }
+                }
+            }
+        }
+
+        /* add the tail line, and move to parent exception */
+        lines.emplace_back(exc->what());
+        exc = exc->_parent.get();
+    }
+
+    /* join them together */
+    return Utils::Strings::join(lines, "\n");
 }
 
 /** Special Exception :: NameError **/

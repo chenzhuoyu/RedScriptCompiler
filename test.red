@@ -82,13 +82,48 @@
 # print(calc(350))
 class Foo : ValueError {}
 
+def test()
+{
+    try 
+    {
+        # print('in try')
+        raise ValueError('hello, world')
+    }
+    except (ValueError) 
+    {
+        # print('caught')
+    }
+    # finally
+    # {
+    #     # raise TypeError('nested')
+    #     print('in finally')
+    # }
+}
+
+def foo()
+{
+    try
+    {
+        test()
+    }
+    except (TypeError as f)
+    {
+        # print('in outer except')
+        # print(f)
+    }
+    # finally
+    # {
+        # raise AttributeError('also nested')
+    # }
+}
+
 try
 {
-    try raise ValueError('hello, world')
-    except (ValueError as e) print(e)
-    finally raise TypeError('nested')
+    foo()
 }
-except (TypeError as f)
+except (Exception as e)
 {
-    print(f)
+    # print('exception traceback below:')
+    # print()
+    # print(e.__traceback__())
 }

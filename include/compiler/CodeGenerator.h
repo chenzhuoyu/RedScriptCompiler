@@ -39,9 +39,9 @@ private:
         std::stack<std::vector<uint32_t>> continueStack;
 
     public:
-        GenerationFrame(CodeType type, const std::string &file) :
+        GenerationFrame(CodeType type, const std::string &file, const std::string &source) :
             type(type),
-            code(Runtime::Object::newObject<Runtime::CodeObject>(file)) {}
+            code(Runtime::Object::newObject<Runtime::CodeObject>(file, source)) {}
 
     };
 
@@ -51,12 +51,16 @@ private:
 
 private:
     std::string _file;
+    std::string _source;
     std::vector<GenerationFrame> _frames;
     std::unique_ptr<AST::CompoundStatement> _block;
 
 public:
-    virtual ~CodeGenerator() = default;
-    explicit CodeGenerator(std::unique_ptr<AST::CompoundStatement> &&block, const std::string &file) : _file(file), _block(std::move(block)) {}
+    explicit CodeGenerator(
+        const std::string &file,
+        const std::string &source,
+        std::unique_ptr<AST::CompoundStatement> &&block
+    ) : _file(file), _source(source), _block(std::move(block)) {}
 
 private:
     inline auto &code(void) { return _frames.back().code; }
@@ -107,7 +111,7 @@ private:
 
     public:
        ~CodeFrame() { if (!_left) _self->_frames.pop_back(); }
-        CodeFrame(CodeGenerator *self, CodeType type) : _left(false), _self(self) { self->_frames.emplace_back(type, _self->_file); }
+        CodeFrame(CodeGenerator *self, CodeType type) : _left(false), _self(self) { self->_frames.emplace_back(type, _self->_file, _self->_source); }
 
     public:
         GenerationFrame::CodeReference leave(void)
@@ -283,7 +287,7 @@ public:
     static Runtime::Reference<Runtime::CodeObject> compile(const std::string &source, const std::string &filename)
     {
         Parser parser(std::make_unique<Tokenizer>(source));
-        return CodeGenerator(parser.parse(), filename).build();
+        return CodeGenerator(filename, source, parser.parse()).build();
     }
 };
 }

@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "utils/Strings.h"
 #include "engine/Bytecode.h"
 #include "runtime/Object.h"
 
@@ -40,6 +41,7 @@ private:
     std::vector<std::string> _args;
     std::vector<std::string> _names;
     std::vector<std::string> _locals;
+    std::vector<std::string> _sources;
     std::vector<Runtime::ObjectRef> _consts;
     std::vector<std::pair<int, int>> _lineNums;
 
@@ -51,7 +53,8 @@ private:
 
 public:
     virtual ~CodeObject() = default;
-    explicit CodeObject(const std::string &file) : Object(CodeTypeObject), _file(file) {}
+    explicit CodeObject(const std::string &file, const std::string &source) :
+        Object(CodeTypeObject), _file(file) { Utils::Strings::split(_sources, source, "\n"); }
 
 public:
     const std::string &file(void) const { return _file; }
@@ -63,6 +66,7 @@ public:
     std::vector<std::string> &args(void) { return _args; }
     std::vector<std::string> &names(void) { return _names; }
     std::vector<std::string> &locals(void) { return _locals; }
+    std::vector<std::string> &sources(void) { return _sources; }
     std::vector<Runtime::ObjectRef> &consts(void) { return _consts; }
     std::vector<std::pair<int, int>> &lineNums(void) { return _lineNums; }
 

@@ -30,15 +30,19 @@ public:
     private:
         Code _code;
         Name _name;
-        std::pair<int, int> *_lines;
+        size_t _lines;
+        std::string *_sources;
+        std::pair<int, int> *_lineNums;
 
     public:
         Frame(Name name, Code &&code) : _name(name), _code(std::move(code))
         {
-            _pc    = _code->buffer().data();
-            _end   = _code->buffer().data() + _code->buffer().size();
-            _begin = _code->buffer().data();
-            _lines = _code->lineNums().data();
+            _pc       = _code->buffer().data();
+            _end      = _code->buffer().data() + _code->buffer().size();
+            _begin    = _code->buffer().data();
+            _lines    = _code->sources().size();
+            _sources  = _code->sources().data();
+            _lineNums = _code->lineNums().data();
         }
 
     public:
@@ -48,14 +52,18 @@ public:
             _end = nullptr;
             _code = nullptr;
             _begin = nullptr;
-            _lines = nullptr;
+            _lineNums = nullptr;
         }
 
     public:
         inline size_t pc(void) const { return _pc - _begin; }
+        inline size_t lines(void) const { return _lines; }
+
+    public:
         inline const auto &name(void) const { return _name; }
         inline const auto &file(void) const { return _code->file(); }
-        inline const auto &line(void) const { return _lines[_pc - _begin]; }
+        inline const auto &line(void) const { return _lineNums[pc()]; }
+        inline const auto &source(int line) const { return _sources[line]; }
 
     public:
         inline void jumpBy(int32_t offset) __attribute__((always_inline))

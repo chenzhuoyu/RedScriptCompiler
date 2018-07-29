@@ -1028,6 +1028,7 @@ Runtime::ObjectRef Interpreter::eval(void)
             {
                 /* local ID and jump offset */
                 uint32_t index = 0;
+                uint32_t start = frame->pc();
                 uint32_t offset = frame->nextOperand();
 
                 /* extract the local ID as needed */
@@ -1050,7 +1051,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                 /* not even a type */
                 if (type->isNotInstanceOf(Runtime::TypeObject))
                 {
-                    frame->jumpBy(offset);
+                    frame->jumpTo(start + offset - 1);
                     break;
                 }
 
@@ -1062,7 +1063,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                  * checker to prevent user from overriding "__is_subclass_of__" */
                 if (!(Runtime::TypeObject->nativeObjectIsSubclassOf(exception->type(), etype)))
                 {
-                    frame->jumpBy(offset);
+                    frame->jumpTo(start + offset - 1);
                     break;
                 }
 
@@ -1089,6 +1090,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                 block.flags = EF_INIT;
                 block.except = start + except - 1;
                 block.finally = start + finally - 1;
+                block.exception = nullptr;
 
                 /* push to block stack */
                 blocks.push(std::move(block));

@@ -5,6 +5,12 @@
 
 namespace RedScript::Utils::Strings
 {
+void strip(std::string &string)
+{
+    string.erase(string.begin(), std::find_if_not(string.begin(), string.end(), [](int v){ return std::isspace(v); }));
+    string.erase(std::find_if_not(string.rbegin(), string.rend(), [](int v){ return std::isspace(v); }).base(), string.end());
+}
+
 void lower(std::string &string)
 {
     /* transform string in-place */
@@ -14,6 +20,22 @@ void lower(std::string &string)
         string.begin(),
         [](int c){ return std::tolower(c); }
     );
+}
+
+void split(std::vector<std::string> &result, const std::string &str, const std::string &delim)
+{
+    size_t end = 0;
+    size_t start = 0;
+
+    /* find every delimiter */
+    while ((end = str.find(delim, start)) != std::string::npos)
+    {
+        result.push_back(str.substr(start, end - start));
+        start = end + delim.size();
+    }
+
+    /* the last part */
+    result.push_back(str.substr(start));
 }
 
 std::string repr(const void *data, size_t size)

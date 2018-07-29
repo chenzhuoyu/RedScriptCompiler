@@ -35,6 +35,7 @@ class ExceptionObject : public Object
         int row;
         int col;
         std::string file;
+        std::string line;
         std::string name;
     };
 

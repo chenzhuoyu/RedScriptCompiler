@@ -61,21 +61,28 @@ void Builtins::shutdown(void)
 void Builtins::initialize(void)
 {
     /* built-in objects */
-    Globals.emplace("type"  , Closure::ref(Runtime::TypeObject));
-    Globals.emplace("object", Closure::ref(Runtime::ObjectTypeObject));
+    Globals.emplace("type"              , Closure::ref(Runtime::TypeObject));
+    Globals.emplace("object"            , Closure::ref(Runtime::ObjectTypeObject));
 
-    /* built-in exceptions */
+    /* built-in base exceptions */
+    Globals.emplace("Exception"         , Closure::ref(Runtime::ExceptionTypeObject));
+    Globals.emplace("BaseException"     , Closure::ref(Runtime::BaseExceptionTypeObject));
+
+    /* built-in exception objects */
     Globals.emplace("NameError"         , Closure::ref(Runtime::NameErrorTypeObject));
     Globals.emplace("TypeError"         , Closure::ref(Runtime::TypeErrorTypeObject));
     Globals.emplace("IndexError"        , Closure::ref(Runtime::IndexErrorTypeObject));
     Globals.emplace("ValueError"        , Closure::ref(Runtime::ValueErrorTypeObject));
     Globals.emplace("SyntaxError"       , Closure::ref(Runtime::SyntaxErrorTypeObject));
     Globals.emplace("RuntimeError"      , Closure::ref(Runtime::RuntimeErrorTypeObject));
-    Globals.emplace("BaseException"     , Closure::ref(Runtime::BaseExceptionTypeObject));
-    Globals.emplace("StopIteration"     , Closure::ref(Runtime::StopIterationTypeObject));
+    Globals.emplace("InternalError"     , Closure::ref(Runtime::InternalErrorTypeObject));
     Globals.emplace("AttributeError"    , Closure::ref(Runtime::AttributeErrorTypeObject));
     Globals.emplace("ZeroDivisionError" , Closure::ref(Runtime::ZeroDivisionErrorTypeObject));
     Globals.emplace("NativeSyntaxError" , Closure::ref(Runtime::NativeSyntaxErrorTypeObject));
+
+    /* built-in non-error exceptions */
+    Globals.emplace("SystemExit"        , Closure::ref(Runtime::SystemExitTypeObject));
+    Globals.emplace("StopIteration"     , Closure::ref(Runtime::StopIterationTypeObject));
 
     /* built-in print function */
     Globals.emplace(
