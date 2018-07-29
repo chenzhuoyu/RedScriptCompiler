@@ -563,12 +563,23 @@ Runtime::ObjectRef Interpreter::eval(void)
                 if (!(_stack.empty()))
                     throw Runtime::Exceptions::InternalError("Stack not empty when return");
 
-                /* if we have exception rescure blocks remaining,
-                 * we should execute their "finally" blocks before returning */
+                /* returning in "finally" block, override the
+                 * previous return action and leave the rescure block */
+                while (!(blocks.empty()) && (blocks.top().flags & EF_FINALLY))
+                    blocks.pop();
+
+                /* no "finally" blocks remaining, we can "safely" return now;
+                 * well, sort of, this might silently swallow the exception that
+                 * previously thrown, should we rethrow the exception before return?
+                 *
+                 * Python do swallow the exception when returning from a "finally" block,
+                 * and that's not a good design in my point of view; but on the other hand,
+                 * programmers should NOT returning from "finally" blocks in the first place */
                 if (blocks.empty())
                     return std::move(returnValue);
 
-                /* jump to the nearest block */
+                /* still have exception rescure blocks remaining,
+                 * execute their "finally" blocks before returning */
                 frame->jumpTo(blocks.top().finally);
                 break;
             }

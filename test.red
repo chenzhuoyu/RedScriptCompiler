@@ -80,45 +80,11 @@
 
 # print(1.0 % 0.3)
 # print(calc(350))
-class Foo : ValueError {}
 
 def test()
 {
-    try 
-    {
-        print('in try')
-        return 'hello, world'
-    }
-    finally
-    {
-        print('in finally')
-    }
+    try fuck
+    finally return 'should be no exceptions'
 }
 
-def foo()
-{
-    try
-    {
-        print(test())
-    }
-    except (Exception as f)
-    {
-        print('in outer except')
-        print(f)
-    }
-    finally
-    {
-        raise AttributeError('also nested')
-    }
-}
-
-try
-{
-    foo()
-}
-except (Exception as e)
-{
-    print('exception traceback below:')
-    print()
-    print(e.__traceback__())
-}
+print(test())
