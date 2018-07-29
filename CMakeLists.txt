@@ -83,24 +83,11 @@ set(SOURCE_FILES
         include/engine/Interpreter.h
         include/engine/Memory.h
         include/engine/Thread.h
-        include/exceptions/AttributeError.h
-        include/exceptions/BaseException.h
-        include/exceptions/IndexError.h
-        include/exceptions/InternalError.h
-        include/exceptions/NameError.h
-        include/exceptions/NativeSyntaxError.h
-        include/exceptions/RuntimeError.h
-        include/exceptions/StopIteration.h
-        include/exceptions/SyntaxError.h
-        include/exceptions/TypeError.h
-        include/exceptions/ValueError.h
-        include/exceptions/ZeroDivisionError.h
         include/runtime/ArrayObject.h
         include/runtime/BoolObject.h
         include/runtime/BoundMethodObject.h
         include/runtime/CodeObject.h
         include/runtime/DecimalObject.h
-        include/runtime/ExceptionBlockObject.h
         include/runtime/ExceptionObject.h
         include/runtime/FunctionObject.h
         include/runtime/IntObject.h
@@ -135,13 +122,11 @@ set(SOURCE_FILES
         src/engine/GarbageCollector.cpp
         src/engine/Interpreter.cpp
         src/engine/Memory.cpp
-        src/exceptions/BaseException.cpp
         src/runtime/ArrayObject.cpp
         src/runtime/BoolObject.cpp
         src/runtime/BoundMethodObject.cpp
         src/runtime/CodeObject.cpp
         src/runtime/DecimalObject.cpp
-        src/runtime/ExceptionBlockObject.cpp
         src/runtime/ExceptionObject.cpp
         src/runtime/FunctionObject.cpp
         src/runtime/IntObject.cpp
@@ -160,7 +145,7 @@ set(SOURCE_FILES
         src/utils/Integer.cpp
         src/utils/Strings.cpp
         src/RedScript.cpp
-        src/main.cpp include/exceptions/UserDefinedError.h)
+        src/main.cpp)
 
 add_executable(rsc ${SOURCE_FILES})
 target_link_libraries(rsc bid_${CMAKE_SYSTEM_NAME} mpir_${CMAKE_SYSTEM_NAME} dl fmt jemalloc)

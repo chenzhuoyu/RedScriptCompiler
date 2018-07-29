@@ -19,6 +19,7 @@
 #include "runtime/CodeObject.h"
 #include "runtime/NullObject.h"
 #include "runtime/TupleObject.h"
+#include "runtime/ExceptionObject.h"
 #include "runtime/NativeFunctionObject.h"
 
 static void dis(RedScript::Runtime::Reference<RedScript::Runtime::CodeObject> code)
@@ -58,28 +59,35 @@ static void dis(RedScript::Runtime::Reference<RedScript::Runtime::CodeObject> co
     const char *e = code->buffer().data() + code->buffer().size();
     while (p < e)
     {
-        uint8_t op = (uint8_t)*p;
         auto line = code->lineNums()[p - s];
+        uint8_t op = (uint8_t)*p++;
 
-        if (!(RedScript::Engine::OpCodeFlags[op] & (RedScript::Engine::OP_V | RedScript::Engine::OP_V2)))
-            printf("%.4lx %3d:%-3d %15s\n", p - s, line.first, line.second, RedScript::Engine::OpCodeNames[op]);
-        else if (!(RedScript::Engine::OpCodeFlags[op] & RedScript::Engine::OP_V2))
+        /* mnemonic */
+        printf("%.4lx %3d:%-3d %15s", p - s - 1, line.first, line.second, RedScript::Engine::OpCodeNames[op]);
+
+        /* operand 1 */
+        if (RedScript::Engine::OpCodeFlags[op] & RedScript::Engine::OP_V)
         {
-            int32_t opv = *(int32_t *)(p + 1);
-            if (!(RedScript::Engine::OpCodeFlags[op] & RedScript::Engine::OP_REL))
-                printf("%.4lx %3d:%-3d %15s    %d\n", p - s, line.first, line.second, RedScript::Engine::OpCodeNames[op], opv);
+            int32_t opv = *(int32_t *)p;
+            if (!(RedScript::Engine::OpCodeFlags[op] & RedScript::Engine::OP_REL1))
+                printf("    %d", opv);
             else
-                printf("%.4lx %3d:%-3d %15s    %d -> %#lx\n", p - s, line.first, line.second, RedScript::Engine::OpCodeNames[op], opv, p - s + opv);
+                printf("    %d -> %#lx", opv, p - s + opv - 1);
             p += sizeof(int32_t);
         }
-        else
+
+        /* operand 2 */
+        if (RedScript::Engine::OpCodeFlags[op] & RedScript::Engine::OP_V2)
         {
-            int32_t opv = *(int32_t *)(p + 1);
-            int32_t opv2 = *(int32_t *)(p + 5);
-            printf("%.4lx %3d:%-3d %15s    %d, %d\n", p - s, line.first, line.second, RedScript::Engine::OpCodeNames[op], opv, opv2);
-            p += sizeof(int32_t) * 2;
+            int32_t opv = *(int32_t *)p;
+            if (!(RedScript::Engine::OpCodeFlags[op] & RedScript::Engine::OP_REL2))
+                printf(", %d", opv);
+            else
+                printf(", %d -> %#lx", opv, p - s + opv - sizeof(int32_t) - 1);
+            p += sizeof(int32_t);
         }
-        p++;
+
+        printf("\n");
     }
     printf("%.4lx  (HALT)\n", e - s);
 

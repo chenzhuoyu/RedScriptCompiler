@@ -1,8 +1,8 @@
+#include "runtime/ExceptionObject.h"
 #include "runtime/BoundMethodObject.h"
 #include "runtime/UnboundMethodObject.h"
 
 #include "utils/NFI.h"
-#include "exceptions/TypeError.h"
 
 namespace RedScript::Runtime
 {

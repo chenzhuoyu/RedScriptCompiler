@@ -17,14 +17,11 @@
 #include "runtime/TupleObject.h"
 #include "runtime/StringObject.h"
 #include "runtime/DecimalObject.h"
+#include "runtime/ExceptionObject.h"
 
 #include "utils/Decimal.h"
 #include "utils/Integer.h"
 #include "utils/Strings.h"
-#include "exceptions/TypeError.h"
-#include "exceptions/ValueError.h"
-#include "exceptions/StopIteration.h"
-#include "exceptions/InternalError.h"
 
 /*** Native Function Interface ***/
 
@@ -238,9 +235,9 @@ struct Boxer<std::unordered_map<Key, Value>>
 /** Object Unboxer **/
 
 template <size_t I>
-static inline Exceptions::TypeError TypeCheckFailed(Runtime::TypeRef type, const std::string &name, Runtime::ObjectRef object)
+static inline Runtime::Exceptions::TypeError TypeCheckFailed(Runtime::TypeRef type, const std::string &name, Runtime::ObjectRef object)
 {
-    return Exceptions::TypeError(Utils::Strings::format(
+    return Runtime::Exceptions::TypeError(Utils::Strings::format(
         "Argument at position %zu%s must be a \"%s\" object, not \"%s\"",
         I,
         name.empty() ? "" : Utils::Strings::format("(%s)", name),
@@ -250,9 +247,9 @@ static inline Exceptions::TypeError TypeCheckFailed(Runtime::TypeRef type, const
 }
 
 template <size_t I>
-static inline Exceptions::ValueError ValueCheckFailed(Runtime::ObjectRef object, const std::string &name)
+static inline Runtime::Exceptions::ValueError ValueCheckFailed(Runtime::ObjectRef object, const std::string &name)
 {
-    return Exceptions::ValueError(Utils::Strings::format(
+    return Runtime::Exceptions::ValueError(Utils::Strings::format(
         "Argument at position %zu%s holds an invalid value : %s",
         I,
         name.empty() ? "" : Utils::Strings::format("(%s)", name),
@@ -341,7 +338,7 @@ struct UnboxerHelper<I, false, false, Runtime::Reference<T>>
         catch (const std::bad_cast &)
         {
             /* not convertible */
-            throw Exceptions::TypeError(Utils::Strings::format(
+            throw Runtime::Exceptions::TypeError(Utils::Strings::format(
                 "Argument at position %zu%s cannot be a \"%s\" object",
                 I,
                 name.empty() ? "" : Utils::Strings::format("(%s)", name),
@@ -569,7 +566,7 @@ struct Unboxer<I, std::vector<Item>>
             }
         }
 
-            /* generic iterable object */
+        /* generic iterable object */
         else
         {
             /* convert to iterator */
@@ -588,8 +585,8 @@ struct Unboxer<I, std::vector<Item>>
                 }
             }
 
-                /* this exception is expected */
-            catch (const Exceptions::StopIteration &)
+            /* this exception is expected */
+            catch (const Runtime::Exceptions::StopIteration &)
             {
                 /* `StopIteration` is expected, we use this
                  * to identify iteration is over, so ignore it */
@@ -622,7 +619,7 @@ struct MapUnboxer
             });
         }
 
-            /* generic iterable object */
+        /* generic iterable object */
         else
         {
             /* convert to iterator */
@@ -640,7 +637,7 @@ struct MapUnboxer
                     /* must be a pair of <key, value> */
                     if (item->isNotInstanceOf(Runtime::TupleTypeObject))
                     {
-                        throw Exceptions::TypeError(Utils::Strings::format(
+                        throw Runtime::Exceptions::TypeError(Utils::Strings::format(
                             "Argument at position %zu(%s[%zu]) must be a \"tuple\" object",
                             I,
                             name,
@@ -654,7 +651,7 @@ struct MapUnboxer
                     /* must have exact 2 items */
                     if (tuple->size() != 2)
                     {
-                        throw Exceptions::TypeError(Utils::Strings::format(
+                        throw Runtime::Exceptions::TypeError(Utils::Strings::format(
                             "Argument at position %zu(%s[%zu]) must be a \"tuple\" object of two elements",
                             I,
                             name,
@@ -673,8 +670,8 @@ struct MapUnboxer
                 }
             }
 
-                /* this exception is expected */
-            catch (const Exceptions::StopIteration &)
+            /* this exception is expected */
+            catch (const Runtime::Exceptions::StopIteration &)
             {
                 /* `StopIteration` is expected, we use this
                  * to identify iteration is over, so ignore it */
@@ -744,7 +741,7 @@ struct ArgumentPackUnboxer<I, T, Args ...>
             /* oterwise it's an error */
             else
             {
-                throw Exceptions::TypeError(Utils::Strings::format(
+                throw Runtime::Exceptions::TypeError(Utils::Strings::format(
                     "Missing required argument at position %zu%s",
                     I,
                     name.empty() ? "" : Utils::Strings::format("(%s)", name)
@@ -772,7 +769,7 @@ struct ArgumentPackUnboxer<I>
         /* should have no keyword arguments left */
         if (kwargs->size())
         {
-            throw Exceptions::TypeError(Utils::Strings::format(
+            throw Runtime::Exceptions::TypeError(Utils::Strings::format(
                 "Function does not accept keyword argument \"%s\"",
                 kwargs->front()->type()->objectStr(kwargs->front())
             ));
@@ -781,7 +778,7 @@ struct ArgumentPackUnboxer<I>
         /* also should have no positional arguments left */
         if (I < args->size())
         {
-            throw Exceptions::TypeError(Utils::Strings::format(
+            throw Runtime::Exceptions::TypeError(Utils::Strings::format(
                 "Function takes %s %zu argument(s), but %zu given",
                 defaults.empty() ? "exact" : "at most",
                 keywords.size(),
@@ -851,6 +848,24 @@ struct MetaFunction<void, Args ...>
         std::apply(func, ArgsUnboxer<Args ...>::unbox(args, kwargs, keywords, defaults));
         return Runtime::NullObject;
     };
+};
+
+/** Meta Constructor **/
+
+template <typename T, typename ... Args>
+struct MetaConstructor
+{
+    static Runtime::Reference<T> construct(
+        VariadicArgs        &args,
+        KeywordArgs         &kwargs,
+        const KeywordNames  &keywords,
+        const DefaultValues &defaults)
+    {
+        return std::apply(
+            Runtime::Reference<T>::template newObject<Args ...>,
+            ArgsUnboxer<Args ...>::unbox(args, kwargs, keywords, defaults)
+        );
+    }
 };
 
 template <typename Class, typename ... Args>

@@ -81,4 +81,7 @@
 # print(1.0 % 0.3)
 # print(calc(350))
 class Foo : ValueError {}
-raise Foo('hello, world')
+
+try raise ValueError('hello, world')
+except (ValueError) fuck
+finally print('done')

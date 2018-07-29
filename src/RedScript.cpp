@@ -24,7 +24,6 @@
 #include "runtime/NativeClassObject.h"
 #include "runtime/UnboundMethodObject.h"
 #include "runtime/NativeFunctionObject.h"
-#include "runtime/ExceptionBlockObject.h"
 
 static void setStackSize(size_t stack)
 {
@@ -63,11 +62,21 @@ void shutdown(void)
     Engine::Builtins::shutdown();
 
     /* built-in exceptions */
-    Runtime::ExceptionWrapper::typeShutdown();
-    Runtime::ExceptionWrapper::shutdown();
+    // TODO: complete the exception list
+    Runtime::NativeSyntaxErrorTypeObject->typeShutdown();
+    Runtime::ZeroDivisionErrorTypeObject->typeShutdown();
+    Runtime::AttributeErrorTypeObject->typeShutdown();
+    Runtime::StopIterationTypeObject->typeShutdown();
+    Runtime::BaseExceptionTypeObject->typeShutdown();
+    Runtime::RuntimeErrorTypeObject->typeShutdown();
+    Runtime::SyntaxErrorTypeObject->typeShutdown();
+    Runtime::ValueErrorTypeObject->typeShutdown();
+    Runtime::IndexErrorTypeObject->typeShutdown();
+    Runtime::TypeErrorTypeObject->typeShutdown();
+    Runtime::NameErrorTypeObject->typeShutdown();
+    Runtime::ExceptionType::shutdown();
 
     /* generic objects */
-    Runtime::ExceptionBlockTypeObject->typeShutdown();
     Runtime::NativeFunctionTypeObject->typeShutdown();
     Runtime::UnboundMethodTypeObject->typeShutdown();
     Runtime::NativeClassTypeObject->typeShutdown();
@@ -95,7 +104,6 @@ void shutdown(void)
     /** shutdown objects **/
 
     /* generic objects */
-    Runtime::ExceptionBlockObject::shutdown();
     Runtime::NativeFunctionObject::shutdown();
     Runtime::UnboundMethodObject::shutdown();
     Runtime::NativeClassObject::shutdown();
@@ -155,7 +163,6 @@ void initialize(size_t stack)
     Runtime::NativeClassObject::initialize();
     Runtime::UnboundMethodObject::initialize();
     Runtime::NativeFunctionObject::initialize();
-    Runtime::ExceptionBlockObject::initialize();
 
     /** initialize built-in attributes and functions **/
 
@@ -183,11 +190,20 @@ void initialize(size_t stack)
     Runtime::NativeClassTypeObject->typeInitialize();
     Runtime::UnboundMethodTypeObject->typeInitialize();
     Runtime::NativeFunctionTypeObject->typeInitialize();
-    Runtime::ExceptionBlockTypeObject->typeInitialize();
 
     /* built-in exceptions */
-    Runtime::ExceptionWrapper::initialize();
-    Runtime::ExceptionWrapper::typeInitialize();
+    Runtime::ExceptionType::initialize();
+    Runtime::NameErrorTypeObject->typeInitialize();
+    Runtime::TypeErrorTypeObject->typeInitialize();
+    Runtime::IndexErrorTypeObject->typeInitialize();
+    Runtime::ValueErrorTypeObject->typeInitialize();
+    Runtime::SyntaxErrorTypeObject->typeInitialize();
+    Runtime::RuntimeErrorTypeObject->typeInitialize();
+    Runtime::BaseExceptionTypeObject->typeInitialize();
+    Runtime::StopIterationTypeObject->typeInitialize();
+    Runtime::AttributeErrorTypeObject->typeInitialize();
+    Runtime::ZeroDivisionErrorTypeObject->typeInitialize();
+    Runtime::NativeSyntaxErrorTypeObject->typeInitialize();
 
     /* built-in globals */
     Engine::Builtins::initialize();

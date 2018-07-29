@@ -5,11 +5,6 @@
 #include "runtime/BoolObject.h"
 #include "runtime/TupleObject.h"
 
-#include "exceptions/TypeError.h"
-#include "exceptions/IndexError.h"
-#include "exceptions/ValueError.h"
-#include "exceptions/InternalError.h"
-
 namespace RedScript::Runtime
 {
 /* type object for tuple and tuple iterator */

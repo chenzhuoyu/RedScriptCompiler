@@ -6,10 +6,9 @@
 
 #include "runtime/Object.h"
 #include "runtime/CodeObject.h"
+#include "runtime/ExceptionObject.h"
 
 #include "engine/Bytecode.h"
-#include "exceptions/RuntimeError.h"
-#include "exceptions/InternalError.h"
 
 namespace RedScript::Engine
 {
@@ -53,12 +52,13 @@ public:
         }
 
     public:
+        inline size_t pc(void) const { return _pc - _begin; }
         inline const auto &name(void) const { return _name; }
         inline const auto &file(void) const { return _code->file(); }
         inline const auto &line(void) const { return _lines[_pc - _begin]; }
 
     public:
-        inline void jump(int32_t offset) __attribute__((always_inline))
+        inline void jumpBy(int32_t offset) __attribute__((always_inline))
         {
             /* calculate the jump target */
             const char *p = _pc + offset;
@@ -66,17 +66,28 @@ public:
 
             /* check the jump address */
             if ((q < _begin) || (q >= _end))
-                throw Exceptions::InternalError("Jump outside of code");
+                throw Runtime::Exceptions::InternalError("Jump outside of code");
 
             /* set the instruction pointer */
             _pc = q;
         }
 
     public:
-        inline OpCode next(void) __attribute__((always_inline))
+        inline void jumpTo(size_t pc) __attribute__((always_inline))
+        {
+            /* check the jump address */
+            if (_begin + pc >= _end)
+                throw Runtime::Exceptions::InternalError("Jump outside of code");
+
+            /* set the instruction pointer */
+            _pc = _begin + pc;
+        }
+
+    public:
+        inline OpCode nextOpCode(void) __attribute__((always_inline))
         {
             if (_pc >= _end)
-                throw Exceptions::InternalError("Unexpected termination of bytecode stream");
+                throw Runtime::Exceptions::InternalError("Unexpected termination of bytecode stream");
             else
                 return static_cast<OpCode>(*_pc++);
         }
@@ -90,7 +101,7 @@ public:
 
             /* check for program counter */
             if (_pc >= _end)
-                throw Exceptions::InternalError("Unexpected end of bytecode");
+                throw Runtime::Exceptions::InternalError("Unexpected end of bytecode");
             else
                 return *reinterpret_cast<const uint32_t *>(p);
         }
@@ -123,7 +134,7 @@ public:
     inline Frame *framePush(Frame::Name name, Frame::Code &&code)
     {
         if (frames.size() >= MAX_RECURSION)
-            throw Exceptions::RuntimeError("Maximum recursion depth exceeded");
+            throw Runtime::Exceptions::RuntimeError("Maximum recursion depth exceeded");
         else
             return frames.emplace_back(std::make_unique<Frame>(name, std::move(code))).get();
     }

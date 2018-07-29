@@ -1,9 +1,6 @@
 #include "runtime/StringObject.h"
 #include "runtime/NativeClassObject.h"
 
-#include "exceptions/RuntimeError.h"
-#include "exceptions/InternalError.h"
-
 // TODO: remove this
 #include <iostream>
 
@@ -107,7 +104,7 @@ NativeClassObject::NativeClassObject(
     /* compile the code */
     if (tcc_compile_string_ex(_tcc, "<native>", code.data(), code.size()) < 0)
         for (const auto &ctx : _errors)
-            if (!ctx.isWarning())
+            if (!(ctx->isWarning()))
                 throw ctx;
 
     /* link the code in memory */

@@ -1,5 +1,5 @@
 #include "runtime/CodeObject.h"
-#include "exceptions/RuntimeError.h"
+#include "runtime/ExceptionObject.h"
 
 namespace RedScript::Runtime
 {
@@ -78,7 +78,7 @@ uint32_t CodeObject::emit(int row, int col, Engine::OpCode op)
     /* add to instruction buffer */
     _buffer.emplace_back(static_cast<uint8_t>(op));
     _lineNums.emplace_back(row, col);
-    return static_cast<uint32_t>(pc);
+    return static_cast<uint32_t>(pc) + 1;
 }
 
 uint32_t CodeObject::emitJump(int row, int col, Engine::OpCode op)
@@ -87,13 +87,13 @@ uint32_t CodeObject::emitJump(int row, int col, Engine::OpCode op)
     size_t pc = emit(row, col, op);
 
     /* check for operand space */
-    if (pc >= UINT32_MAX - sizeof(int32_t) - 1)
+    if (pc >= UINT32_MAX - sizeof(int32_t))
         throw Exceptions::RuntimeError("Code exceeds 4G limit");
 
     /* preserve space in instruction buffer */
-    _buffer.resize(pc + sizeof(int32_t) + 1);
+    _buffer.resize(pc + sizeof(int32_t));
     _lineNums.insert(_lineNums.end(), sizeof(int32_t), {row, col});
-    return static_cast<uint32_t>(pc) + 1;
+    return static_cast<uint32_t>(pc);
 }
 
 uint32_t CodeObject::emitOperand(int row, int col, Engine::OpCode op, int32_t v)
@@ -103,7 +103,7 @@ uint32_t CodeObject::emitOperand(int row, int col, Engine::OpCode op, int32_t v)
     size_t pc = emit(row, col, op);
 
     /* check for operand space */
-    if (pc >= UINT32_MAX - sizeof(int32_t) - 1)
+    if (pc >= UINT32_MAX - sizeof(int32_t))
         throw Exceptions::RuntimeError("Code exceeds 4G limit");
 
     /* add operand to instruction buffer */
@@ -120,7 +120,7 @@ uint32_t CodeObject::emitOperand2(int row, int col, Engine::OpCode op, int32_t v
     size_t pc = emit(row, col, op);
 
     /* check for operand space */
-    if (pc >= UINT32_MAX - sizeof(int32_t) * 2 - 1)
+    if (pc >= UINT32_MAX - sizeof(int32_t) * 2)
         throw Exceptions::RuntimeError("Code exceeds 4G limit");
 
     /* add operand to instruction buffer */

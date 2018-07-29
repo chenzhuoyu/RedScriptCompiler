@@ -2,7 +2,6 @@
 #include "utils/FreeList.h"
 
 #include "engine/Memory.h"
-#include "exceptions/ValueError.h"
 
 #define STRINGIZE_(val) #val
 #define STRINGIZE(val)  STRINGIZE_(val)
@@ -14,7 +13,7 @@ Integer::Integer(const std::string &value, int radix)
     /* try converting to integer */
     if (mpz_init_set_str(_value, value.c_str(), radix) < 0)
     {
-        throw Exceptions::ValueError(Utils::Strings::format(
+        throw Runtime::Exceptions::ValueError(Utils::Strings::format(
             "\"%s\" cannot be converted to int with base %d",
             value,
             radix

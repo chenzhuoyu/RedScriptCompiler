@@ -5,7 +5,7 @@
 #include <cstdint>
 
 #include "runtime/Object.h"
-#include "exceptions/StopIteration.h"
+#include "runtime/ExceptionObject.h"
 
 namespace RedScript::Runtime
 {

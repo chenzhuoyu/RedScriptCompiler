@@ -13,10 +13,9 @@
 
 #include "runtime/Object.h"
 #include "runtime/CodeObject.h"
+#include "runtime/ExceptionObject.h"
 
 #include "engine/Bytecode.h"
-#include "exceptions/RuntimeError.h"
-#include "exceptions/InternalError.h"
 
 namespace RedScript::Compiler
 {
@@ -89,12 +88,13 @@ private:
 private:
     inline bool isLocal(const std::string &value) { return code()->isLocal(value); }
     inline void patchBranch(uint32_t offset, uint32_t address) { code()->patchBranch(offset, address); }
+    inline void patchBranch2(uint32_t offset, uint32_t address) { code()->patchBranch2(offset, address); }
 
 private:
     inline uint32_t pc(void)
     {
         if (buffer().size() > UINT32_MAX)
-            throw Exceptions::RuntimeError("Code exceeds 4G limit");
+            throw Runtime::Exceptions::RuntimeError("Code exceeds 4G limit");
         else
             return static_cast<uint32_t>(buffer().size());
     }
@@ -114,7 +114,7 @@ private:
         {
             /* already left */
             if (_left)
-                throw Exceptions::InternalError("Outside of code scope");
+                throw Runtime::Exceptions::InternalError("Outside of code scope");
 
             /* get the most recent code object */
             auto &code = _self->_frames;
@@ -167,7 +167,7 @@ private:
         {
             /* already left */
             if (_left)
-                throw Exceptions::InternalError("Outside of breakable scope");
+                throw Runtime::Exceptions::InternalError("Outside of breakable scope");
 
             /* get the most recent code object */
             auto &stack = _self->breakStack();
@@ -194,7 +194,7 @@ private:
         {
             /* already left */
             if (_left)
-                throw Exceptions::InternalError("Outside of continuable scope");
+                throw Runtime::Exceptions::InternalError("Outside of continuable scope");
 
             /* get the most recent code object */
             auto &stack = _self->continueStack();

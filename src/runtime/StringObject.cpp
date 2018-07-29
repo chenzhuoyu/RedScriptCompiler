@@ -7,7 +7,6 @@
 
 #include "utils/Lists.h"
 #include "utils/Strings.h"
-#include "exceptions/TypeError.h"
 
 namespace RedScript::Runtime
 {

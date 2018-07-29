@@ -3,11 +3,10 @@
 #include "runtime/IntObject.h"
 #include "runtime/BoolObject.h"
 #include "runtime/DecimalObject.h"
+#include "runtime/ExceptionObject.h"
 #include "runtime/UnboundMethodObject.h"
 
 #include "utils/Decimal.h"
-#include "exceptions/TypeError.h"
-#include "exceptions/ValueError.h"
 
 namespace RedScript::Runtime
 {

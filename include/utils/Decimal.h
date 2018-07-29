@@ -6,8 +6,7 @@
 #include <bid_dfp.h>
 
 #include "utils/Integer.h"
-#include "exceptions/ValueError.h"
-#include "exceptions/ZeroDivisionError.h"
+#include "runtime/ExceptionObject.h"
 
 namespace RedScript::Utils
 {
@@ -18,8 +17,8 @@ class Decimal
 private:
     static inline void throwByFlags(_IDEC_flags flags)
     {
-        if (flags & DEC_FE_INVALID  ) throw Exceptions::ValueError("Undefined decimal operation");
-        if (flags & DEC_FE_DIVBYZERO) throw Exceptions::ZeroDivisionError("Decimal division by zero");
+        if (flags & DEC_FE_INVALID  ) throw Runtime::Exceptions::ValueError("Undefined decimal operation");
+        if (flags & DEC_FE_DIVBYZERO) throw Runtime::Exceptions::ZeroDivisionError("Decimal division by zero");
     }
 
 private:

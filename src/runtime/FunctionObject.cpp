@@ -2,10 +2,8 @@
 #include "runtime/NullObject.h"
 #include "runtime/StringObject.h"
 #include "runtime/FunctionObject.h"
+#include "runtime/ExceptionObject.h"
 #include "runtime/UnboundMethodObject.h"
-
-#include "exceptions/TypeError.h"
-#include "exceptions/InternalError.h"
 
 #include "utils/Strings.h"
 #include "engine/Interpreter.h"

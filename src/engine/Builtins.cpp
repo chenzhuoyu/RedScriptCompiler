@@ -7,8 +7,6 @@
 #include "runtime/ExceptionObject.h"
 
 #include "engine/Builtins.h"
-#include "exceptions/TypeError.h"
-#include "exceptions/AttributeError.h"
 
 namespace RedScript::Engine
 {
@@ -51,7 +49,7 @@ Runtime::ObjectRef Builtins::getattr(Runtime::ObjectRef self, const std::string 
 
     /* try getting the attributes from object, return default value if not found */
     try { return self->type()->objectGetAttr(self, name); }
-    catch (const Exceptions::AttributeError &) { return std::move(def); }
+    catch (const Runtime::Exceptions::AttributeError &) { return std::move(def); }
 }
 
 void Builtins::shutdown(void)
@@ -75,7 +73,6 @@ void Builtins::initialize(void)
     Globals.emplace("RuntimeError"      , Closure::ref(Runtime::RuntimeErrorTypeObject));
     Globals.emplace("BaseException"     , Closure::ref(Runtime::BaseExceptionTypeObject));
     Globals.emplace("StopIteration"     , Closure::ref(Runtime::StopIterationTypeObject));
-    Globals.emplace("InternalError"     , Closure::ref(Runtime::InternalErrorTypeObject));
     Globals.emplace("AttributeError"    , Closure::ref(Runtime::AttributeErrorTypeObject));
     Globals.emplace("ZeroDivisionError" , Closure::ref(Runtime::ZeroDivisionErrorTypeObject));
     Globals.emplace("NativeSyntaxError" , Closure::ref(Runtime::NativeSyntaxErrorTypeObject));

@@ -8,9 +8,10 @@
 
 #include "utils/Strings.h"
 #include "engine/Closure.h"
+
 #include "runtime/Object.h"
 #include "runtime/CodeObject.h"
-#include "exceptions/InternalError.h"
+#include "runtime/ExceptionObject.h"
 
 namespace RedScript::Engine
 {

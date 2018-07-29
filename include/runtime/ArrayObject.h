@@ -7,9 +7,9 @@
 
 #include "utils/Lists.h"
 #include "utils/RWLock.h"
+
 #include "runtime/Object.h"
-#include "exceptions/RuntimeError.h"
-#include "exceptions/StopIteration.h"
+#include "runtime/ExceptionObject.h"
 
 namespace RedScript::Runtime
 {

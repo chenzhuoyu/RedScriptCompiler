@@ -1,7 +1,8 @@
 #include "utils/Strings.h"
 #include "utils/Preprocessor.h"
+
+#include "runtime/ExceptionObject.h"
 #include "compiler/Parser.h"
-#include "exceptions/SyntaxError.h"
 
 namespace RedScript::Compiler
 {
@@ -115,7 +116,7 @@ std::unique_ptr<AST::Try> Parser::parseTry(void)
 
     /* should have at least one of "finally" or "catch" section */
     if (!(result->finally) && result->excepts.empty())
-        throw Exceptions::SyntaxError(token, "\"except\" or \"finally\" expected");
+        throw Runtime::Exceptions::SyntaxError(token, "\"except\" or \"finally\" expected");
     else
         return result;
 }
@@ -170,7 +171,7 @@ std::unique_ptr<AST::Native> Parser::parseNative(void)
 
     /* native '<lang>' */
     if (!(_lexer->next()->isKeyword<Token::Keyword::Native>()))
-        throw Exceptions::SyntaxError(token, "Keyword \"native\" expected");
+        throw Runtime::Exceptions::SyntaxError(token, "Keyword \"native\" expected");
 
     /* must be a string */
     std::string lang = _lexer->next()->asString();
@@ -212,7 +213,7 @@ std::unique_ptr<AST::Native> Parser::parseNative(void)
 
     /* currently only supports C language */
     if (lang != "c")
-        throw Exceptions::SyntaxError(token, "Only \"C\" is supported for now");
+        throw Runtime::Exceptions::SyntaxError(token, "Only \"C\" is supported for now");
 
     /* bracket counter */
     int bc = 0;
@@ -231,7 +232,7 @@ std::unique_ptr<AST::Native> Parser::parseNative(void)
         {
             /* EOF */
             case 0:
-                throw Exceptions::SyntaxError(_lexer, "EOF occured when parsing native C code");
+                throw Runtime::Exceptions::SyntaxError(_lexer, "EOF occured when parsing native C code");
 
             /* count brackets */
             case '{': bc += 1; break;
@@ -250,7 +251,7 @@ std::unique_ptr<AST::Native> Parser::parseNative(void)
                 {
                     /* check for EOF */
                     if (!ch)
-                        throw Exceptions::SyntaxError(_lexer, "EOF occured when parsing native C code");
+                        throw Runtime::Exceptions::SyntaxError(_lexer, "EOF occured when parsing native C code");
 
                     /* check for escape character */
                     if (ch != '\\')
@@ -261,7 +262,7 @@ std::unique_ptr<AST::Native> Parser::parseNative(void)
 
                     /* check for EOF */
                     if (!(ch = _lexer->nextChar(true)))
-                        throw Exceptions::SyntaxError(_lexer, "EOF occured when parsing native C code");
+                        throw Runtime::Exceptions::SyntaxError(_lexer, "EOF occured when parsing native C code");
 
                     /* append to source too */
                     result->code += '\\';
@@ -285,7 +286,7 @@ std::unique_ptr<AST::Native> Parser::parseNative(void)
                 {
                     /* EOF */
                     case 0:
-                        throw Exceptions::SyntaxError(_lexer, "EOF occured when parsing native C code");
+                        throw Runtime::Exceptions::SyntaxError(_lexer, "EOF occured when parsing native C code");
 
                     /* single line comment */
                     case '/':
@@ -298,7 +299,7 @@ std::unique_ptr<AST::Native> Parser::parseNative(void)
 
                         /* check for character */
                         if (!ch)
-                            throw Exceptions::SyntaxError(_lexer, "EOF occured when parsing native C code");
+                            throw Runtime::Exceptions::SyntaxError(_lexer, "EOF occured when parsing native C code");
 
                         /* add line feed */
                         result->code += ch;
@@ -315,13 +316,13 @@ std::unique_ptr<AST::Native> Parser::parseNative(void)
 
                             /* check for character */
                             if (!ch)
-                                throw Exceptions::SyntaxError(_lexer, "EOF occured when parsing native C code");
+                                throw Runtime::Exceptions::SyntaxError(_lexer, "EOF occured when parsing native C code");
 
                             /* maybe end of block comment */
                             if (ch == '*')
                             {
                                 if (!(ch = _lexer->nextChar(true)))
-                                    throw Exceptions::SyntaxError(_lexer, "EOF occured when parsing native C code");
+                                    throw Runtime::Exceptions::SyntaxError(_lexer, "EOF occured when parsing native C code");
 
                                 /* indeed an end of block comment */
                                 if (ch == '/')
@@ -391,7 +392,7 @@ std::unique_ptr<AST::Switch> Parser::parseSwitch(void)
 
                 /* default section must be the last section */
                 if (result->def)
-                    throw Exceptions::SyntaxError(token, "Can't place \"case\" after \"default\"");
+                    throw Runtime::Exceptions::SyntaxError(token, "Can't place \"case\" after \"default\"");
 
                 /* case <value>: <stmt> */
                 _lexer->next();
@@ -415,7 +416,7 @@ std::unique_ptr<AST::Switch> Parser::parseSwitch(void)
 
                 /* can only have at most 1 default section */
                 if (result->def)
-                    throw Exceptions::SyntaxError(token, "Duplicated \"default\" section");
+                    throw Runtime::Exceptions::SyntaxError(token, "Duplicated \"default\" section");
 
                 /* default: <stmt> */
                 _lexer->next();
@@ -425,13 +426,13 @@ std::unique_ptr<AST::Switch> Parser::parseSwitch(void)
             }
 
             default:
-                throw Exceptions::SyntaxError(token, "Keyword \"case\" or \"default\" expected");
+                throw Runtime::Exceptions::SyntaxError(token, "Keyword \"case\" or \"default\" expected");
         }
     }
 
     /* must have at least 1 case */
     if (result->cases.empty())
-        throw Exceptions::SyntaxError(token, "Switch without any cases is not allowed");
+        throw Runtime::Exceptions::SyntaxError(token, "Switch without any cases is not allowed");
 
     /* skip the block right operator */
     _lexer->next();
@@ -467,7 +468,7 @@ std::unique_ptr<AST::Function> Parser::parseFunction(void)
             {
                 /* cannot have more than one keyword argument */
                 if (result->kwargs)
-                    throw Exceptions::SyntaxError(token, "Cannot have more than one keyword argument");
+                    throw Runtime::Exceptions::SyntaxError(token, "Cannot have more than one keyword argument");
 
                 /* parse as keyword argument */
                 _lexer->next();
@@ -477,14 +478,14 @@ std::unique_ptr<AST::Function> Parser::parseFunction(void)
 
             /* keyword argument must be the last argument */
             else if (result->kwargs)
-                throw Exceptions::SyntaxError(token, "Keyword argument must be the last argument");
+                throw Runtime::Exceptions::SyntaxError(token, "Keyword argument must be the last argument");
 
             /* '*' varidic argument prefix operator */
             else if (token->isOperator<Token::Operator::Multiply>())
             {
                 /* cannot have more than one varidic argument */
                 if (result->vargs)
-                    throw Exceptions::SyntaxError(token, "Cannot have more than one varidic argument");
+                    throw Runtime::Exceptions::SyntaxError(token, "Cannot have more than one varidic argument");
 
                 /* parse as variable arguments */
                 _lexer->next();
@@ -494,7 +495,7 @@ std::unique_ptr<AST::Function> Parser::parseFunction(void)
 
             /* varidic argument must be the last argument but before keyword argument */
             else if (result->vargs)
-                throw Exceptions::SyntaxError(token, "Varidic argument must be the last argument but before keyword argument");
+                throw Runtime::Exceptions::SyntaxError(token, "Varidic argument must be the last argument but before keyword argument");
 
             /* just a simple name */
             else
@@ -512,7 +513,7 @@ std::unique_ptr<AST::Function> Parser::parseFunction(void)
 
                 /* default values must be placed after normal arguments */
                 else if (!(result->defaults.empty()))
-                    throw Exceptions::SyntaxError(token, "Default values must be placed after normal arguments");
+                    throw Runtime::Exceptions::SyntaxError(token, "Default values must be placed after normal arguments");
             }
 
             /* ')' encountered, argument list terminated */
@@ -528,7 +529,7 @@ std::unique_ptr<AST::Function> Parser::parseFunction(void)
 
             /* otherwise it's an error */
             else
-                throw Exceptions::SyntaxError(token);
+                throw Runtime::Exceptions::SyntaxError(token);
         }
     }
 
@@ -558,7 +559,7 @@ std::unique_ptr<AST::Delete> Parser::parseDelete(void)
 
     /* check for "delete" keyword */
     if (!(token->isKeyword<Token::Keyword::Delete>()))
-        throw Exceptions::SyntaxError(token, "Keyword \"delete\" expected");
+        throw Runtime::Exceptions::SyntaxError(token, "Keyword \"delete\" expected");
 
     /* parse as expression */
     std::unique_ptr<AST::Composite> comp = nullptr;
@@ -569,7 +570,7 @@ std::unique_ptr<AST::Delete> Parser::parseDelete(void)
     {
         /* has unary operators or following operands, it's an expression, and not assignable */
         if (expr->hasOp || !expr->follows.empty())
-            throw Exceptions::SyntaxError(token, "Expressions are not deletable");
+            throw Runtime::Exceptions::SyntaxError(token, "Expressions are not deletable");
 
         /* if it's the composite, extract it, otherwise, move to inner expression */
         if (expr->first.type == AST::Expression::Operand::Type::Composite)
@@ -580,7 +581,7 @@ std::unique_ptr<AST::Delete> Parser::parseDelete(void)
 
     /* and if it's mutable, take it directly */
     if (!(comp->isSyntacticallyMutable(true)))
-        throw Exceptions::SyntaxError(token, "Expressions are not deletable");
+        throw Runtime::Exceptions::SyntaxError(token, "Expressions are not deletable");
 
     /* compiler is not smart enough to use move constructor */
     result->comp = std::move(comp);
@@ -594,7 +595,7 @@ std::unique_ptr<AST::Import> Parser::parseImport(void)
 
     /* check for "import" keyword */
     if (!(token->isKeyword<Token::Keyword::Import>()))
-        throw Exceptions::SyntaxError(token, "Keyword \"import\" expected");
+        throw Runtime::Exceptions::SyntaxError(token, "Keyword \"import\" expected");
 
     /* parse all the name sections */
     do { _lexer->next(); result->names.emplace_back(parseName()); }
@@ -656,7 +657,7 @@ std::unique_ptr<AST::Function> Parser::parseLambda(void)
                 {
                     /* cannot have more than one keyword argument */
                     if (result->kwargs)
-                        throw Exceptions::SyntaxError(token, "Cannot have more than one keyword argument");
+                        throw Runtime::Exceptions::SyntaxError(token, "Cannot have more than one keyword argument");
 
                     /* parse as keyword argument */
                     _lexer->next();
@@ -666,14 +667,14 @@ std::unique_ptr<AST::Function> Parser::parseLambda(void)
 
                 /* keyword argument must be the last argument */
                 else if (result->kwargs)
-                    throw Exceptions::SyntaxError(token, "Keyword argument must be the last argument");
+                    throw Runtime::Exceptions::SyntaxError(token, "Keyword argument must be the last argument");
 
                 /* '*' varidic argument prefix operator */
                 else if (token->isOperator<Token::Operator::Multiply>())
                 {
                     /* cannot have more than one varidic argument */
                     if (result->vargs)
-                        throw Exceptions::SyntaxError(token, "Cannot have more than one varidic argument");
+                        throw Runtime::Exceptions::SyntaxError(token, "Cannot have more than one varidic argument");
 
                     /* parse as variable arguments */
                     _lexer->next();
@@ -683,7 +684,7 @@ std::unique_ptr<AST::Function> Parser::parseLambda(void)
 
                 /* varidic argument must be the last argument but before keyword argument */
                 else if (result->vargs)
-                    throw Exceptions::SyntaxError(token, "Varidic argument must be the last argument but before keyword argument");
+                    throw Runtime::Exceptions::SyntaxError(token, "Varidic argument must be the last argument but before keyword argument");
 
                 /* just a simple name */
                 else
@@ -701,7 +702,7 @@ std::unique_ptr<AST::Function> Parser::parseLambda(void)
 
                     /* default values must be placed after normal arguments */
                     else if (!(result->defaults.empty()))
-                        throw Exceptions::SyntaxError(token, "Default values must be placed after normal arguments");
+                        throw Runtime::Exceptions::SyntaxError(token, "Default values must be placed after normal arguments");
                 }
 
                 /* ')' encountered, argument list terminated */
@@ -717,7 +718,7 @@ std::unique_ptr<AST::Function> Parser::parseLambda(void)
 
                 /* otherwise it's an error */
                 else
-                    throw Exceptions::SyntaxError(token);
+                    throw Runtime::Exceptions::SyntaxError(token);
             }
         }
 
@@ -753,7 +754,7 @@ std::unique_ptr<AST::Break> Parser::parseBreak(void)
     Token::Ptr token = _lexer->peek();
 
     if (!_cases && !_loops)
-        throw Exceptions::SyntaxError(token, "`break` outside of loops or cases");
+        throw Runtime::Exceptions::SyntaxError(token, "`break` outside of loops or cases");
 
     _lexer->keywordExpected<Token::Keyword::Break>();
     return std::make_unique<AST::Break>(token);
@@ -764,7 +765,7 @@ std::unique_ptr<AST::Return> Parser::parseReturn(void)
     Token::Ptr token = _lexer->peek();
 
     if (!_functions)
-        throw Exceptions::SyntaxError(token, "`return` outside of functions");
+        throw Runtime::Exceptions::SyntaxError(token, "`return` outside of functions");
 
     _lexer->keywordExpected<Token::Keyword::Return>();
     return std::make_unique<AST::Return>(token, parseReturnExpression());
@@ -775,7 +776,7 @@ std::unique_ptr<AST::Continue> Parser::parseContinue(void)
     Token::Ptr token = _lexer->peek();
 
     if (!_loops)
-        throw Exceptions::SyntaxError(token, "`continue` outside of loops");
+        throw Runtime::Exceptions::SyntaxError(token, "`continue` outside of loops");
 
     _lexer->keywordExpected<Token::Keyword::Continue>();
     return std::make_unique<AST::Continue>(token);
@@ -857,7 +858,7 @@ std::unique_ptr<AST::Invoke> Parser::parseInvoke(void)
         {
             /* cannot have more than one keyword argument */
             if (result->kwarg)
-                throw Exceptions::SyntaxError(token, "Cannot have more than one keyword argument");
+                throw Runtime::Exceptions::SyntaxError(token, "Cannot have more than one keyword argument");
 
             /* parse as keyword argument */
             _lexer->next();
@@ -867,14 +868,14 @@ std::unique_ptr<AST::Invoke> Parser::parseInvoke(void)
 
         /* keyword argument must be the last argument */
         else if (result->kwarg)
-            throw Exceptions::SyntaxError(token, "Keyword argument must be the last argument");
+            throw Runtime::Exceptions::SyntaxError(token, "Keyword argument must be the last argument");
 
         /* '*' varidic argument prefix operator */
         else if (token->isOperator<Token::Operator::Multiply>())
         {
             /* cannot have more than one varidic argument */
             if (result->varg)
-                throw Exceptions::SyntaxError(token, "Cannot have more than one varidic argument");
+                throw Runtime::Exceptions::SyntaxError(token, "Cannot have more than one varidic argument");
 
             /* parse as variable arguments */
             _lexer->next();
@@ -884,7 +885,7 @@ std::unique_ptr<AST::Invoke> Parser::parseInvoke(void)
 
         /* varidic argument must be the last argument but before keyword argument */
         else if (result->varg)
-            throw Exceptions::SyntaxError(token, "Varidic argument must be the last argument but before keyword argument");
+            throw Runtime::Exceptions::SyntaxError(token, "Varidic argument must be the last argument but before keyword argument");
 
         /* a simple argument, or a named argument */
         else
@@ -915,7 +916,7 @@ std::unique_ptr<AST::Invoke> Parser::parseInvoke(void)
 
             /* named arguments must be placed after normal arguments */
             else
-                throw Exceptions::SyntaxError(token, "Non-keyword argument after keyword argument");
+                throw Runtime::Exceptions::SyntaxError(token, "Non-keyword argument after keyword argument");
         }
 
         /* check for the comma seperator */
@@ -931,7 +932,7 @@ std::unique_ptr<AST::Invoke> Parser::parseInvoke(void)
 
         /* otherwise it's an error */
         else
-            throw Exceptions::SyntaxError(token, "Operator \",\" or \")\" expected");
+            throw Runtime::Exceptions::SyntaxError(token, "Operator \",\" or \")\" expected");
     }
 
     /* skip the right bracket */
@@ -978,7 +979,7 @@ std::unique_ptr<AST::Unpack> Parser::parseUnpack(Token::Operator terminator, boo
         {
             /* has unary operators or following operands, it's an expression, and not assignable */
             if (expr->hasOp || !expr->follows.empty())
-                throw Exceptions::SyntaxError(token, "Expressions are not assignable");
+                throw Runtime::Exceptions::SyntaxError(token, "Expressions are not assignable");
 
             /* if it's the composite, extract it, otherwise, move to inner expression */
             if (expr->first.type == AST::Expression::Operand::Type::Composite)
@@ -1006,7 +1007,7 @@ std::unique_ptr<AST::Unpack> Parser::parseUnpack(Token::Operator terminator, boo
                 case AST::Composite::ValueType::Literal:
                 case AST::Composite::ValueType::Function:
                 case AST::Composite::ValueType::Expression:
-                    throw Exceptions::SyntaxError(token, "Expressions are not assignable");
+                    throw Runtime::Exceptions::SyntaxError(token, "Expressions are not assignable");
 
                 /* process them together since they are essentially the same */
                 case AST::Composite::ValueType::Array:
@@ -1057,12 +1058,12 @@ std::unique_ptr<AST::Unpack> Parser::parseUnpack(Token::Operator terminator, boo
 
         /* otherwise it's an error */
         else
-            throw Exceptions::SyntaxError(token, Utils::Strings::format("Token %s expected", Token::toString(terminator)));
+            throw Runtime::Exceptions::SyntaxError(token, Utils::Strings::format("Token %s expected", Token::toString(terminator)));
     }
 
     /* must have at least something */
     if (result->items.empty())
-        throw Exceptions::SyntaxError(token);
+        throw Runtime::Exceptions::SyntaxError(token);
     else
         return result;
 }
@@ -1084,7 +1085,7 @@ std::unique_ptr<AST::Literal> Parser::parseLiteral(void)
         case Token::Type::Keywords:
         case Token::Type::Operators:
         case Token::Type::Identifiers:
-            throw Exceptions::SyntaxError(token);
+            throw Runtime::Exceptions::SyntaxError(token);
     }
 }
 
@@ -1099,7 +1100,7 @@ std::unique_ptr<AST::Composite> Parser::parseComposite(CompositeSuggestion sugge
     {
         case Token::Type::Eof:
         case Token::Type::Keywords:
-            throw Exceptions::SyntaxError(token);
+            throw Runtime::Exceptions::SyntaxError(token);
 
         /* literal constants */
         case Token::Type::Decimal:
@@ -1163,7 +1164,7 @@ std::unique_ptr<AST::Composite> Parser::parseComposite(CompositeSuggestion sugge
 
                         /* otherwise it's an error */
                         else
-                            throw Exceptions::SyntaxError(token, "Operator \",\" or \"]\" expected");
+                            throw Runtime::Exceptions::SyntaxError(token, "Operator \",\" or \"]\" expected");
                     }
 
                     /* make it an array */
@@ -1202,7 +1203,7 @@ std::unique_ptr<AST::Composite> Parser::parseComposite(CompositeSuggestion sugge
 
                         /* otherwise it's an error */
                         else
-                            throw Exceptions::SyntaxError(token, "Operator \",\" or \"}\" expected");
+                            throw Runtime::Exceptions::SyntaxError(token, "Operator \",\" or \"}\" expected");
                     }
 
                     /* make it a map */
@@ -1239,7 +1240,7 @@ std::unique_ptr<AST::Composite> Parser::parseComposite(CompositeSuggestion sugge
 
                                 /* otherwise it's an error */
                                 else
-                                    throw Exceptions::SyntaxError(token, "Operator \",\" or \")\" expected");
+                                    throw Runtime::Exceptions::SyntaxError(token, "Operator \",\" or \")\" expected");
                             }
 
                             /* make it a tuple */
@@ -1270,7 +1271,7 @@ std::unique_ptr<AST::Composite> Parser::parseComposite(CompositeSuggestion sugge
 
                 /* other operators are not allowed */
                 default:
-                    throw Exceptions::SyntaxError(token);
+                    throw Runtime::Exceptions::SyntaxError(token);
             }
 
             break;
@@ -1325,7 +1326,7 @@ std::unique_ptr<AST::Composite> Parser::parseComposite(CompositeSuggestion sugge
 
                 /* otherwise it must be an index */
                 if (!((next = _lexer->next())->isOperator<Token::Operator::IndexRight>()))
-                    throw Exceptions::SyntaxError(next, "\"]\" or \":\" expected");
+                    throw Runtime::Exceptions::SyntaxError(next, "\"]\" or \":\" expected");
 
                 /* preserve the state */
                 _lexer->preserveState();
@@ -1387,7 +1388,7 @@ std::unique_ptr<AST::Expression> Parser::parseReturnExpression(void)
 
         /* otherwise it's an error */
         else
-            throw Exceptions::SyntaxError(next, "Operator \",\" or `NewLine` expected");
+            throw Runtime::Exceptions::SyntaxError(next, "Operator \",\" or `NewLine` expected");
     }
 
     /* build a composite expression around it */
@@ -1511,7 +1512,7 @@ bool Parser::parseAssignTarget(AST::Assign::Target &target, Token::Operator term
         }
 
         /* otherwise it's an error */
-        throw Exceptions::SyntaxError(token, Utils::Strings::format(
+        throw Runtime::Exceptions::SyntaxError(token, Utils::Strings::format(
             "Token %s expected",
             Token::toString(terminator)
         ));
@@ -1522,7 +1523,7 @@ bool Parser::parseAssignTarget(AST::Assign::Target &target, Token::Operator term
     {
         /* has unary operators or following operands, it's an expression, and not assignable */
         if (expr->hasOp || !expr->follows.empty())
-            throw Exceptions::SyntaxError(token, "Expressions are not assignable");
+            throw Runtime::Exceptions::SyntaxError(token, "Expressions are not assignable");
 
         /* if it's the composite, extract it, otherwise, move to inner expression */
         if (expr->first.type != AST::Expression::Operand::Type::Composite)
@@ -1547,7 +1548,7 @@ bool Parser::parseAssignTarget(AST::Assign::Target &target, Token::Operator term
         case AST::Composite::ValueType::Literal:
         case AST::Composite::ValueType::Function:
         case AST::Composite::ValueType::Expression:
-            throw Exceptions::SyntaxError(token, "Expressions are not assignable");
+            throw Runtime::Exceptions::SyntaxError(token, "Expressions are not assignable");
 
         /* process them together since they are essentially the same */
         case AST::Composite::ValueType::Array:
@@ -1694,7 +1695,7 @@ std::unique_ptr<AST::Expression> Parser::parseFactor(void)
     {
         case Token::Type::Eof:
         case Token::Type::Keywords:
-            throw Exceptions::SyntaxError(token);
+            throw Runtime::Exceptions::SyntaxError(token);
 
         case Token::Type::Decimal:
         case Token::Type::String:
@@ -1784,7 +1785,7 @@ std::unique_ptr<AST::Expression> Parser::parseFactor(void)
 
                         /* skip the comma seperator */
                         if (!(_lexer->next()->isOperator<Token::Operator::Comma>()))
-                            throw Exceptions::SyntaxError(next, "Operator \",\" or \")\" expected");
+                            throw Runtime::Exceptions::SyntaxError(next, "Operator \",\" or \")\" expected");
 
                         /* once encountered a comma, the result may never be a nested expression */
                         next = _lexer->peek();
@@ -1828,7 +1829,7 @@ std::unique_ptr<AST::Expression> Parser::parseFactor(void)
                 }
 
                 default:
-                    throw Exceptions::SyntaxError(token);
+                    throw Runtime::Exceptions::SyntaxError(token);
             }
         }
     }
@@ -1877,7 +1878,7 @@ std::unique_ptr<AST::Statement> Parser::parseStatement(void)
             }
 
             default:
-                throw Exceptions::SyntaxError(next, "Can only decorate functions or classes");
+                throw Runtime::Exceptions::SyntaxError(next, "Can only decorate functions or classes");
         }
 
         /* build decorator expression statement */
@@ -1907,7 +1908,7 @@ std::unique_ptr<AST::Statement> Parser::parseStatement(void)
             case Token::Keyword::Import   : result = std::make_unique<AST::Statement>(token, parseImport()); break;
 
             default:
-                throw Exceptions::SyntaxError(token);
+                throw Runtime::Exceptions::SyntaxError(token);
         }
     }
 
@@ -1954,7 +1955,7 @@ std::unique_ptr<AST::Statement> Parser::parseStatement(void)
                 {
                     /* has unary operators or following operands, it's an expression, and not assignable */
                     if (expr->hasOp || !expr->follows.empty())
-                        throw Exceptions::SyntaxError(token, "Expressions are not assignable");
+                        throw Runtime::Exceptions::SyntaxError(token, "Expressions are not assignable");
 
                     /* if it's the composite, extract it, otherwise, move to inner expression */
                     if (expr->first.type != AST::Expression::Operand::Type::Composite)
@@ -1965,7 +1966,7 @@ std::unique_ptr<AST::Statement> Parser::parseStatement(void)
 
                 /* must be mutable, and not slicing */
                 if (!(incr->dest->isSyntacticallyMutable(false)))
-                    throw Exceptions::SyntaxError(token, "Expressions are not assignable");
+                    throw Runtime::Exceptions::SyntaxError(token, "Expressions are not assignable");
 
                 /* parse the expression */
                 incr->expr = parseExpression();
@@ -2002,7 +2003,7 @@ std::unique_ptr<AST::Statement> Parser::parseStatement(void)
                 break;
 
             default:
-                throw Exceptions::SyntaxError(token, "New line or semicolon expected");
+                throw Runtime::Exceptions::SyntaxError(token, "New line or semicolon expected");
         }
     }
 
@@ -2016,7 +2017,7 @@ std::unique_ptr<AST::CompoundStatement> Parser::parseCompondStatement(void)
 
     /* block start */
     if (!(token->isOperator<Token::Operator::BlockLeft>()))
-        throw Exceptions::SyntaxError(token, "Operator \"{\" expected");
+        throw Runtime::Exceptions::SyntaxError(token, "Operator \"{\" expected");
 
     /* parse each statement */
     while (!(_lexer->peek()->isOperator<Token::Operator::BlockRight>()))

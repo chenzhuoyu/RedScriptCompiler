@@ -8,10 +8,7 @@
 #include "utils/Strings.h"
 #include "runtime/Object.h"
 #include "runtime/IntObject.h"
-#include "exceptions/TypeError.h"
-#include "exceptions/ValueError.h"
-#include "exceptions/IndexError.h"
-#include "exceptions/InternalError.h"
+#include "runtime/ExceptionObject.h"
 
 namespace RedScript::Utils::Lists
 {
@@ -60,7 +57,7 @@ static inline bool contains(Runtime::Reference<List> list, Runtime::ObjectRef va
 
         /* must not be null */
         if (item.isNull())
-            throw Exceptions::InternalError("Array contains null value");
+            throw Runtime::Exceptions::InternalError("Array contains null value");
 
         /* check for equality */
         if (item == value)
@@ -77,7 +74,7 @@ static inline size_t indexConstraint(Runtime::Reference<List> list, Runtime::Obj
     /* integer type check */
     if (value->isNotInstanceOf(Runtime::IntTypeObject))
     {
-        throw Exceptions::TypeError(Strings::format(
+        throw Runtime::Exceptions::TypeError(Strings::format(
             "Index must be integers, not \"%s\"",
             value->type()->name()
         ));
@@ -96,7 +93,7 @@ static inline size_t indexConstraint(Runtime::Reference<List> list, Runtime::Obj
             return pos;
 
         /* otherwise it's an error */
-        throw Exceptions::IndexError(Strings::format(
+        throw Runtime::Exceptions::IndexError(Strings::format(
             "Index out of range [-%lu, %lu): %zu",
             size,
             size,
@@ -113,7 +110,7 @@ static inline size_t indexConstraint(Runtime::Reference<List> list, Runtime::Obj
             return size - pos;
 
         /* otherwise it's an error */
-        throw Exceptions::IndexError(Strings::format(
+        throw Runtime::Exceptions::IndexError(Strings::format(
             "Index out of range [-%lu, %lu): -%zu",
             size,
             size,
@@ -122,7 +119,7 @@ static inline size_t indexConstraint(Runtime::Reference<List> list, Runtime::Obj
     }
 
     /* otherwise it's an error */
-    throw Exceptions::IndexError(Strings::format(
+    throw Runtime::Exceptions::IndexError(Strings::format(
         "Index out of range [-%lu, %lu): %s",
         size,
         size,
@@ -159,7 +156,7 @@ static inline Slice sliceConstraint(
         /* must be an integer */
         if (step->isNotInstanceOf(Runtime::IntTypeObject))
         {
-            throw Exceptions::TypeError(Strings::format(
+            throw Runtime::Exceptions::TypeError(Strings::format(
                 "Slice step must be an integer, not \"%s\"",
                 step->type()->name()
             ));
@@ -175,7 +172,7 @@ static inline Slice sliceConstraint(
 
         /* convert to signed integer */
         if (!(stride = value.toInt()))
-            throw Exceptions::ValueError("Slice step cannot be zero");
+            throw Runtime::Exceptions::ValueError("Slice step cannot be zero");
 
         /* backward slicing */
         if (stride < 0)
@@ -233,12 +230,12 @@ static inline int64_t totalOrderCompare(
 
     /* cannot be null */
     if (ret.isNull())
-        throw Exceptions::InternalError("\"__compare__\" gives null");
+        throw Runtime::Exceptions::InternalError("\"__compare__\" gives null");
 
     /* must be integers */
     if (ret->isNotInstanceOf(Runtime::IntTypeObject))
     {
-        throw Exceptions::TypeError(Strings::format(
+        throw Runtime::Exceptions::TypeError(Strings::format(
             "\"__compare__\" must returns an integer, not \"%s\"",
             ret->type()->name()
         ));
@@ -249,7 +246,7 @@ static inline int64_t totalOrderCompare(
 
     /* must be a signed integer */
     if (!(val->isSafeInt()))
-        throw Exceptions::ValueError("\"__compare__\" must returns a valid signed integer");
+        throw Runtime::Exceptions::ValueError("\"__compare__\" must returns a valid signed integer");
 
     /* convert to integer */
     return val->toInt();

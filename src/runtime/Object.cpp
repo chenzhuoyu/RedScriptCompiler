@@ -11,12 +11,10 @@
 #include "runtime/TupleObject.h"
 #include "runtime/StringObject.h"
 #include "runtime/FunctionObject.h"
+#include "runtime/ExceptionObject.h"
 #include "runtime/UnboundMethodObject.h"
 
 #include "utils/Strings.h"
-#include "exceptions/TypeError.h"
-#include "exceptions/InternalError.h"
-#include "exceptions/AttributeError.h"
 
 namespace RedScript::Runtime
 {

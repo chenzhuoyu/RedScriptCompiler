@@ -221,14 +221,14 @@ Token::Ptr Tokenizer::readString(void)
     while (start != remains)
     {
         if (!remains)
-            throw Exceptions::SyntaxError(this, "Unexpected EOF when scanning strings");
+            throw Runtime::Exceptions::SyntaxError(this, "Unexpected EOF when scanning strings");
 
         if (remains == '\\')
         {
             switch ((remains = nextChar()))
             {
                 case 0:
-                    throw Exceptions::SyntaxError(this, "Unexpected EOF when parsing escape sequence in strings");
+                    throw Runtime::Exceptions::SyntaxError(this, "Unexpected EOF when parsing escape sequence in strings");
 
                 case '\'':
                 case '\"':
@@ -250,7 +250,7 @@ Token::Ptr Tokenizer::readString(void)
                     char lsb = nextChar();
 
                     if (!isHex(msb) || !isHex(lsb))
-                        throw Exceptions::SyntaxError(this, "Invalid '\\x' escape sequence");
+                        throw Runtime::Exceptions::SyntaxError(this, "Invalid '\\x' escape sequence");
 
                     remains = (char)((toInt(msb) << 4) | toInt(lsb));
                     break;
@@ -274,9 +274,9 @@ Token::Ptr Tokenizer::readString(void)
                 default:
                 {
                     if (isprint(remains))
-                        throw Exceptions::SyntaxError(this, Utils::Strings::format("Invalid escape character '%c'", remains));
+                        throw Runtime::Exceptions::SyntaxError(this, Utils::Strings::format("Invalid escape character '%c'", remains));
                     else
-                        throw Exceptions::SyntaxError(this, Utils::Strings::format("Invalid escape character '\\x%.2x'", remains));
+                        throw Runtime::Exceptions::SyntaxError(this, Utils::Strings::format("Invalid escape character '\\x%.2x'", remains));
                 }
             }
         }
@@ -402,7 +402,7 @@ Token::Ptr Tokenizer::readOperator(void)
         case '!':
         {
             if (nextChar() != '=')
-                throw Exceptions::SyntaxError(this, "Invalid operator '!'");
+                throw Runtime::Exceptions::SyntaxError(this, "Invalid operator '!'");
             else
                 return Token::createOperator(row, col, Token::Operator::Neq);
         }
@@ -484,9 +484,9 @@ Token::Ptr Tokenizer::readOperator(void)
         default:
         {
             if (isprint(next))
-                throw Exceptions::SyntaxError(this, Utils::Strings::format("Invalid operator '%c'", next));
+                throw Runtime::Exceptions::SyntaxError(this, Utils::Strings::format("Invalid operator '%c'", next));
             else
-                throw Exceptions::SyntaxError(this, Utils::Strings::format("Invalid character '\\x%.2x'", (uint8_t)next));
+                throw Runtime::Exceptions::SyntaxError(this, Utils::Strings::format("Invalid character '\\x%.2x'", (uint8_t)next));
         }
     }
 }

@@ -1,3 +1,5 @@
+#include <stack>
+
 #include "utils/Strings.h"
 #include "engine/Thread.h"
 #include "engine/Interpreter.h"
@@ -12,15 +14,25 @@
 #include "runtime/ExceptionObject.h"
 #include "runtime/NativeClassObject.h"
 
-#include "exceptions/NameError.h"
-#include "exceptions/TypeError.h"
-#include "exceptions/ValueError.h"
-#include "exceptions/RuntimeError.h"
-#include "exceptions/BaseException.h"
-#include "exceptions/StopIteration.h"
-
 namespace RedScript::Engine
 {
+namespace
+{
+static const size_t EF_INIT     = 0x00;
+static const size_t EF_CAUGHT   = 0x01;
+static const size_t EF_HANDLING = 0x02;
+static const size_t EF_FINALLY  = 0x04;
+
+struct Block
+{
+    size_t sp;
+    size_t flags;
+    size_t except;
+    size_t finally;
+    Runtime::Reference<Runtime::ExceptionObject> exception;
+};
+}
+
 Runtime::ObjectRef Interpreter::tupleConcat(Runtime::ObjectRef a, Runtime::ObjectRef b)
 {
     /* both are null */
@@ -37,7 +49,7 @@ Runtime::ObjectRef Interpreter::tupleConcat(Runtime::ObjectRef a, Runtime::Objec
 
     /* check for left tuple, right tuple already checked before */
     if (a->isNotInstanceOf(Runtime::TupleTypeObject))
-        throw Exceptions::InternalError("Invalid left tuple object");
+        throw Runtime::Exceptions::InternalError("Invalid left tuple object");
 
     /* calculate it's size, and allocate a new tuple */
     auto tupleA = a.as<Runtime::TupleObject>();
@@ -72,7 +84,7 @@ Runtime::ObjectRef Interpreter::hashmapConcat(Runtime::ObjectRef a, Runtime::Obj
 
     /* check for left map, right map already checked before */
     if (a->isNotInstanceOf(Runtime::MapTypeObject))
-        throw Exceptions::InternalError("Invalid left map object");
+        throw Runtime::Exceptions::InternalError("Invalid left map object");
 
     /* convert to map types */
     auto mapA = a.as<Runtime::MapObject>();
@@ -131,11 +143,15 @@ Runtime::ObjectRef Interpreter::eval(void)
     OpCode opcode;
     Thread::FrameScope frame(_name, _code);
 
+    /* exception recovery stuff */
+    std::stack<Block> blocks;
+    Runtime::ObjectRef returnValue;
+
     /* loop until code ends */
     for (;;) try
     {
         /* main switch on opcodes */
-        switch ((opcode = frame->next()))
+        switch ((opcode = frame->nextOpCode()))
         {
             /* load null */
             case OpCode::LOAD_NULL:
@@ -166,7 +182,7 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                 /* check constant ID */
                 if (id >= _code->consts().size())
-                    throw Exceptions::InternalError(Utils::Strings::format("Constant ID %u out of range", id));
+                    throw Runtime::Exceptions::InternalError(Utils::Strings::format("Constant ID %u out of range", id));
 
                 /* load the constant into stack */
                 _stack.emplace_back(_code->consts()[id]);
@@ -181,7 +197,7 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                 /* check name ID */
                 if (id >= _code->names().size())
-                    throw Exceptions::InternalError(Utils::Strings::format("Name ID %u out of range", id));
+                    throw Runtime::Exceptions::InternalError(Utils::Strings::format("Name ID %u out of range", id));
 
                 /* find name in locals */
                 auto name = _code->names()[id];
@@ -193,7 +209,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                     /* must be assigned before using */
                     if (_locals[iter->second].isNull())
                     {
-                        throw Exceptions::NameError(
+                        throw Runtime::Exceptions::NameError(
                             frame->line().first,
                             frame->line().second,
                             Utils::Strings::format("Variable \"%s\" referenced before assignment", name)
@@ -214,7 +230,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                     /* must be assigned before using */
                     if (cliter->second->get().isNull())
                     {
-                        throw Exceptions::NameError(
+                        throw Runtime::Exceptions::NameError(
                             frame->line().first,
                             frame->line().second,
                             Utils::Strings::format("Variable \"%s\" referenced before assignment", name)
@@ -227,7 +243,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                 }
 
                 /* otherwise, it's an error */
-                throw Exceptions::NameError(
+                throw Runtime::Exceptions::NameError(
                     frame->line().first,
                     frame->line().second,
                     Utils::Strings::format("\"%s\" is not defined", name)
@@ -242,12 +258,12 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                 /* check local ID */
                 if (id >= _locals.size())
-                    throw Exceptions::InternalError(Utils::Strings::format("Local ID %u out of range", id));
+                    throw Runtime::Exceptions::InternalError(Utils::Strings::format("Local ID %u out of range", id));
 
                 /* should have initialized */
                 if (_locals[id].isNull())
                 {
-                    throw Exceptions::NameError(
+                    throw Runtime::Exceptions::NameError(
                         frame->line().first,
                         frame->line().second,
                         Utils::Strings::format("Variable \"%s\" referenced before assignment", _code->locals()[id])
@@ -267,11 +283,11 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                 /* check stack */
                 if (_stack.empty())
-                    throw Exceptions::InternalError("Stack is empty");
+                    throw Runtime::Exceptions::InternalError("Stack is empty");
 
                 /* check local ID */
                 if (id >= _locals.size())
-                    throw Exceptions::InternalError(Utils::Strings::format("Local ID %u out of range", id));
+                    throw Runtime::Exceptions::InternalError(Utils::Strings::format("Local ID %u out of range", id));
 
                 /* set the local from stack */
                 _locals[id] = std::move(_stack.back());
@@ -287,12 +303,12 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                 /* check local ID */
                 if (id >= _locals.size())
-                    throw Exceptions::InternalError(Utils::Strings::format("Local ID %u out of range", id));
+                    throw Runtime::Exceptions::InternalError(Utils::Strings::format("Local ID %u out of range", id));
 
                 /* should have initialized */
                 if (_locals[id].isNull())
                 {
-                    throw Exceptions::NameError(
+                    throw Runtime::Exceptions::NameError(
                         frame->line().first,
                         frame->line().second,
                         Utils::Strings::format("Variable \"%s\" referenced before assignment", _code->locals()[id])
@@ -313,11 +329,11 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                 /* check stack */
                 if (_stack.size() < 2)
-                    throw Exceptions::InternalError("Stack underflow");
+                    throw Runtime::Exceptions::InternalError("Stack underflow");
 
                 /* check local ID */
                 if (id >= _code->names().size())
-                    throw Exceptions::InternalError(Utils::Strings::format("Name ID %u out of range", id));
+                    throw Runtime::Exceptions::InternalError(Utils::Strings::format("Name ID %u out of range", id));
 
                 /* pop top 2 elements */
                 Runtime::ObjectRef a = std::move(*(_stack.end() - 2));
@@ -337,11 +353,11 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                 /* check stack */
                 if (_stack.empty())
-                    throw Exceptions::InternalError("Stack is empty");
+                    throw Runtime::Exceptions::InternalError("Stack is empty");
 
                 /* check local ID */
                 if (id >= _code->names().size())
-                    throw Exceptions::InternalError(Utils::Strings::format("Name ID %u out of range", id));
+                    throw Runtime::Exceptions::InternalError(Utils::Strings::format("Name ID %u out of range", id));
 
                 /* replace stack top with new object */
                 _stack.back() = _stack.back()->type()->objectGetAttr(_stack.back(), _code->names()[id]);
@@ -356,11 +372,11 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                 /* check stack */
                 if (_stack.size() < 2)
-                    throw Exceptions::InternalError("Stack underflow");
+                    throw Runtime::Exceptions::InternalError("Stack underflow");
 
                 /* check local ID */
                 if (id >= _code->names().size())
-                    throw Exceptions::InternalError(Utils::Strings::format("Name ID %u out of range", id));
+                    throw Runtime::Exceptions::InternalError(Utils::Strings::format("Name ID %u out of range", id));
 
                 /* pop top 2 elements */
                 Runtime::ObjectRef a = std::move(*(_stack.end() - 2));
@@ -380,11 +396,11 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                 /* check stack */
                 if (_stack.empty())
-                    throw Exceptions::InternalError("Stack is empty");
+                    throw Runtime::Exceptions::InternalError("Stack is empty");
 
                 /* check local ID */
                 if (id >= _code->names().size())
-                    throw Exceptions::InternalError(Utils::Strings::format("Name ID %u out of range", id));
+                    throw Runtime::Exceptions::InternalError(Utils::Strings::format("Name ID %u out of range", id));
 
                 /* remove the attribute */
                 _stack.back()->type()->objectDelAttr(_stack.back(), _code->names()[id]);
@@ -397,7 +413,7 @@ Runtime::ObjectRef Interpreter::eval(void)
             {
                 /* check stack */
                 if (_stack.size() < 2)
-                    throw Exceptions::InternalError("Stack underflow");
+                    throw Runtime::Exceptions::InternalError("Stack underflow");
 
                 /* pop top 2 elements */
                 Runtime::ObjectRef a = std::move(*(_stack.end() - 2));
@@ -414,7 +430,7 @@ Runtime::ObjectRef Interpreter::eval(void)
             {
                 /* check stack */
                 if (_stack.size() < 3)
-                    throw Exceptions::InternalError("Stack underflow");
+                    throw Runtime::Exceptions::InternalError("Stack underflow");
 
                 /* pop top 3 elements */
                 Runtime::ObjectRef a = std::move(*(_stack.end() - 3));
@@ -432,7 +448,7 @@ Runtime::ObjectRef Interpreter::eval(void)
             {
                 /* check stack */
                 if (_stack.size() < 2)
-                    throw Exceptions::InternalError("Stack underflow");
+                    throw Runtime::Exceptions::InternalError("Stack underflow");
 
                 /* pop top 2 elements */
                 Runtime::ObjectRef a = std::move(*(_stack.end() - 2));
@@ -460,7 +476,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                 {
                     /* check stack */
                     if (_stack.empty())
-                        throw Exceptions::InternalError("Stack is empty");
+                        throw Runtime::Exceptions::InternalError("Stack is empty");
 
                     /* pop from stack */
                     step = std::move(_stack.back());
@@ -472,7 +488,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                 {
                     /* check stack */
                     if (_stack.empty())
-                        throw Exceptions::InternalError("Stack is empty");
+                        throw Runtime::Exceptions::InternalError("Stack is empty");
 
                     /* pop from stack */
                     end = std::move(_stack.back());
@@ -484,7 +500,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                 {
                     /* check stack */
                     if (_stack.empty())
-                        throw Exceptions::InternalError("Stack is empty");
+                        throw Runtime::Exceptions::InternalError("Stack is empty");
 
                     /* pop from stack */
                     begin = std::move(_stack.back());
@@ -493,7 +509,7 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                 /* check stack */
                 if (_stack.empty())
-                    throw Exceptions::InternalError("Stack is empty");
+                    throw Runtime::Exceptions::InternalError("Stack is empty");
 
                 /* pop slicing target object from stack */
                 Runtime::ObjectRef obj = std::move(_stack.back());
@@ -537,20 +553,24 @@ Runtime::ObjectRef Interpreter::eval(void)
             {
                 /* check for stack */
                 if (_stack.empty())
-                    throw Exceptions::InternalError("Stack is empty");
-
-                // TODO: check exception handling blocks
+                    throw Runtime::Exceptions::InternalError("Stack is empty");
 
                 /* pop the stack top, that's the return value */
-                Runtime::ObjectRef ret = std::move(_stack.back());
+                returnValue = std::move(_stack.back());
                 _stack.pop_back();
 
                 /* should have no items left */
                 if (!(_stack.empty()))
-                    throw Exceptions::InternalError("Stack not empty when return");
+                    throw Runtime::Exceptions::InternalError("Stack not empty when return");
 
-                /* move to prevent copy */
-                return std::move(ret);
+                /* if we have exception rescure blocks remaining,
+                 * we should execute their "finally" blocks before returning */
+                if (blocks.empty())
+                    return std::move(returnValue);
+
+                /* jump to the nearest block */
+                frame->jumpTo(blocks.top().finally);
+                break;
             }
 
             /* invoke as function */
@@ -566,11 +586,11 @@ Runtime::ObjectRef Interpreter::eval(void)
                 {
                     /* should be the only flag */
                     if (flags != FI_DECORATOR)
-                        throw Exceptions::InternalError(Utils::Strings::format("Invalid invocation flags 0x%.8x", flags));
+                        throw Runtime::Exceptions::InternalError(Utils::Strings::format("Invalid invocation flags 0x%.8x", flags));
 
                     /* check for stack */
                     if (_stack.empty())
-                        throw Exceptions::InternalError("Stack is empty");
+                        throw Runtime::Exceptions::InternalError("Stack is empty");
 
                     /* build a tuple from stack top */
                     vargs = Runtime::TupleObject::fromObjects(_stack.back());
@@ -589,7 +609,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                     {
                         /* check for stack */
                         if (_stack.empty())
-                            throw Exceptions::InternalError("Stack is empty");
+                            throw Runtime::Exceptions::InternalError("Stack is empty");
 
                         /* pop keyword arguments from stack */
                         kwargs = std::move(_stack.back());
@@ -597,7 +617,7 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                         /* must be a map */
                         if (kwargs->isNotInstanceOf(Runtime::MapTypeObject))
-                            throw Exceptions::TypeError("Keyword argument pack must be a map");
+                            throw Runtime::Exceptions::TypeError("Keyword argument pack must be a map");
                     }
 
                     /* have variadic arguments */
@@ -605,7 +625,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                     {
                         /* check for stack */
                         if (_stack.empty())
-                            throw Exceptions::InternalError("Stack is empty");
+                            throw Runtime::Exceptions::InternalError("Stack is empty");
 
                         /* pop variadic arguments from stack */
                         vargs = std::move(_stack.back());
@@ -613,7 +633,7 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                         /* must be a tuple */
                         if (vargs->isNotInstanceOf(Runtime::TupleTypeObject))
-                            throw Exceptions::TypeError("Variadic argument pack must be a tuple");
+                            throw Runtime::Exceptions::TypeError("Variadic argument pack must be a tuple");
                     }
 
                     /* have named arguments */
@@ -621,7 +641,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                     {
                         /* check for stack */
                         if (_stack.empty())
-                            throw Exceptions::InternalError("Stack is empty");
+                            throw Runtime::Exceptions::InternalError("Stack is empty");
 
                         /* pop named arguments from stack */
                         named = std::move(_stack.back());
@@ -633,7 +653,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                     {
                         /* check for stack */
                         if (_stack.empty())
-                            throw Exceptions::InternalError("Stack is empty");
+                            throw Runtime::Exceptions::InternalError("Stack is empty");
 
                         /* pop normal arguments from stack */
                         args = std::move(_stack.back());
@@ -647,15 +667,15 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                 /* check for stack */
                 if (_stack.empty())
-                    throw Exceptions::InternalError("Stack is empty");
+                    throw Runtime::Exceptions::InternalError("Stack is empty");
 
                 /* tuple type check */
                 if (vargs->isNotInstanceOf(Runtime::TupleTypeObject))
-                    throw Exceptions::InternalError("Invalid function call: vargs");
+                    throw Runtime::Exceptions::InternalError("Invalid function call: vargs");
 
                 /* map type check */
                 if (kwargs->isNotInstanceOf(Runtime::MapTypeObject))
-                    throw Exceptions::InternalError("Invalid function call: kwargs");
+                    throw Runtime::Exceptions::InternalError("Invalid function call: kwargs");
 
                 /* pop callable object from stack */
                 Runtime::ObjectRef obj = std::move(_stack.back());
@@ -672,7 +692,7 @@ Runtime::ObjectRef Interpreter::eval(void)
             {
                 /* check for stack */
                 if (_stack.empty())
-                    throw Exceptions::InternalError("Stack is empty");
+                    throw Runtime::Exceptions::InternalError("Stack is empty");
 
                 /* pushing the top again */
                 _stack.emplace_back(_stack.back());
@@ -684,7 +704,7 @@ Runtime::ObjectRef Interpreter::eval(void)
             {
                 /* check for stack */
                 if (_stack.size() < 2)
-                    throw Exceptions::InternalError("Stack underflow");
+                    throw Runtime::Exceptions::InternalError("Stack underflow");
 
                 /* pushing the top two elements */
                 _stack.emplace_back(*(_stack.end() - 2));
@@ -697,7 +717,7 @@ Runtime::ObjectRef Interpreter::eval(void)
             {
                 /* check for stack */
                 if (_stack.empty())
-                    throw Exceptions::InternalError("Stack is empty");
+                    throw Runtime::Exceptions::InternalError("Stack is empty");
 
                 /* discard stack top */
                 _stack.pop_back();
@@ -709,7 +729,7 @@ Runtime::ObjectRef Interpreter::eval(void)
             {
                 /* check for stack */
                 if (_stack.size() < 2)
-                    throw Exceptions::InternalError("Stack underflow");
+                    throw Runtime::Exceptions::InternalError("Stack underflow");
 
                 /* get the top two elements */
                 Runtime::ObjectRef a = std::move(*(_stack.end() - 1));
@@ -726,7 +746,7 @@ Runtime::ObjectRef Interpreter::eval(void)
             {
                 /* check for stack */
                 if (_stack.size() < 3)
-                    throw Exceptions::InternalError("Stack underflow");
+                    throw Runtime::Exceptions::InternalError("Stack underflow");
 
                 /* get the top two elements */
                 Runtime::ObjectRef a = std::move(*(_stack.end() - 1));
@@ -749,7 +769,7 @@ Runtime::ObjectRef Interpreter::eval(void)
             {
                 /* check stack */
                 if (_stack.empty())
-                    throw Exceptions::InternalError("Stack is empty");
+                    throw Runtime::Exceptions::InternalError("Stack is empty");
 
                 /* retrive stack top */
                 Runtime::ObjectRef r;
@@ -811,7 +831,7 @@ Runtime::ObjectRef Interpreter::eval(void)
             {
                 /* check stack */
                 if (_stack.size() < 2)
-                    throw Exceptions::InternalError("Stack underflow");
+                    throw Runtime::Exceptions::InternalError("Stack underflow");
 
                 /* pop top 2 elements */
                 Runtime::ObjectRef r;
@@ -893,17 +913,10 @@ Runtime::ObjectRef Interpreter::eval(void)
                 break;
             }
 
-            /* exception matching */
-            case OpCode::EXC_MATCH:
-            {
-                // TODO: implement these
-                throw Exceptions::InternalError("not implemented yet");
-            }
-
             /* unconditional branch */
             case OpCode::BR:
             {
-                frame->jump(frame->nextOperand());
+                frame->jumpBy(frame->nextOperand());
                 break;
             }
 
@@ -917,7 +930,7 @@ Runtime::ObjectRef Interpreter::eval(void)
             {
                 /* check stack */
                 if (_stack.empty())
-                    throw Exceptions::InternalError("Stack is empty");
+                    throw Runtime::Exceptions::InternalError("Stack is empty");
 
                 /* evaluate condition */
                 auto off = frame->nextOperand();
@@ -965,7 +978,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                     case OpCode::BRCP_TRUE:
                     case OpCode::BRNP_TRUE:
                     {
-                        if (isTrue) frame->jump(off);
+                        if (isTrue) frame->jumpBy(off);
                         break;
                     }
 
@@ -974,7 +987,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                     case OpCode::BRCP_FALSE:
                     case OpCode::BRNP_FALSE:
                     {
-                        if (!isTrue) frame->jump(off);
+                        if (!isTrue) frame->jumpBy(off);
                         break;
                     }
                 }
@@ -987,51 +1000,160 @@ Runtime::ObjectRef Interpreter::eval(void)
             /* throw exception */
             case OpCode::RAISE:
             {
-                /* check stack */
-                if (_stack.empty())
-                    throw Exceptions::InternalError("Stack is empty");
+                // TODO: fix this
+                throw Runtime::Exceptions::InternalError("not implemented :: RAISE");
+//                /* check stack */
+//                if (_stack.empty())
+//                    throw Runtime::Exceptions::InternalError("Stack is empty");
+//
+//                /* pop the exception object from stack */
+//                auto value = std::move(_stack.back());
+//                _stack.pop_back();
+//
+//                /* try casting to native exception */
+//                auto *object = value.get();
+//                auto *exception = dynamic_cast<Runtime::ExceptionObject *>(object);
+//
+//                /* must be an exception */
+//                if (exception == nullptr)
+//                {
+//                    throw Runtime::Exceptions::TypeError(Utils::Strings::format(
+//                        "Exceptions must be derived from BaseException, not \"%s\"",
+//                        object->type()->name()
+//                    ));
+//                }
+//
+//                /* throw the exception, this should never returns */
+//                exception->throwObject();
+//                abort();
+            }
 
-                /* pop the exception object from stack */
-                auto value = std::move(_stack.back());
-                _stack.pop_back();
-
-                /* try casting to native exception */
-                auto *object = value.get();
-                auto *exception = dynamic_cast<Runtime::ExceptionObject *>(object);
-
-                /* must be an exception */
-                if (exception == nullptr)
-                {
-                    throw Exceptions::TypeError(Utils::Strings::format(
-                        "Exceptions must be derived from BaseException, not \"%s\"",
-                        object->type()->name()
-                    ));
-                }
-
-                /* throw the exception */
-                exception->throwObject();
-                break;
+            /* exception matching */
+            case OpCode::EXC_MATCH:
+            case OpCode::EXC_STORE:
+            {
+                // TODO: fix this
+                throw Runtime::Exceptions::InternalError("not implemented :: EXC_MATCH / EXC_STORE");
+//                /* local ID and jump offset */
+//                uint32_t index = 0;
+//                uint32_t offset = frame->nextOperand();
+//
+//                /* extract the local ID as needed */
+//                if (opcode == OpCode::EXC_STORE)
+//                    if ((index = frame->nextOperand()) >= _locals.size())
+//                        throw Runtime::Exceptions::InternalError(Utils::Strings::format("Local ID %u out of range", index));
+//
+//                /* check for exception blocks */
+//                if (blocks.empty())
+//                    throw Runtime::Exceptions::InternalError("No blocks");
+//
+//                /* check stack */
+//                if (_stack.empty())
+//                    throw Runtime::Exceptions::InternalError("Stack is empty");
+//
+//                /* pop the exception type from stack */
+//                auto type = std::move(_stack.back());
+//                _stack.pop_back();
+//
+//                /* not even a type */
+//                if (type->isNotInstanceOf(Runtime::TypeObject))
+//                {
+//                    frame->jumpBy(offset);
+//                    break;
+//                }
+//
+//                /* exception type and value */
+//                auto etype = type.as<Runtime::Type>();
+//                auto &exception = blocks.top().exception;
+//
+//                /* check for exception type, use the root class type
+//                 * checker to prevent user from overriding "__is_subclass_of__" */
+//                if (!(Runtime::TypeObject->nativeObjectIsSubclassOf(exception->type(), etype)))
+//                {
+//                    frame->jumpBy(offset);
+//                    break;
+//                }
+//
+//                /* save the exception object as needed */
+//                if (opcode == OpCode::EXC_STORE)
+//                    _locals[index] = Runtime::ExceptionWrapper::wrap(exception.get());
+//
+//                /* set the "matched" flag */
+//                blocks.top().flags |= EF_CAUGHT;
+//                break;
             }
 
             /* setup exception handling block */
-            case OpCode::PUSH_BLOCK:
+            case OpCode::SETUP_BLOCK:
             {
-                // TODO: implement these
-                throw Exceptions::InternalError("not implemented yet");
+                /* exception block ID */
+                Block block;
+                size_t start = frame->pc();
+                uint32_t except = frame->nextOperand();
+                uint32_t finally = frame->nextOperand();
+
+                /* fill the block info */
+                block.sp = _stack.size();
+                block.flags = EF_INIT;
+                block.except = start + except - 1;
+                block.finally = start + finally - 1;
+
+                /* push to block stack */
+                blocks.push(std::move(block));
+                break;
             }
 
-            /* destroy exception handling block */
-            case OpCode::POP_BLOCK:
+            /* end of the exception handling block */
+            case OpCode::END_EXCEPT:
             {
-                // TODO: implement these
-                throw Exceptions::InternalError("not implemented yet");
+                /* check for exception blocks */
+                if (blocks.empty())
+                    throw Runtime::Exceptions::InternalError("No blocks");
+
+                /* mark "finally" begins */
+                blocks.top().flags |= EF_FINALLY;
+                break;
             }
 
             /* end of the finally block */
             case OpCode::END_FINALLY:
             {
-                // TODO: implement these
-                throw Exceptions::InternalError("not implemented yet");
+                /* check for exception blocks */
+                if (blocks.empty())
+                    throw Runtime::Exceptions::InternalError("No blocks");
+
+                /* pop the block from stack */
+                Block block = std::move(blocks.top());
+                blocks.pop();
+
+                /* stack should balance */
+                if (_stack.size() != block.sp)
+                {
+                    throw Runtime::Exceptions::InternalError(Utils::Strings::format(
+                        "Stack unbalanced: %zu -> %zu",
+                        block.sp,
+                        _stack.size()
+                    ));
+                }
+
+                /* exceptions occured but not handled, rethrow the exception */
+                if (block.flags && !(block.flags & EF_CAUGHT))
+                    throw Runtime::Exceptions::InternalError("not implemented :: rethrow");
+//                  TODO: throw block.exception;
+
+                /* we got an return value, flush remaining blocks if any */
+                if (returnValue.isNotNull())
+                {
+                    /* no other blocks remaining */
+                    if (blocks.empty())
+                        return std::move(returnValue);
+
+                    /* otherwise, jump to it's finally section to
+                     * execute the remaining "finally" instructions */
+                    frame->jumpTo(blocks.top().finally);
+                }
+
+                break;
             }
 
             /* advance iterator */
@@ -1039,7 +1161,7 @@ Runtime::ObjectRef Interpreter::eval(void)
             {
                 /* check stack */
                 if (_stack.empty())
-                    throw Exceptions::InternalError("Stack is empty");
+                    throw Runtime::Exceptions::InternalError("Stack is empty");
 
                 /* jump address when iterator drained */
                 auto off = frame->nextOperand();
@@ -1053,9 +1175,9 @@ Runtime::ObjectRef Interpreter::eval(void)
                 }
 
                 /* iterator drained, drop the iterator, and jump to address */
-                catch (const Exceptions::StopIteration &)
+                catch (const Runtime::Exceptions::StopIteration &)
                 {
-                    frame->jump(off);
+                    frame->jumpBy(off);
                     _stack.pop_back();
                     break;
                 }
@@ -1069,7 +1191,7 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                 /* check stack */
                 if (_stack.empty())
-                    throw Exceptions::InternalError("Stack is empty");
+                    throw Runtime::Exceptions::InternalError("Stack is empty");
 
                 /* pop the stack top */
                 Runtime::ObjectRef top = std::move(_stack.back());
@@ -1097,7 +1219,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                     /* check item count */
                     if (size != count)
                     {
-                        throw Exceptions::ValueError(Utils::Strings::format(
+                        throw Runtime::Exceptions::ValueError(Utils::Strings::format(
                             "Needs exact %zu items to unpack, but got %zu",
                             count - size
                         ));
@@ -1125,9 +1247,9 @@ Runtime::ObjectRef Interpreter::eval(void)
                     }
 
                     /* iterator drained in the middle of expanding */
-                    catch (const Exceptions::StopIteration &)
+                    catch (const Runtime::Exceptions::StopIteration &)
                     {
-                        throw Exceptions::ValueError(Utils::Strings::format(
+                        throw Runtime::Exceptions::ValueError(Utils::Strings::format(
                             "Needs %zu more items to unpack",
                             count - i
                         ));
@@ -1137,11 +1259,11 @@ Runtime::ObjectRef Interpreter::eval(void)
                     try
                     {
                         iter->type()->iterableNext(iter);
-                        throw Exceptions::ValueError("Too many items to unpack");
+                        throw Runtime::Exceptions::ValueError("Too many items to unpack");
                     }
 
                     /* `StopIteration` is expected */
-                    catch (const Exceptions::StopIteration &)
+                    catch (const Runtime::Exceptions::StopIteration &)
                     {
                         /* should have no more items */
                         /* this is expected, so ignore this exception */
@@ -1158,7 +1280,7 @@ Runtime::ObjectRef Interpreter::eval(void)
             case OpCode::IMPORT_ALIAS:
             {
                 // TODO: implement these
-                throw Exceptions::InternalError("not implemented yet");
+                throw Runtime::Exceptions::InternalError("not implemented: IMPORT_ALIAS");
             }
 
             /* build a map object */
@@ -1170,7 +1292,7 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                 /* check stack size */
                 if (_stack.size() < count * 2)
-                    throw Exceptions::InternalError("Stack underflow");
+                    throw Runtime::Exceptions::InternalError("Stack underflow");
 
                 /* build the map */
                 for (auto it = _stack.end() - count * 2; it != _stack.end(); it += 2)
@@ -1192,7 +1314,7 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                 /* check stack */
                 if (_stack.size() < size)
-                    throw Exceptions::InternalError("Stack underflow");
+                    throw Runtime::Exceptions::InternalError("Stack underflow");
 
                 /* extract each item, in reverse order */
                 for (ssize_t i = size; i > 0; i--)
@@ -1214,7 +1336,7 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                 /* check stack */
                 if (_stack.size() < size)
-                    throw Exceptions::InternalError("Stack underflow");
+                    throw Runtime::Exceptions::InternalError("Stack underflow");
 
                 /* extract each item, in reverse order */
                 for (ssize_t i = size; i > 0; i--)
@@ -1231,7 +1353,7 @@ Runtime::ObjectRef Interpreter::eval(void)
             {
                 /* check stack */
                 if (_stack.empty())
-                    throw Exceptions::InternalError("Stack is empty");
+                    throw Runtime::Exceptions::InternalError("Stack is empty");
 
                 /* code object ID and defaults pack */
                 auto nid = frame->nextOperand();
@@ -1240,15 +1362,15 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                 /* check name ID */
                 if (nid >= _code->names().size())
-                    throw Exceptions::InternalError(Utils::Strings::format("Name ID %u out of range", cid));
+                    throw Runtime::Exceptions::InternalError(Utils::Strings::format("Name ID %u out of range", cid));
 
                 /* check code ID */
                 if (cid >= _code->consts().size())
-                    throw Exceptions::InternalError(Utils::Strings::format("Code ID %u out of range", cid));
+                    throw Runtime::Exceptions::InternalError(Utils::Strings::format("Code ID %u out of range", cid));
 
                 /* check for tuple object */
                 if (def->isNotInstanceOf(Runtime::TupleTypeObject))
-                    throw Exceptions::InternalError("Invalid tuple object");
+                    throw Runtime::Exceptions::InternalError("Invalid tuple object");
 
                 /* get function code and name */
                 auto &name = _code->names()[nid];
@@ -1256,7 +1378,7 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                 /* check for code object */
                 if (code->isNotInstanceOf(Runtime::CodeTypeObject))
-                    throw Exceptions::InternalError("Invalid code object");
+                    throw Runtime::Exceptions::InternalError("Invalid code object");
 
                 /* build execution closure */
                 auto funcDef = def.as<Runtime::TupleObject>();
@@ -1273,7 +1395,7 @@ Runtime::ObjectRef Interpreter::eval(void)
             {
                 /* check stack */
                 if (_stack.empty())
-                    throw Exceptions::InternalError("Stack is empty");
+                    throw Runtime::Exceptions::InternalError("Stack is empty");
 
                 /* extract constant ID */
                 auto nid = frame->nextOperand();
@@ -1282,16 +1404,16 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                 /* check name ID range */
                 if (nid >= _code->names().size())
-                    throw Exceptions::InternalError("Name ID out of range");
+                    throw Runtime::Exceptions::InternalError("Name ID out of range");
 
                 /* check code ID range */
                 if (cid >= _code->consts().size())
-                    throw Exceptions::InternalError("Code ID out of range");
+                    throw Runtime::Exceptions::InternalError("Code ID out of range");
 
                 /* super class must be a type */
                 if (super->isNotInstanceOf(Runtime::TypeObject))
                 {
-                    throw Exceptions::TypeError(Utils::Strings::format(
+                    throw Runtime::Exceptions::TypeError(Utils::Strings::format(
                         "Super class must be a type, not \"%s\"",
                         super->type()->name()
                     ));
@@ -1303,7 +1425,7 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                 /* check for code object */
                 if (code->isNotInstanceOf(Runtime::CodeTypeObject))
-                    throw Exceptions::InternalError("Invalid code object");
+                    throw Runtime::Exceptions::InternalError("Invalid code object");
 
                 /* build execution closure */
                 auto classCode = code.as<Runtime::CodeObject>();
@@ -1317,7 +1439,7 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                 /* execute the class body */
                 if (vm.eval().isNotIdenticalWith(Runtime::NullObject))
-                    throw Exceptions::InternalError("Invalid class body");
+                    throw Runtime::Exceptions::InternalError("Invalid class body");
 
                 /* enumerate every locals, but exclude not initialized one */
                 for (auto &item : classCode->localMap())
@@ -1337,11 +1459,11 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                 /* check stack */
                 if (_stack.empty())
-                    throw Exceptions::InternalError("Stack is empty");
+                    throw Runtime::Exceptions::InternalError("Stack is empty");
 
                 /* check operand range */
                 if (id >= _code->consts().size())
-                    throw Exceptions::InternalError("Constant ID out of range");
+                    throw Runtime::Exceptions::InternalError("Constant ID out of range");
 
                 /* load options from stack */
                 Runtime::ObjectRef source = _code->consts()[id];
@@ -1349,11 +1471,11 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                 /* must be a map */
                 if (source->type() != Runtime::StringTypeObject)
-                    throw Exceptions::InternalError("Invalid source string");
+                    throw Runtime::Exceptions::InternalError("Invalid source string");
 
                 /* must be a map */
                 if (options->type() != Runtime::MapTypeObject)
-                    throw Exceptions::InternalError("Invalid options map");
+                    throw Runtime::Exceptions::InternalError("Invalid options map");
 
                 /* replace stack top with native class object */
                 _stack.back() = Runtime::Object::newObject<Runtime::NativeClassObject>(
@@ -1372,7 +1494,7 @@ Runtime::ObjectRef Interpreter::eval(void)
              * which might be an illegal value */
             default:
             {
-                throw Exceptions::InternalError(Utils::Strings::format(
+                throw Runtime::Exceptions::InternalError(Utils::Strings::format(
                     "Invalid op-code 0x%.2x",
                     static_cast<uint8_t>(opcode)
                 ));
@@ -1384,10 +1506,60 @@ Runtime::ObjectRef Interpreter::eval(void)
     }
 
     /* exceptions occured when executing, try exception recovery */
-    catch (int)
-    {
-        // TODO: exception recovery
-        throw;
-    }
+    catch (int) {}
+    // TODO: fix this
+//    catch (const Runtime::Exceptions::Throwable &e)
+//    {
+//        /* no exception recovery blocks available,
+//         * propagate the exception to parent scope */
+//        if (blocks.empty())
+//            throw;
+//
+//        /* get the last block */
+//        Block &block = blocks.top();
+//        Runtime::ExceptionObject::ExceptionPtr exc = Runtime::ExceptionWrapper::clone(e);
+//
+//        /* check the stack size */
+//        if (_stack.size() < block.sp)
+//            throw Runtime::Exceptions::InternalError("Stack underflow in exception recovery block");
+//
+//        /* the first time exception occures */
+//        if (!(block.flags & EF_HANDLING))
+//        {
+//            /* set handing flags and exception object */
+//            block.flags |= EF_HANDLING;
+//            block.exception = std::move(exc);
+//
+//            /* unwind the stack to the position before entering
+//             * this recovery block, and jump to exception handling block */
+//            _stack.resize(block.sp);
+//            frame->jumpTo(block.except);
+//        }
+//
+//        /* exceptions occured in "except" block */
+//        else if (!(block.flags & EF_FINALLY))
+//        {
+//            /* set flags for later rethrowing */
+//            block.flags &= ~EF_CAUGHT;
+//            block.flags |=  EF_HANDLING;
+//
+//            /* chain the exception */
+//            exc->parent() = std::move(block.exception);
+//            block.exception = std::move(exc);
+//
+//            /* unwind the stack to the position before entering
+//             * this recovery block, and jump to "finally" block to cleanup */
+//            _stack.resize(block.sp);
+//            frame->jumpTo(block.finally);
+//        }
+//
+//        /* exceptions occured in "finally" block */
+//        else
+//        {
+//            /* cannot continue, propagate the exception to parent */
+//            exc->parent() = std::move(block.exception);
+//            throw *exc;
+//        }
+//    }
 }
 }

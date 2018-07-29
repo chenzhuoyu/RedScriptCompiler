@@ -76,7 +76,7 @@ Integer Decimal::toInt(void) const
 
     /* find the delimiter, maybe special values */
     if (!(delim = strchr(s, 'E')))
-        throw Exceptions::ValueError(Utils::Strings::format("Cannot convert %s to int", s));
+        throw Runtime::Exceptions::ValueError(Utils::Strings::format("Cannot convert %s to int", s));
 
     /* extract three parts */
     char *pos = delim;

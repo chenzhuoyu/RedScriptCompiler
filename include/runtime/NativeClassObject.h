@@ -8,7 +8,7 @@
 
 #include "runtime/Object.h"
 #include "runtime/MapObject.h"
-#include "exceptions/NativeSyntaxError.h"
+#include "runtime/ExceptionObject.h"
 
 namespace RedScript::Runtime
 {

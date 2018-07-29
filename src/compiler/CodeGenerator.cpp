@@ -3,7 +3,6 @@
 #include "runtime/CodeObject.h"
 #include "runtime/StringObject.h"
 #include "runtime/DecimalObject.h"
-#include "runtime/ExceptionBlockObject.h"
 
 #include "compiler/CodeGenerator.h"
 
@@ -26,7 +25,7 @@ static inline Engine::OpCode incOpCode(Token::Operator op)
         case Token::Operator::InplaceShiftRight : return Engine::OpCode::INP_RSHIFT;
 
         default:
-            throw Exceptions::InternalError("Impossible incremental operator");
+            throw Runtime::Exceptions::InternalError("Impossible incremental operator");
     }
 }
 
@@ -92,7 +91,7 @@ void CodeGenerator::buildFunctionObject(const std::string &name, const std::uniq
 {
     /* check for default value count */
     if (node->defaults.size() > UINT32_MAX)
-        throw Exceptions::RuntimeError("Too many default values");
+        throw Runtime::Exceptions::RuntimeError("Too many default values");
 
     /* evaluate all default values when build functions */
     for (const auto &expr : node->defaults)
@@ -217,41 +216,51 @@ void CodeGenerator::visitFor(const std::unique_ptr<AST::For> &node)
 
 void CodeGenerator::visitTry(const std::unique_ptr<AST::Try> &node)
 {
+    /* "finally" patch addresses */
     bool isFirst = true;
-    uint32_t tryStart = pc();
+    std::vector<uint32_t> finally = {};
+
+    /* beginning of the try-except-finally block */
     uint32_t nextBlock = UINT32_MAX;
-    std::vector<uint32_t> jumpFinally = {};
-    Runtime::Reference<Runtime::ExceptionBlockObject> block = Runtime::Object::newObject<Runtime::ExceptionBlockObject>();
+    uint32_t blockStart = emitOperand2(node, Engine::OpCode::SETUP_BLOCK, 0, 0);
 
     /* generate the body within an exception handling block */
-    emitOperand(node, Engine::OpCode::PUSH_BLOCK, addConst(block));
     visitStatement(node->body);
-    emit(node, Engine::OpCode::POP_BLOCK);
-    block->setExcept(pc() - tryStart);
 
     /* generate "except" if any */
     for (const auto &except : node->excepts)
     {
+        /* end of the previous block, jump to "finally" section */
+        finally.emplace_back(emitJump(except.exception, Engine::OpCode::BR));
+
         /* patch the previous "except" block if any */
         if (!isFirst)
-        {
-            jumpFinally.emplace_back(emitJump(except.exception, Engine::OpCode::BR));
             patchBranch(nextBlock, pc());
-        }
-
-        /* match the current exception */
-        visitExpression(except.exception);
-        emit(except.exception, Engine::OpCode::EXC_MATCH);
-
-        /* skip to next "except" block if not matches */
-        isFirst = false;
-        nextBlock = emitJump(except.exception, Engine::OpCode::BRP_FALSE);
-
-        /* save to alias if present */
-        if (!(except.alias))
-            emit(except.exception, Engine::OpCode::DROP);
         else
-            emitOperand(except.alias, Engine::OpCode::STOR_LOCAL, addLocal(except.alias->name));
+            patchBranch(blockStart, pc());
+
+        /* expression of expected exception type */
+        isFirst = false;
+        visitExpression(except.exception);
+
+        /* match the current exception, skip
+         * to next "except" block if not matches */
+        if (!(except.alias))
+        {
+            nextBlock = emitJump(
+                except.exception,
+                Engine::OpCode::EXC_MATCH
+            );
+        }
+        else
+        {
+            nextBlock = emitOperand2(
+                except.exception,
+                Engine::OpCode::EXC_STORE,
+                0,
+                addLocal(except.alias->name)
+            );
+        }
 
         /* exception handler body */
         visitStatement(except.handler);
@@ -260,13 +269,16 @@ void CodeGenerator::visitTry(const std::unique_ptr<AST::Try> &node)
     /* patch the last exception branch if any */
     if (!isFirst)
         patchBranch(nextBlock, pc());
+    else
+        patchBranch(blockStart, pc());
 
     /* finally all goes here */
-    for (const auto &offset : jumpFinally)
+    for (const auto &offset : finally)
         patchBranch(offset, pc());
 
     /* finally block begins here */
-    block->setFinally(pc() - tryStart);
+    patchBranch2(blockStart, pc());
+    emit(node, Engine::OpCode::END_EXCEPT);
 
     /* generate finally if any */
     if (node->finally)
@@ -321,7 +333,7 @@ void CodeGenerator::visitNative(const std::unique_ptr<AST::Native> &node)
 {
     /* check options count */
     if (node->opts.size() > UINT32_MAX)
-        throw Exceptions::SyntaxError(node, "Too many options");
+        throw Runtime::Exceptions::SyntaxError(node, "Too many options");
 
     /* build each option */
     for (const auto &opt : node->opts)
@@ -416,7 +428,7 @@ void CodeGenerator::buildCompositeTarget(const std::unique_ptr<AST::Composite> &
 {
     /* should be mutable */
     if (!(node->isSyntacticallyMutable(true)))
-        throw Exceptions::InternalError("Immutable assign targets");
+        throw Runtime::Exceptions::InternalError("Immutable assign targets");
 
     /* a single name, set as local variable */
     if (node->mods.empty())
@@ -429,7 +441,7 @@ void CodeGenerator::buildCompositeTarget(const std::unique_ptr<AST::Composite> &
         if (!isInConstructor() || (nameStr != _firstArgName.top()))
             emitOperand(name, Engine::OpCode::STOR_LOCAL, addLocal(nameStr));
         else
-            throw Exceptions::SyntaxError(name, Utils::Strings::format("Cannot reassign \"%s\" in constructors", nameStr));
+            throw Runtime::Exceptions::SyntaxError(name, Utils::Strings::format("Cannot reassign \"%s\" in constructors", nameStr));
     }
     else
     {
@@ -505,7 +517,7 @@ void CodeGenerator::buildCompositeTarget(const std::unique_ptr<AST::Composite> &
 
             /* whatever(...) = value, impossible */
             case AST::Composite::ModType::Invoke:
-                throw Exceptions::InternalError("Impossible assignment to invocation");
+                throw Runtime::Exceptions::InternalError("Impossible assignment to invocation");
 
             /* whatever.name = value */
             case AST::Composite::ModType::Attribute:
@@ -560,7 +572,7 @@ void CodeGenerator::visitIncremental(const std::unique_ptr<AST::Incremental> &no
 {
     /* must be mutable */
     if (!(node->dest->isSyntacticallyMutable(false)))
-        throw Exceptions::InternalError("Immutable assigning target");
+        throw Runtime::Exceptions::InternalError("Immutable assigning target");
 
     /* generate incremental expression */
     auto visitIncrementalExpr = [&]
@@ -626,11 +638,11 @@ void CodeGenerator::visitIncremental(const std::unique_ptr<AST::Incremental> &no
 
             /* a[x:y:z] += ..., impossible */
             case AST::Composite::ModType::Slice:
-                throw Exceptions::InternalError("Slice assigning target");
+                throw Runtime::Exceptions::InternalError("Slice assigning target");
 
             /* a(...) = ..., impossible */
             case AST::Composite::ModType::Invoke:
-                throw Exceptions::InternalError("Immutable assigning target");
+                throw Runtime::Exceptions::InternalError("Immutable assigning target");
 
             /* a.b += ... */
             case AST::Composite::ModType::Attribute:
@@ -662,7 +674,7 @@ void CodeGenerator::visitDelete(const std::unique_ptr<AST::Delete> &node)
 {
     /* must be mutable */
     if (!(node->comp->isSyntacticallyMutable(true)))
-        throw Exceptions::InternalError("Immutable deleting target");
+        throw Runtime::Exceptions::InternalError("Immutable deleting target");
 
     /* no modifiers, it's a pure name */
     if (node->comp->mods.empty())
@@ -748,7 +760,7 @@ void CodeGenerator::visitDelete(const std::unique_ptr<AST::Delete> &node)
 
             /* delete a(...), impossible */
             case AST::Composite::ModType::Invoke:
-                throw Exceptions::InternalError("Immutable deleting target");
+                throw Runtime::Exceptions::InternalError("Immutable deleting target");
 
             /* delete a.b */
             case AST::Composite::ModType::Attribute:
@@ -799,7 +811,7 @@ void CodeGenerator::visitImport(const std::unique_ptr<AST::Import> &node)
 void CodeGenerator::visitBreak(const std::unique_ptr<AST::Break> &node)
 {
     if (breakStack().empty())
-        throw Exceptions::InternalError("Not breakable here");
+        throw Runtime::Exceptions::InternalError("Not breakable here");
     else
         breakStack().top().emplace_back(emitJump(node, Engine::OpCode::BR));
 }
@@ -813,7 +825,7 @@ void CodeGenerator::visitReturn(const std::unique_ptr<AST::Return> &node)
 void CodeGenerator::visitContinue(const std::unique_ptr<AST::Continue> &node)
 {
     if (continueStack().empty())
-        throw Exceptions::InternalError("Not continuable here");
+        throw Runtime::Exceptions::InternalError("Not continuable here");
     else
         continueStack().top().emplace_back(emitJump(node, Engine::OpCode::BR));
 }
@@ -866,7 +878,7 @@ void CodeGenerator::visitInvoke(const std::unique_ptr<AST::Invoke> &node)
     {
         /* check item count */
         if (node->args.size() > UINT32_MAX)
-            throw Exceptions::SyntaxError(node, "Too many arguments");
+            throw Runtime::Exceptions::SyntaxError(node, "Too many arguments");
 
         /* build as tuple */
         for (const auto &item : node->args)
@@ -882,7 +894,7 @@ void CodeGenerator::visitInvoke(const std::unique_ptr<AST::Invoke> &node)
     {
         /* check item count */
         if (node->kwargs.size() > UINT32_MAX)
-            throw Exceptions::SyntaxError(node, "Too many keyword arguments");
+            throw Runtime::Exceptions::SyntaxError(node, "Too many keyword arguments");
 
         /* build as key value pair map */
         for (const auto &item : node->kwargs)
@@ -931,7 +943,7 @@ void CodeGenerator::visitMap(const std::unique_ptr<AST::Map> &node)
 {
     /* check item count */
     if (node->items.size() > UINT32_MAX)
-        throw Exceptions::SyntaxError(node, "Too many map items");
+        throw Runtime::Exceptions::SyntaxError(node, "Too many map items");
 
     /* build each item expression */
     for (const auto &item : node->items)
@@ -948,7 +960,7 @@ void CodeGenerator::visitArray(const std::unique_ptr<AST::Array> &node)
 {
     /* check item count */
     if (node->items.size() > UINT32_MAX)
-        throw Exceptions::SyntaxError(node, "Too many array items");
+        throw Runtime::Exceptions::SyntaxError(node, "Too many array items");
 
     /* build each item expression, in reverse order */
     for (const auto &item : node->items)
@@ -962,7 +974,7 @@ void CodeGenerator::visitTuple(const std::unique_ptr<AST::Tuple> &node)
 {
     /* check item count */
     if (node->items.size() > UINT32_MAX)
-        throw Exceptions::SyntaxError(node, "Too many tuple items");
+        throw Runtime::Exceptions::SyntaxError(node, "Too many tuple items");
 
     /* build each item expression, in reverse order */
     for (const auto &item : node->items)
@@ -1004,7 +1016,7 @@ void CodeGenerator::visitUnpack(const std::unique_ptr<AST::Unpack> &node)
 {
     /* check for item count, allows maximum 4G items */
     if (node->items.size() > UINT32_MAX)
-        throw Exceptions::SyntaxError(node, "Too many items to unpack");
+        throw Runtime::Exceptions::SyntaxError(node, "Too many items to unpack");
 
     /* expand the packed tuple into stack */
     emitOperand(node, Engine::OpCode::EXPAND_SEQ, static_cast<uint32_t>(node->items.size()));
@@ -1100,7 +1112,7 @@ void CodeGenerator::visitExpression(const std::unique_ptr<AST::Expression> &node
 
             /* other operators, should not happen */
             default:
-                throw Exceptions::InternalError(Utils::Strings::format("Impossible operator %s", node->first.op->toString()));
+                throw Runtime::Exceptions::InternalError(Utils::Strings::format("Impossible operator %s", node->first.op->toString()));
         }
     }
 
@@ -1128,7 +1140,7 @@ void CodeGenerator::visitExpression(const std::unique_ptr<AST::Expression> &node
             {
                 /* must not be other operator types */
                 if (type == OperatorType::Generic)
-                    throw Exceptions::InternalError("Mixed operator types");
+                    throw Runtime::Exceptions::InternalError("Mixed operator types");
 
                 /* set as comparison operators */
                 type = OperatorType::Comparison;
@@ -1140,7 +1152,7 @@ void CodeGenerator::visitExpression(const std::unique_ptr<AST::Expression> &node
             {
                 /* must not be other operator types */
                 if (type == OperatorType::Comparison)
-                    throw Exceptions::InternalError("Mixed operator types");
+                    throw Runtime::Exceptions::InternalError("Mixed operator types");
 
                 /* short-circuit operation */
                 type = OperatorType::Generic;
@@ -1153,7 +1165,7 @@ void CodeGenerator::visitExpression(const std::unique_ptr<AST::Expression> &node
             {
                 /* must not be other operator types */
                 if (type == OperatorType::Comparison)
-                    throw Exceptions::InternalError("Mixed operator types");
+                    throw Runtime::Exceptions::InternalError("Mixed operator types");
 
                 /* short-circuit operation */
                 type = OperatorType::Generic;
@@ -1180,7 +1192,7 @@ void CodeGenerator::visitExpression(const std::unique_ptr<AST::Expression> &node
             {
                 /* must not be other operator types */
                 if (type == OperatorType::Comparison)
-                    throw Exceptions::InternalError("Mixed operator types");
+                    throw Runtime::Exceptions::InternalError("Mixed operator types");
 
                 /* it's generic operator */
                 type = OperatorType::Generic;
@@ -1189,7 +1201,7 @@ void CodeGenerator::visitExpression(const std::unique_ptr<AST::Expression> &node
 
             /* other operators, should not happen */
             default:
-                throw Exceptions::InternalError(Utils::Strings::format("Impossible operator %s", item.op->toString()));
+                throw Runtime::Exceptions::InternalError(Utils::Strings::format("Impossible operator %s", item.op->toString()));
         }
 
         /* next term */
@@ -1258,7 +1270,7 @@ void CodeGenerator::visitExpression(const std::unique_ptr<AST::Expression> &node
 
             /* other operators, should not happen */
             default:
-                throw Exceptions::InternalError(Utils::Strings::format("Impossible operator %s", item.op->toString()));
+                throw Runtime::Exceptions::InternalError(Utils::Strings::format("Impossible operator %s", item.op->toString()));
         }
 
         /* sequential comparison support */

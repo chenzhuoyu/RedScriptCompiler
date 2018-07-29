@@ -5,8 +5,7 @@
 #include <cstdint>
 #include <mpir.h>
 
-#include "exceptions/ValueError.h"
-#include "exceptions/ZeroDivisionError.h"
+#include "runtime/ExceptionObject.h"
 
 namespace RedScript::Utils
 {
@@ -50,18 +49,18 @@ private:
     {
         /* must be unsigned integer */
         if (!(val.isSafeUInt()))
-            throw Exceptions::ValueError("Not a valid bit count");
+            throw Runtime::Exceptions::ValueError("Not a valid bit count");
 
         /* and must be a valid 32-bit integer */
         auto bits = val.toUInt();
-        return bits < UINT32_MAX ? static_cast<uint32_t>(bits) : throw Exceptions::ValueError("Bit shifts too far");
+        return bits < UINT32_MAX ? static_cast<uint32_t>(bits) : throw Runtime::Exceptions::ValueError("Bit shifts too far");
     }
 
 private:
     static inline const mpz_t &zeroChecked(const Integer &val)
     {
         if (val.isZero())
-            throw Exceptions::ZeroDivisionError("Integer division or modulo by zero");
+            throw Runtime::Exceptions::ZeroDivisionError("Integer division or modulo by zero");
         else
             return val._value;
     }
