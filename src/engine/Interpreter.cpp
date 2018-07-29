@@ -1557,8 +1557,8 @@ Runtime::ObjectRef Interpreter::eval(void)
             else
             {
                 /* no more rescure blocks, we cannot handle it, propagate to parent;
-                 * must write "throw exc" here, because a single "throw" will destroy the
-                 * exception chaining information */
+                 * must write "throw exc" here, because a single "throw" will destroy
+                 * the exception chaining information */
                 if (blocks.size() == 1)
                     throw exc;
 
