@@ -268,22 +268,30 @@ public:
 
 namespace Exceptions
 {
-struct Throwable : public std::exception
-{
-    virtual const char *what() const noexcept override
-    {
-        static thread_local std::string what;
-        return (what = Utils::Strings::format("<Throwable at %p>", static_cast<const void *>(this))).c_str();
-    }
-};
-
 template <typename Exception, typename ... Args>
-struct ThrowableReference : public Reference<Exception>, public Throwable
+struct ThrowableReference : public Reference<ExceptionObject>, public std::exception
 {
-    explicit ThrowableReference(Args ... args) : Reference<Exception>::Reference(
-        typename Reference<Exception>::TagSubRef(),
-        std::forward<Args>(args) ...
+    virtual ~ThrowableReference() = default;
+    explicit ThrowableReference(Args ... args) : Reference<ExceptionObject>::Reference(
+        construct<Exception>(std::forward<Args>(args) ...),
+        Reference<ExceptionObject>::TagNew()
     ) {}
+
+public:
+    virtual Exception &operator*(void) override { return *get(); }
+    virtual Exception *operator->(void) override { return get(); }
+
+public:
+    virtual const Exception &operator*(void) const override { return *get(); }
+    virtual const Exception *operator->(void) const override { return get(); }
+
+public:
+    virtual Exception *get(void) override { return static_cast<Exception *>(Reference<ExceptionObject>::get()); }
+    virtual const Exception *get(void) const override { return static_cast<const Exception *>(Reference<ExceptionObject>::get()); }
+
+public:
+    operator Exception *(void) { return get(); }
+    operator const Exception *(void) const { return get(); }
 
 public:
     virtual const char *what() const noexcept override

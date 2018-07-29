@@ -1000,87 +1000,79 @@ Runtime::ObjectRef Interpreter::eval(void)
             /* throw exception */
             case OpCode::RAISE:
             {
-                // TODO: fix this
-                throw Runtime::Exceptions::InternalError("not implemented :: RAISE");
-//                /* check stack */
-//                if (_stack.empty())
-//                    throw Runtime::Exceptions::InternalError("Stack is empty");
-//
-//                /* pop the exception object from stack */
-//                auto value = std::move(_stack.back());
-//                _stack.pop_back();
-//
-//                /* try casting to native exception */
-//                auto *object = value.get();
-//                auto *exception = dynamic_cast<Runtime::ExceptionObject *>(object);
-//
-//                /* must be an exception */
-//                if (exception == nullptr)
-//                {
-//                    throw Runtime::Exceptions::TypeError(Utils::Strings::format(
-//                        "Exceptions must be derived from BaseException, not \"%s\"",
-//                        object->type()->name()
-//                    ));
-//                }
-//
-//                /* throw the exception, this should never returns */
-//                exception->throwObject();
-//                abort();
+                /* check stack */
+                if (_stack.empty())
+                    throw Runtime::Exceptions::InternalError("Stack is empty");
+
+                /* pop the exception object from stack */
+                auto value = std::move(_stack.back());
+                _stack.pop_back();
+
+                /* check for exception type, use the root class type
+                 * checker to prevent user from overriding "__is_subclass_of__" */
+                if (!(Runtime::TypeObject->nativeObjectIsSubclassOf(value->type(), Runtime::BaseExceptionTypeObject)))
+                {
+                    throw Runtime::Exceptions::TypeError(Utils::Strings::format(
+                        "Exceptions must be derived from BaseException, not \"%s\"",
+                        value->type()->name()
+                    ));
+                }
+
+                /* throw the exception, this should never returns */
+                throw value.as<Runtime::ExceptionObject>().retain();
             }
 
             /* exception matching */
             case OpCode::EXC_MATCH:
             case OpCode::EXC_STORE:
             {
-                // TODO: fix this
-                throw Runtime::Exceptions::InternalError("not implemented :: EXC_MATCH / EXC_STORE");
-//                /* local ID and jump offset */
-//                uint32_t index = 0;
-//                uint32_t offset = frame->nextOperand();
-//
-//                /* extract the local ID as needed */
-//                if (opcode == OpCode::EXC_STORE)
-//                    if ((index = frame->nextOperand()) >= _locals.size())
-//                        throw Runtime::Exceptions::InternalError(Utils::Strings::format("Local ID %u out of range", index));
-//
-//                /* check for exception blocks */
-//                if (blocks.empty())
-//                    throw Runtime::Exceptions::InternalError("No blocks");
-//
-//                /* check stack */
-//                if (_stack.empty())
-//                    throw Runtime::Exceptions::InternalError("Stack is empty");
-//
-//                /* pop the exception type from stack */
-//                auto type = std::move(_stack.back());
-//                _stack.pop_back();
-//
-//                /* not even a type */
-//                if (type->isNotInstanceOf(Runtime::TypeObject))
-//                {
-//                    frame->jumpBy(offset);
-//                    break;
-//                }
-//
-//                /* exception type and value */
-//                auto etype = type.as<Runtime::Type>();
-//                auto &exception = blocks.top().exception;
-//
-//                /* check for exception type, use the root class type
-//                 * checker to prevent user from overriding "__is_subclass_of__" */
-//                if (!(Runtime::TypeObject->nativeObjectIsSubclassOf(exception->type(), etype)))
-//                {
-//                    frame->jumpBy(offset);
-//                    break;
-//                }
-//
-//                /* save the exception object as needed */
-//                if (opcode == OpCode::EXC_STORE)
-//                    _locals[index] = Runtime::ExceptionWrapper::wrap(exception.get());
-//
-//                /* set the "matched" flag */
-//                blocks.top().flags |= EF_CAUGHT;
-//                break;
+                /* local ID and jump offset */
+                uint32_t index = 0;
+                uint32_t offset = frame->nextOperand();
+
+                /* extract the local ID as needed */
+                if (opcode == OpCode::EXC_STORE)
+                    if ((index = frame->nextOperand()) >= _locals.size())
+                        throw Runtime::Exceptions::InternalError(Utils::Strings::format("Local ID %u out of range", index));
+
+                /* check for exception blocks */
+                if (blocks.empty())
+                    throw Runtime::Exceptions::InternalError("No blocks");
+
+                /* check stack */
+                if (_stack.empty())
+                    throw Runtime::Exceptions::InternalError("Stack is empty");
+
+                /* pop the exception type from stack */
+                auto type = std::move(_stack.back());
+                _stack.pop_back();
+
+                /* not even a type */
+                if (type->isNotInstanceOf(Runtime::TypeObject))
+                {
+                    frame->jumpBy(offset);
+                    break;
+                }
+
+                /* exception type and value */
+                auto etype = type.as<Runtime::Type>();
+                auto &exception = blocks.top().exception;
+
+                /* check for exception type, use the root class type
+                 * checker to prevent user from overriding "__is_subclass_of__" */
+                if (!(Runtime::TypeObject->nativeObjectIsSubclassOf(exception->type(), etype)))
+                {
+                    frame->jumpBy(offset);
+                    break;
+                }
+
+                /* save the exception object as needed */
+                if (opcode == OpCode::EXC_STORE)
+                    _locals[index] = exception;
+
+                /* set the "matched" flag */
+                blocks.top().flags |= EF_CAUGHT;
+                break;
             }
 
             /* setup exception handling block */
@@ -1138,8 +1130,7 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                 /* exceptions occured but not handled, rethrow the exception */
                 if (block.flags && !(block.flags & EF_CAUGHT))
-                    throw Runtime::Exceptions::InternalError("not implemented :: rethrow");
-//                  TODO: throw block.exception;
+                    throw block.exception;
 
                 /* we got an return value, flush remaining blocks if any */
                 if (returnValue.isNotNull())
@@ -1506,60 +1497,74 @@ Runtime::ObjectRef Interpreter::eval(void)
     }
 
     /* exceptions occured when executing, try exception recovery */
-    catch (int) {}
-    // TODO: fix this
-//    catch (const Runtime::Exceptions::Throwable &e)
-//    {
-//        /* no exception recovery blocks available,
-//         * propagate the exception to parent scope */
-//        if (blocks.empty())
-//            throw;
-//
-//        /* get the last block */
-//        Block &block = blocks.top();
-//        Runtime::ExceptionObject::ExceptionPtr exc = Runtime::ExceptionWrapper::clone(e);
-//
-//        /* check the stack size */
-//        if (_stack.size() < block.sp)
-//            throw Runtime::Exceptions::InternalError("Stack underflow in exception recovery block");
-//
-//        /* the first time exception occures */
-//        if (!(block.flags & EF_HANDLING))
-//        {
-//            /* set handing flags and exception object */
-//            block.flags |= EF_HANDLING;
-//            block.exception = std::move(exc);
-//
-//            /* unwind the stack to the position before entering
-//             * this recovery block, and jump to exception handling block */
-//            _stack.resize(block.sp);
-//            frame->jumpTo(block.except);
-//        }
-//
-//        /* exceptions occured in "except" block */
-//        else if (!(block.flags & EF_FINALLY))
-//        {
-//            /* set flags for later rethrowing */
-//            block.flags &= ~EF_CAUGHT;
-//            block.flags |=  EF_HANDLING;
-//
-//            /* chain the exception */
-//            exc->parent() = std::move(block.exception);
-//            block.exception = std::move(exc);
-//
-//            /* unwind the stack to the position before entering
-//             * this recovery block, and jump to "finally" block to cleanup */
-//            _stack.resize(block.sp);
-//            frame->jumpTo(block.finally);
-//        }
-//
-//        /* exceptions occured in "finally" block */
-//        else
-//        {
-//            /* cannot continue, propagate the exception to parent */
-//            exc->parent() = std::move(block.exception);
-//            throw *exc;
-//        }
-//    }
+    catch (const Runtime::Reference<Runtime::ExceptionObject> &e)
+    {
+        /* no exception recovery blocks available,
+         * propagate the exception to parent scope */
+        if (blocks.empty())
+            throw;
+
+        /* get the last block */
+        Block *block = &(blocks.top());
+        Runtime::Reference<Runtime::ExceptionObject> exc = e;
+
+        /* process every block */
+        for (;;)
+        {
+            /* check the stack size */
+            if (_stack.size() < block->sp)
+                throw Runtime::Exceptions::InternalError("Stack underflow in exception recovery block");
+
+            /* chain the exception */
+            for (auto p = exc; p.isNotNull(); p = p->parent())
+            {
+                if (p->parent().isNull())
+                {
+                    p->parent() = std::move(block->exception);
+                    break;
+                }
+            }
+
+            /* the first time exception occures */
+            if (!(block->flags & EF_HANDLING))
+            {
+                /* set handing flags and exception object */
+                block->flags |= EF_HANDLING;
+                block->exception = std::move(exc);
+
+                /* unwind the stack to the position before entering
+                 * this recovery block, and jump to exception handling block */
+                _stack.resize(block->sp);
+                frame->jumpTo(block->except);
+                break;
+            }
+
+            /* exceptions occured in "except" block */
+            else if (!(block->flags & EF_FINALLY))
+            {
+                /* set flags for later rethrowing */
+                block->flags &= ~EF_CAUGHT;
+                block->exception = std::move(exc);
+
+                /* unwind the stack to the position before entering
+                 * this recovery block, and jump to "finally" block to cleanup */
+                _stack.resize(block->sp);
+                frame->jumpTo(block->finally);
+                break;
+            }
+
+            /* exceptions occured in "finally" block */
+            else
+            {
+                /* no more rescure blocks, we cannot handle it, propagate to parent */
+                if (blocks.size() == 1)
+                    throw exc;
+
+                /* otherwise, process the next block */
+                blocks.pop();
+                block = &(blocks.top());
+            }
+        }
+    }
 }
 }

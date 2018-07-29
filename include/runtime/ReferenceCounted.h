@@ -161,26 +161,29 @@ private:
     friend class Reference;
     friend class ReferenceCounted;
 
-private:
+protected:
     /* constructor for newly created objects, internal use only */
     struct TagNew {};
-    Reference(TagNew, T *object) : _object(object), _isBorrowed(false) {}
+    Reference(T *object, TagNew) : _object(object), _isBorrowed(false) {}
 
-private:
+protected:
     /* checked object referencing constructor, internal use only */
     struct TagChecked {};
-    Reference(TagChecked, T *object) : _object(object), _isBorrowed(false) { ref(); }
+    Reference(T *object, TagChecked) : _object(object), _isBorrowed(false) { ref(); }
 
-private:
+protected:
     /* object reference-borrowing constructor, internal use only */
     struct TagBorrowed {};
-    Reference(TagBorrowed, T *object) : _object(object), _isBorrowed(true) {}
+    Reference(T *object, TagBorrowed) : _object(object), _isBorrowed(true) {}
 
 protected:
     /* sub-reference object constructor, internal use only */
-    struct TagSubRef {};
-    template <typename ... Args>
-    Reference(TagSubRef, Args && ... args) : _object(new T(std::forward<Args>(args) ...)), _isBorrowed(false) {}
+    template <typename U, typename ... Args>
+    static U *construct(Args && ... args)
+    {
+        static_assert(std::is_convertible_v<U *, T *>, "Incompatible types");
+        return new U(std::forward<Args>(args) ...);
+    }
 
 public:
     Reference<T> &operator=(Reference<T> &&other) { swap(other); return *this; }
@@ -231,27 +234,25 @@ public:
     template <typename U>
     Reference<U> as(void) const
     {
-        return Reference<U>(
-            typename Reference<U>::TagBorrowed(),
-            static_cast<U *>(_object)
-        );
+        return Reference<U>(static_cast<U *>(_object), typename Reference<U>::TagBorrowed());
+        static_assert(std::is_convertible_v<U *, T *> || std::is_convertible_v<T *, U *>, "Incompatible types");
     }
 
 public:
-    Reference<T> retain(void) const { return Reference<T>(TagChecked(), _object); }
-    Reference<T> borrow(void) const { return Reference<T>(TagBorrowed(), _object); }
+    Reference<T> retain(void) const { return Reference<T>(_object, TagChecked()); }
+    Reference<T> borrow(void) const { return Reference<T>(_object, TagBorrowed()); }
 
 public:
-    T &operator*(void) { return *_object; }
-    T *operator->(void) { return _object; }
+    virtual T &operator*(void) { return *_object; }
+    virtual T *operator->(void) { return _object; }
 
 public:
-    const T &operator*(void) const { return *_object; }
-    const T *operator->(void) const { return _object; }
+    virtual const T &operator*(void) const { return *_object; }
+    virtual const T *operator->(void) const { return _object; }
 
 public:
-    T *get(void) { return _object; }
-    const T *get(void) const { return _object; }
+    virtual T *get(void) { return _object; }
+    virtual const T *get(void) const { return _object; }
 
 public:
     bool isStatic(void) const { return _object ? _object->isStatic() : true; }
@@ -298,14 +299,14 @@ public:
     }
 
 public:
-    static inline Reference<T> retain(T *object) { return Reference<T>(TagChecked(), object); }
-    static inline Reference<T> borrow(T *object) { return Reference<T>(TagBorrowed(), object); }
+    static inline Reference<T> retain(T *object) { return Reference<T>(object, TagChecked()); }
+    static inline Reference<T> borrow(T *object) { return Reference<T>(object, TagBorrowed()); }
 
 public:
     static inline Reference<T> refStatic(T &object)
     {
         _StaticFlagSetter<T>::set(object, true);
-        return Reference<T>(TagBorrowed(), &object);
+        return Reference<T>(&object, TagBorrowed());
     }
 
 public:
@@ -313,7 +314,7 @@ public:
     static inline Reference<T> newObject(Args && ... args)
     {
         auto object = new T(std::forward<Args>(args) ...);
-        return Reference<T>(TagNew(), object);
+        return Reference<T>(object, TagNew());
     }
 };
 

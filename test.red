@@ -82,6 +82,13 @@
 # print(calc(350))
 class Foo : ValueError {}
 
-try raise ValueError('hello, world')
-except (ValueError) fuck
-finally print('done')
+try
+{
+    try raise ValueError('hello, world')
+    except (ValueError as e) print(e)
+    finally raise TypeError('nested')
+}
+except (TypeError as f)
+{
+    print(f)
+}

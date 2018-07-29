@@ -131,7 +131,8 @@ void ExceptionType::addBuiltins(void)
         "__traceback__",
         UnboundMethodObject::fromFunction([&](ObjectRef self)
         {
-            // todo: dump traceback
+            /* dump traceback */
+            return self.as<ExceptionObject>()->format();
         })
     );
 }
