@@ -612,10 +612,14 @@ struct MapUnboxer
         {
             value.as<Runtime::MapObject>()->enumerateCopy([&](Runtime::ObjectRef key, Runtime::ObjectRef value)
             {
+                /* add to result */
                 result.emplace(
                     Unboxer<I, Key  >::unbox(key  , Utils::Strings::format("%s[key]"  , name)),
                     Unboxer<I, Value>::unbox(value, Utils::Strings::format("%s[value]", name))
                 );
+
+                /* continue enumerating */
+                return true;
             });
         }
 
