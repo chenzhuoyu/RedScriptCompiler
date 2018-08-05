@@ -80,14 +80,18 @@ LIBTCCAPI int tcc_relocate(TCCState *s)
     ds_size = (ds_size + (page_size - 1)) & ~(page_size - 1);
     alloc_size = cs_size + ds_size;
 
+    /* nothing to allocate */
+    if (!alloc_size)
+        return 0;
+
 #ifdef _WIN64
     /* alloc memory pages */
     if (!(base = VirtualAlloc(NULL, alloc_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE)))
-        tcc_error(s1, "tccrun: could not alloc memory pages");
+        return -1;
 #else
     /* map memory pages */
     if ((base = mmap(NULL, alloc_size, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0)) == MAP_FAILED)
-	    tcc_error(s, "tccrun: could not map memory pages");
+	    return -1;
 #endif
 
     /* do the actual relocation, pages will be free'd later */

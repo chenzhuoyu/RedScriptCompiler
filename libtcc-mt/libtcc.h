@@ -1,6 +1,8 @@
 #ifndef LIBTCC_H
 #define LIBTCC_H
 
+#include <stdio.h>
+
 #ifndef LIBTCCAPI
 # define LIBTCCAPI
 #endif
@@ -110,6 +112,7 @@ LIBTCCAPI void *tcc_function_get_addr(TCCState *s, TCCFunction *f);
 /* function inspection */
 LIBTCCAPI TCCType *tcc_function_get_return_type(TCCFunction *f);
 LIBTCCAPI const char *tcc_function_get_name(TCCFunction *f);
+LIBTCCAPI char tcc_function_is_variadic(TCCFunction *f);
 LIBTCCAPI size_t tcc_function_get_nargs(TCCFunction *f);
 LIBTCCAPI TCCType *tcc_function_get_arg_type(TCCFunction *f, size_t index);
 LIBTCCAPI const char *tcc_function_get_arg_name(TCCFunction *f, size_t index);

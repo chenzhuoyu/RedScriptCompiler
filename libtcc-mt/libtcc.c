@@ -681,7 +681,7 @@ PUB_FUNC void tcc_error(TCCState *s1, const char *fmt, ...)
         longjmp(s1->error_jmp_buf, 1);
     } else {
         /* XXX: eliminate this someday */
-        exit(1);
+        abort();
     }
 }
 
@@ -1472,11 +1472,12 @@ ST_FUNC TCCType *tcc_resolver_add_type(TCCState *s1, CType *type)
     return *ptype;
 }
 
-ST_FUNC TCCFunction *tcc_resolver_add_func(TCCState *s1, const char *funcname, CType *ret)
+ST_FUNC TCCFunction *tcc_resolver_add_func(TCCState *s1, const char *funcname, char is_variadic, CType *ret)
 {
     TCCFunction *func = tcc_mallocz(s1, sizeof(TCCFunction));
     func->ret = tcc_resolver_add_type(s1, ret);
     func->name = tcc_strdup(s1, funcname);
+    func->is_variadic = is_variadic;
     hashmap_insert(s1, &s1->funcs, funcname, func, (hashdtor_t)free_function);
     return func;
 }
@@ -1523,6 +1524,11 @@ LIBTCCAPI TCCType *tcc_function_get_return_type(TCCFunction *f)
 LIBTCCAPI const char *tcc_function_get_name(TCCFunction *f)
 {
     return f->name;
+}
+
+LIBTCCAPI char tcc_function_is_variadic(TCCFunction *f)
+{
+    return f->is_variadic;
 }
 
 LIBTCCAPI size_t tcc_function_get_nargs(TCCFunction *f)

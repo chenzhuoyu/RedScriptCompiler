@@ -7231,7 +7231,7 @@ static int decl0(TCCState *s1, int l, int is_for_loop_init, Sym *func_sym)
                         if (!(type.t & VT_STATIC) && !(sym && sym->sym_scope == s1->local_scope)) {
                             i = 0;
                             sym = type.ref;
-                            func = tcc_resolver_add_func(s1, get_tok_str(s1, v, NULL), &sym->type);
+                            func = tcc_resolver_add_func(s1, get_tok_str(s1, v, NULL), (sym->f.func_type == FUNC_ELLIPSIS), &sym->type);
                             while ((sym = sym->next) != NULL) {
                                 if (sym->type.t == VT_VOID)
                                     sym->type = s1->int_type;

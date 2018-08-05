@@ -954,6 +954,7 @@ struct TCCFunction {
     char **arg_names;
     int nb_args;
     int nb_arg_names;
+    char is_variadic;
 };
 
 struct filespec {
@@ -1216,7 +1217,7 @@ ST_FUNC void tcc_resolver_free(TCCState *s1);
 ST_FUNC void tcc_resolver_reset(TCCState *s1);
 ST_FUNC void tcc_resolver_ref_type(TCCState *s1, CType *type, const char *name);
 ST_FUNC TCCType *tcc_resolver_add_type(TCCState *s1, CType *type);
-ST_FUNC TCCFunction *tcc_resolver_add_func(TCCState *s1, const char *funcname, CType *ret);
+ST_FUNC TCCFunction *tcc_resolver_add_func(TCCState *s1, const char *funcname, char is_variadic, CType *ret);
 
 ST_FUNC int tcc_add_crt(TCCState *s, const char *filename);
 ST_FUNC int tcc_add_dll(TCCState *s, const char *filename, int flags);
