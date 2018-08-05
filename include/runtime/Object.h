@@ -14,6 +14,7 @@ class Type;
 class Object;
 class MapObject;
 class TupleObject;
+class UnboundMethodObject;
 
 /* reference names */
 typedef Reference<Type> TypeRef;
@@ -73,6 +74,10 @@ public:
 public:
     bool isInstanceOf(TypeRef type) { return _type.isIdenticalWith(type); }
     bool isNotInstanceOf(TypeRef type) { return _type.isNotIdenticalWith(type); }
+
+public:
+    void addObject(const char *name, ObjectRef value) { _attrs.emplace(name, std::move(value)); }
+    void addMethod(Reference<UnboundMethodObject> &&method);
 
 public:
     /* for object system initialization and destruction, internal use only! */
@@ -353,25 +358,24 @@ public:
 };
 
 /* base class for built-in native types */
-class NativeType : public Type
+struct NativeType : public Type
 {
-public:
     using Type::Type;
+    virtual ObjectRef nativeObjectNew(TypeRef type, Reference<TupleObject> args, Reference<MapObject> kwargs) override;
+    virtual ObjectRef nativeObjectInit(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs) override { return std::move(self); }
+    virtual ObjectRef nativeObjectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs) override;
+};
+
+/* base class for user-defined types */
+struct ObjectType : public NativeType
+{
+    using NativeType::NativeType;
 
 /*** Native Object Protocol ***/
 
 public:
-    virtual ObjectRef nativeObjectNew(TypeRef type, Reference<TupleObject> args, Reference<MapObject> kwargs) override;
+    virtual ObjectRef nativeObjectNew(TypeRef type, Reference<TupleObject> args, Reference<MapObject> kwargs) override { return Object::newObject<Object>(type); }
     virtual ObjectRef nativeObjectInit(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs) override;
-    virtual ObjectRef nativeObjectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs) override;
-
-};
-
-/* base class for user-defined types */
-class ObjectType : public NativeType
-{
-public:
-    using NativeType::NativeType;
 
 /*** Object Protocol ***/
 

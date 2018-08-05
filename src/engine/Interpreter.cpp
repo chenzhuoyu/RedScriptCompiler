@@ -1459,18 +1459,24 @@ Runtime::ObjectRef Interpreter::eval(void)
             case OpCode::MAKE_NATIVE:
             {
                 /* extract constant ID */
-                uint32_t id = frame->nextOperand();
+                uint32_t nid = frame->nextOperand();
+                uint32_t cid = frame->nextOperand();
 
                 /* check stack */
                 if (_stack.empty())
                     throw Runtime::Exceptions::InternalError("Stack is empty");
 
-                /* check operand range */
-                if (id >= _code->consts().size())
-                    throw Runtime::Exceptions::InternalError("Constant ID out of range");
+                /* check name ID range */
+                if (nid >= _code->names().size())
+                    throw Runtime::Exceptions::InternalError("Name ID out of range");
+
+                /* check code ID range */
+                if (cid >= _code->consts().size())
+                    throw Runtime::Exceptions::InternalError("Code ID out of range");
 
                 /* load options from stack */
-                Runtime::ObjectRef source = _code->consts()[id];
+                auto &name = _code->names()[nid];
+                auto &source = _code->consts()[cid];
                 Runtime::ObjectRef options = std::move(_stack.back());
 
                 /* must be a map */
@@ -1483,6 +1489,7 @@ Runtime::ObjectRef Interpreter::eval(void)
 
                 /* replace stack top with native class object */
                 _stack.back() = Runtime::Object::newObject<Runtime::NativeClassObject>(
+                    name,
                     source.as<Runtime::StringObject>()->value(),
                     options.as<Runtime::MapObject>()
                 );

@@ -20,11 +20,8 @@ static const int64_t POOL_LOWER = -32;
 static const int64_t POOL_UPPER = 255;
 static std::array<ObjectRef, POOL_UPPER - POOL_LOWER + 1> _pool;
 
-#define UM_UNARY(func)  UnboundMethodObject::newUnary([](ObjectRef self){ return func; })
-#define UM_BINARY(func) UnboundMethodObject::newBinary([](ObjectRef self, ObjectRef other){ return func; })
-
-#define ADD_UNARY(name, func)  attrs().emplace(#name, UM_UNARY(self->type()->native ## func(self)))
-#define ADD_BINARY(name, func) attrs().emplace(#name, UM_BINARY(self->type()->native ## func(self, other)))
+#define ADD_UNARY(name, func)  addMethod(UnboundMethodObject::newUnary(#name, [](ObjectRef self){ return self->type()->native ## func(self); }))
+#define ADD_BINARY(name, func) addMethod(UnboundMethodObject::newBinary(#name, [](ObjectRef self, ObjectRef other){ return self->type()->native ## func(self, other); }))
 
 void IntType::addBuiltins(void)
 {
@@ -57,9 +54,6 @@ void IntType::addBuiltins(void)
     ADD_BINARY(__geq__    , ComparableGeq    );
     ADD_BINARY(__compare__, ComparableCompare);
 }
-
-#undef UM_UNARY
-#undef UM_BINARY
 
 #undef ADD_UNARY
 #undef ADD_BINARY

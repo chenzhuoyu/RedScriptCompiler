@@ -139,6 +139,7 @@ struct Boxer<const T &>
 template <> struct Boxer<bool>               { static Runtime::ObjectRef box(bool value)               { return Runtime::BoolObject::fromBool(value);       }};
 template <> struct Boxer<float>              { static Runtime::ObjectRef box(float value)              { return Runtime::DecimalObject::fromDouble(value);  }};
 template <> struct Boxer<double>             { static Runtime::ObjectRef box(double value)             { return Runtime::DecimalObject::fromDouble(value);  }};
+template <> struct Boxer<long double>        { static Runtime::ObjectRef box(long double value)        { return Runtime::DecimalObject::fromDecimal(value); }};
 template <> struct Boxer<Runtime::ObjectRef> { static Runtime::ObjectRef box(Runtime::ObjectRef value) { return value;                                      }};
 
 /* high-precision decimal */
@@ -474,6 +475,28 @@ struct Unboxer<I, double>
 
         /* convert to double-precision floating poing number */
         return decimal->toDouble();
+    }
+};
+
+/* extended precision floating point number unboxer */
+template <size_t I>
+struct Unboxer<I, long double>
+{
+    static long double unbox(Runtime::ObjectRef value, const std::string &name)
+    {
+        /* object type check */
+        if (value->isNotInstanceOf(Runtime::DecimalTypeObject))
+            throw TypeCheckFailed<I>(Runtime::DecimalTypeObject, name, value);
+
+        /* convert to decimal object */
+        auto decimal = value.as<Runtime::DecimalObject>();
+
+        /* check for value range */
+        if (!(decimal->isSafeLongDouble()))
+            throw ValueCheckFailed<I>(decimal, name);
+
+        /* convert to extended-precision floating poing number */
+        return decimal->toLongDouble();
     }
 };
 

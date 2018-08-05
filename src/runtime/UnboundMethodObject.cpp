@@ -1,8 +1,11 @@
+#include "runtime/StringObject.h"
+#include "runtime/FunctionObject.h"
 #include "runtime/ExceptionObject.h"
 #include "runtime/BoundMethodObject.h"
 #include "runtime/UnboundMethodObject.h"
 
 #include "utils/NFI.h"
+#include "utils/Strings.h"
 
 namespace RedScript::Runtime
 {
@@ -11,17 +14,22 @@ TypeRef UnboundMethodTypeObject;
 
 void UnboundMethodType::addBuiltins(void)
 {
-    attrs().emplace(
+    addMethod(UnboundMethodObject::newUnboundVariadic(
         "__invoke__",
-        UnboundMethodObject::newUnboundVariadic([](ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
-        {
-            /* invoke the object protocol */
-            return self->type()->objectInvoke(self, args, kwargs);
-        })
-    );
+        [](ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs){ return self->type()->objectInvoke(self, args, kwargs); }
+    ));
 }
 
 /*** Native Object Protocol ***/
+
+std::string UnboundMethodType::nativeObjectRepr(ObjectRef self)
+{
+    return Utils::Strings::format(
+        "<unbound method \"%s\" at %p>",
+        self.as<UnboundMethodObject>()->name(),
+        static_cast<void *>(self.get())
+    );
+}
 
 ObjectRef UnboundMethodType::nativeObjectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
 {
@@ -31,10 +39,19 @@ ObjectRef UnboundMethodType::nativeObjectInvoke(ObjectRef self, Reference<TupleO
         return self.as<UnboundMethodObject>()->invoke(std::move(args), std::move(kwargs));
 }
 
+UnboundMethodObject::UnboundMethodObject(const std::string &name, ObjectRef func) :
+    Object(UnboundMethodTypeObject),
+    _func(func),
+    _name(name)
+{
+    addObject("um_func", _func);
+    addObject("um_name", StringObject::fromStringInterned(_name));
+}
+
 ObjectRef UnboundMethodObject::bind(ObjectRef self)
 {
     /* wrap as bound method */
-    return Object::newObject<BoundMethodObject>(std::move(self), _func);
+    return Object::newObject<BoundMethodObject>(_name, std::move(self), _func);
 }
 
 ObjectRef UnboundMethodObject::invoke(Reference<TupleObject> args, Reference<MapObject> kwargs)
@@ -43,10 +60,29 @@ ObjectRef UnboundMethodObject::invoke(Reference<TupleObject> args, Reference<Map
     return _func->type()->objectInvoke(_func, std::move(args), std::move(kwargs));
 }
 
-ObjectRef UnboundMethodObject::newUnboundVariadic(UnboundVariadicFunction function)
+Reference<UnboundMethodObject> UnboundMethodObject::fromCallable(ObjectRef func)
+{
+    /* classes */
+    if (func->isInstanceOf(TypeObject))
+        return fromCallable(func.as<Type>()->name(), func);
+
+    /* functions */
+    else if (func->isInstanceOf(FunctionTypeObject))
+        return fromCallable(func.as<FunctionObject>()->name(), func);
+
+    /* native functions */
+    else if (func->isInstanceOf(NativeFunctionTypeObject))
+        return fromCallable(func.as<NativeFunctionObject>()->name(), func);
+
+    /* other objects */
+    else
+        return fromCallable(func->type()->objectRepr(func), func);
+}
+
+Reference<UnboundMethodObject> UnboundMethodObject::newUnboundVariadic(const std::string &name, UnboundVariadicFunction function)
 {
     /* wrap as variadic function, extract the first argument as `self` */
-    return newVariadic([=](Utils::NFI::VariadicArgs args, Utils::NFI::KeywordArgs kwargs)
+    return newVariadic(name, [=](Utils::NFI::VariadicArgs args, Utils::NFI::KeywordArgs kwargs)
     {
         /* try pop from keyword arguments */
         size_t off = 0;

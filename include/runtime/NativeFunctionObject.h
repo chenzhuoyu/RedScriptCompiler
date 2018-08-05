@@ -3,7 +3,7 @@
 
 #include <string>
 #include <vector>
-#include <functional>
+#include <stdexcept>
 
 #include "utils/NFI.h"
 #include "runtime/Object.h"
@@ -22,7 +22,8 @@ protected:
 /*** Native Object Protocol ***/
 
 public:
-    virtual ObjectRef nativeObjectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs) override;
+    virtual std::string nativeObjectRepr(ObjectRef self) override;
+    virtual ObjectRef   nativeObjectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs) override;
 
 };
 
@@ -38,56 +39,64 @@ typedef std::function<ObjectRef(Utils::NFI::VariadicArgs, Utils::NFI::KeywordArg
 
 class NativeFunctionObject : public Object
 {
+    std::string _name;
     NativeFunction _function;
 
 public:
     virtual ~NativeFunctionObject() = default;
-    explicit NativeFunctionObject(NativeFunction function) : Object(NativeFunctionTypeObject), _function(function) {}
+    explicit NativeFunctionObject(const std::string &name) : NativeFunctionObject(name, nullptr) {}
+    explicit NativeFunctionObject(const std::string &name, NativeFunction function) : Object(NativeFunctionTypeObject), _name(name), _function(function) {}
 
 public:
-    NativeFunction function(void) const { return _function; }
+    std::string &name(void) { return _name; }
+    NativeFunction &function(void) { return _function; }
 
 public:
     static void shutdown(void);
     static void initialize(void);
 
 public:
-    static ObjectRef newNullary (NullaryFunction function);
-    static ObjectRef newUnary   (UnaryFunction   function);
-    static ObjectRef newBinary  (BinaryFunction  function);
-    static ObjectRef newTernary (TernaryFunction function);
-    static ObjectRef newVariadic(NativeFunction  function) { return Object::newObject<NativeFunctionObject>(function); }
+    static ObjectRef newNullary (const std::string &name, NullaryFunction function);
+    static ObjectRef newUnary   (const std::string &name, UnaryFunction   function);
+    static ObjectRef newBinary  (const std::string &name, BinaryFunction  function);
+    static ObjectRef newTernary (const std::string &name, TernaryFunction function);
+    static ObjectRef newVariadic(const std::string &name, NativeFunction  function) { return Object::newObject<NativeFunctionObject>(name, function); }
 
 public:
     template <typename Function>
-    static ObjectRef fromFunction(Function &&function)
+    static ObjectRef fromFunction(const std::string &name, Function &&function)
     {
         /* wrap the function-like object as `std::function` */
-        return fromFunction(Utils::NFI::forwardAsFunction(std::forward<Function>(function)));
+        return fromFunction(name, Utils::NFI::forwardAsFunction(std::forward<Function>(function)));
     }
 
 public:
     template <typename Function>
-    static ObjectRef fromFunction(Utils::NFI::KeywordNames keywords, Function &&function)
+    static ObjectRef fromFunction(const std::string &name, Utils::NFI::KeywordNames keywords, Function &&function)
     {
         /* wrap the function-like object as `std::function` */
-        return fromFunction(std::move(keywords), Utils::NFI::forwardAsFunction(std::forward<Function>(function)));
+        return fromFunction(name, std::move(keywords), Utils::NFI::forwardAsFunction(std::forward<Function>(function)));
     }
 
 public:
     template <typename Function>
-    static ObjectRef fromFunction(Utils::NFI::DefaultValues defaults, Function &&function)
+    static ObjectRef fromFunction(const std::string &name, Utils::NFI::DefaultValues defaults, Function &&function)
     {
         /* wrap the function-like object as `std::function` */
-        return fromFunction(std::move(defaults), Utils::NFI::forwardAsFunction(std::forward<Function>(function)));
+        return fromFunction(name, std::move(defaults), Utils::NFI::forwardAsFunction(std::forward<Function>(function)));
     }
 
 public:
     template <typename Function>
-    static ObjectRef fromFunction(Utils::NFI::KeywordNames keywords, Utils::NFI::DefaultValues defaults, Function &&function)
+    static ObjectRef fromFunction(
+        const std::string          &name,
+        Utils::NFI::KeywordNames    keywords,
+        Utils::NFI::DefaultValues   defaults,
+        Function                  &&function)
     {
         /* wrap the function-like object as `std::function` */
         return fromFunction(
+            name,
             std::move(keywords),
             std::move(defaults),
             Utils::NFI::forwardAsFunction(std::forward<Function>(function))
@@ -96,40 +105,43 @@ public:
 
 public:
     template <typename Ret, typename ... Args>
-    static ObjectRef fromFunction(std::function<Ret(Args ...)> function)
+    static ObjectRef fromFunction(const std::string &name, std::function<Ret(Args ...)> function)
     {
         /* without both keywords and default values */
         Utils::NFI::KeywordNames names(sizeof ... (Args));
-        return fromFunction(std::move(names), Utils::NFI::DefaultValues(), std::move(function));
+        return fromFunction(name, std::move(names), Utils::NFI::DefaultValues(), std::move(function));
     }
 
 public:
     template <typename Ret, typename ... Args>
     static ObjectRef fromFunction(
-        Utils::NFI::KeywordNames     keywords,
-        std::function<Ret(Args ...)> function)
+        const std::string            &name,
+        Utils::NFI::KeywordNames      keywords,
+        std::function<Ret(Args ...)>  function)
     {
         /* with keywords, without default values */
-        return fromFunction(std::move(keywords), Utils::NFI::DefaultValues(), std::move(function));
+        return fromFunction(name, std::move(keywords), Utils::NFI::DefaultValues(), std::move(function));
     }
 
 public:
     template <typename Ret, typename ... Args>
     static ObjectRef fromFunction(
-        Utils::NFI::DefaultValues    defaults,
-        std::function<Ret(Args ...)> function)
+        const std::string            &name,
+        Utils::NFI::DefaultValues     defaults,
+        std::function<Ret(Args ...)>  function)
     {
         /* with defaults, without keywords */
         Utils::NFI::KeywordNames names(sizeof ... (Args));
-        return fromFunction(std::move(names), std::move(defaults), std::move(function));
+        return fromFunction(name, std::move(names), std::move(defaults), std::move(function));
     }
 
 public:
     template <typename Ret, typename ... Args>
     static ObjectRef fromFunction(
-        Utils::NFI::KeywordNames     keywords,
-        Utils::NFI::DefaultValues    defaults,
-        std::function<Ret(Args ...)> function)
+        const std::string            &name,
+        Utils::NFI::KeywordNames      keywords,
+        Utils::NFI::DefaultValues     defaults,
+        std::function<Ret(Args ...)>  function)
     {
         /* check for default count */
         if (keywords.size() < defaults.size())
@@ -140,7 +152,7 @@ public:
             throw std::invalid_argument("keyword count mismatch");
 
         /* wrap as variadic function */
-        return newVariadic([=](Utils::NFI::VariadicArgs args, Utils::NFI::KeywordArgs kwargs)
+        return newVariadic(name, [=](Utils::NFI::VariadicArgs args, Utils::NFI::KeywordArgs kwargs)
         {
             /* result type might be `void`, so need a template SFINAE here */
             return Utils::NFI::MetaFunction<Ret, Args ...>::invoke(function, args, kwargs, keywords, defaults);

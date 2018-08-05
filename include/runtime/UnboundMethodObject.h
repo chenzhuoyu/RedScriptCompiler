@@ -22,7 +22,8 @@ protected:
 /*** Native Object Protocol ***/
 
 public:
-    virtual ObjectRef nativeObjectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs) override;
+    virtual std::string nativeObjectRepr(ObjectRef self) override;
+    virtual ObjectRef   nativeObjectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs) override;
 
 };
 
@@ -33,30 +34,47 @@ typedef std::function<ObjectRef(ObjectRef, Reference<TupleObject>, Reference<Map
 class UnboundMethodObject : public Object
 {
     ObjectRef _func;
+    std::string _name;
 
 public:
     virtual ~UnboundMethodObject() = default;
-    explicit UnboundMethodObject(ObjectRef func) : Object(UnboundMethodTypeObject), _func(func) { attrs().emplace("um_func", _func); }
+    explicit UnboundMethodObject(const std::string &name, ObjectRef func);
 
 public:
     bool isNative(void) { return _func->isInstanceOf(NativeFunctionTypeObject); }
     bool isUserDefined(void) { return _func->isNotInstanceOf(NativeFunctionTypeObject); }
 
 public:
+    ObjectRef &func(void) { return _func; }
+    std::string &name(void) { return _name; }
+
+public:
     ObjectRef bind(ObjectRef self);
     ObjectRef invoke(Reference<TupleObject> args, Reference<MapObject> kwargs);
 
 public:
-    static ObjectRef newUnary(UnaryFunction function) { return fromCallableObject(NativeFunctionObject::newUnary(function)); }
-    static ObjectRef newBinary(BinaryFunction function) { return fromCallableObject(NativeFunctionObject::newBinary(function)); }
-    static ObjectRef newTernary(TernaryFunction function) { return fromCallableObject(NativeFunctionObject::newTernary(function)); }
-    static ObjectRef newVariadic(NativeFunction function) { return fromCallableObject(NativeFunctionObject::newVariadic(function)); }
-    static ObjectRef newUnboundVariadic(UnboundVariadicFunction function);
+    static Reference<UnboundMethodObject> newUnary(const std::string &name, UnaryFunction function) { return fromCallable(name, NativeFunctionObject::newUnary(name, function)); }
+    static Reference<UnboundMethodObject> newBinary(const std::string &name, BinaryFunction function) { return fromCallable(name, NativeFunctionObject::newBinary(name, function)); }
+    static Reference<UnboundMethodObject> newTernary(const std::string &name, TernaryFunction function) { return fromCallable(name, NativeFunctionObject::newTernary(name, function)); }
+    static Reference<UnboundMethodObject> newVariadic(const std::string &name, NativeFunction function) { return fromCallable(name, NativeFunctionObject::newVariadic(name, function)); }
+    static Reference<UnboundMethodObject> newUnboundVariadic(const std::string &name, UnboundVariadicFunction function);
+
+public:
+    static Reference<UnboundMethodObject> fromCallable(ObjectRef func);
+    static Reference<UnboundMethodObject> fromCallable(const std::string &name, ObjectRef func) { return Object::newObject<UnboundMethodObject>(name, func); }
 
 public:
     template <typename ... Args>
-    static ObjectRef fromFunction(Args && ... args) { return fromCallableObject(NativeFunctionObject::fromFunction(std::forward<Args>(args) ...)); }
-    static ObjectRef fromCallableObject(ObjectRef func) { return Object::newObject<UnboundMethodObject>(func); }
+    static Reference<UnboundMethodObject> fromFunction(const std::string &name, Args && ... args)
+    {
+        return fromCallable(
+            name,
+            NativeFunctionObject::fromFunction(
+                name,
+                std::forward<Args>(args) ...
+            )
+        );
+    }
 
 public:
     static void shutdown(void);

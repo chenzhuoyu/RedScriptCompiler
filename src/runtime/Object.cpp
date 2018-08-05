@@ -1,5 +1,7 @@
 #include <algorithm>
 #include <unordered_set>
+#include <runtime/Object.h>
+
 
 #include "runtime/Object.h"
 #include "runtime/IntObject.h"
@@ -73,6 +75,12 @@ bool Object::enterReprScope(void)
     return true;
 }
 
+void Object::addMethod(Reference<UnboundMethodObject> &&method)
+{
+    /* add to built-in attributes map */
+    _attrs.emplace(method->name(), method);
+}
+
 void Object::shutdown(void)
 {
     TypeObject = nullptr;
@@ -86,8 +94,8 @@ void Object::initialize(void)
     metaClass._type = TypeObject = TypeRef::refStatic(metaClass);
 
     /* the base object type */
-    static NativeType nativeType("object", nullptr);
-    metaClass._super = ObjectTypeObject = TypeRef::refStatic(nativeType);
+    static ObjectType objectType("object", nullptr);
+    metaClass._super = ObjectTypeObject = TypeRef::refStatic(objectType);
 }
 
 /*** Type Implementations ***/
@@ -101,57 +109,41 @@ void Type::typeShutdown(void)
 
 void Type::typeInitialize(void)
 {
+    addObject("__name__", StringObject::fromString(_name));
+    addObject("__super__", _super.isNull() ? TypeObject : _super);
     addBuiltins();
-    attrs().emplace("__name__", StringObject::fromString(_name));
-    attrs().emplace("__super__", _super.isNull() ? TypeObject : _super);
 }
 
 void Type::addBuiltins(void)
 {
     /* basic object protocol attributes */
-    attrs().emplace("__repr__", UnboundMethodObject::fromFunction([](ObjectRef self){ return self->type()->nativeObjectRepr(self); }));
-    attrs().emplace("__hash__", UnboundMethodObject::fromFunction([](ObjectRef self){ return self->type()->nativeObjectHash(self); }));
-    attrs().emplace("__class__", UnboundMethodObject::fromFunction([](ObjectRef self){ return self->type(); }));
+    addMethod(UnboundMethodObject::fromFunction("__repr__" , [](ObjectRef self){ return self->type()->nativeObjectRepr(self); }));
+    addMethod(UnboundMethodObject::fromFunction("__hash__" , [](ObjectRef self){ return self->type()->nativeObjectHash(self); }));
+    addMethod(UnboundMethodObject::fromFunction("__class__", [](ObjectRef self){ return self->type(); }));
 
     /* built-in "__delattr__" function */
-    attrs().emplace(
+    addMethod(UnboundMethodObject::fromFunction(
         "__delattr__",
-        UnboundMethodObject::fromFunction([](Runtime::ObjectRef self, const std::string &name)
-        {
-            /* invoke the object protocol */
-            self->type()->nativeObjectDelAttr(self, name);
-        })
-    );
+        [](Runtime::ObjectRef self, const std::string &name){ self->type()->nativeObjectDelAttr(self, name); }
+    ));
 
     /* built-in "__getattr__" function */
-    attrs().emplace(
+    addMethod(UnboundMethodObject::fromFunction(
         "__getattr__",
-        UnboundMethodObject::fromFunction([](Runtime::ObjectRef self, const std::string &name)
-        {
-            /* invoke the object protocol */
-            return self->type()->nativeObjectGetAttr(self, name);
-        })
-    );
+        [](Runtime::ObjectRef self, const std::string &name){ return self->type()->nativeObjectGetAttr(self, name); }
+    ));
 
     /* built-in "__setattr__" function */
-    attrs().emplace(
+    addMethod(UnboundMethodObject::fromFunction(
         "__setattr__",
-        UnboundMethodObject::fromFunction([](Runtime::ObjectRef self, const std::string &name, Runtime::ObjectRef value)
-        {
-            /* invoke the object protocol */
-            self->type()->nativeObjectSetAttr(self, name, value);
-        })
-    );
+        [](Runtime::ObjectRef self, const std::string &name, Runtime::ObjectRef value){ self->type()->nativeObjectSetAttr(self, name, value); }
+    ));
 
     /* built-in "__init__" function */
-    attrs().emplace(
+    addMethod(UnboundMethodObject::newUnboundVariadic(
         "__init__",
-        UnboundMethodObject::newUnboundVariadic([](ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
-        {
-            /* invoke the object protocol */
-            return self->type()->nativeObjectInit(self, args, kwargs);
-        })
-    );
+        [](ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs){ return self->type()->nativeObjectInit(self, args, kwargs); }
+    ));
 }
 
 ObjectRef Type::findUserMethod(const char *name, const char *alternative)
@@ -871,7 +863,7 @@ TypeRef Type::create(const std::string &name, Reference<MapObject> dict, TypeRef
             /* if it's a function or native function, wrap with unbound method */
             if (value->isInstanceOf(FunctionTypeObject) ||
                 value->isInstanceOf(NativeFunctionTypeObject))
-                value = UnboundMethodObject::fromCallableObject(std::move(value));
+                value = UnboundMethodObject::fromCallable(std::move(value));
 
             /* add to class dict, and continue enumerating */
             type->dict().emplace(key.as<StringObject>()->value(), std::move(value));
@@ -883,15 +875,27 @@ TypeRef Type::create(const std::string &name, Reference<MapObject> dict, TypeRef
     return std::move(type);
 }
 
-/*** ObjectType Implementations ***/
+/*** NativeType Implementations ***/
 
 ObjectRef NativeType::nativeObjectNew(TypeRef type, Reference<TupleObject> args, Reference<MapObject> kwargs)
 {
-    /* simply create a new object of type `type` */
-    return Object::newObject<Object>(type);
+    throw Exceptions::TypeError(Utils::Strings::format(
+        "\"%s\" object cannot be constructed by user",
+        name()
+    ));
 }
 
-ObjectRef NativeType::nativeObjectInit(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
+ObjectRef NativeType::nativeObjectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
+{
+    throw Exceptions::TypeError(Utils::Strings::format(
+        "\"%s\" object is not callable",
+        name()
+    ));
+}
+
+/***** ObjectType Implementations *****/
+
+ObjectRef ObjectType::nativeObjectInit(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
 {
     /* root object doesn't take any arguments by default */
     if (args->size())
@@ -916,16 +920,6 @@ ObjectRef NativeType::nativeObjectInit(ObjectRef self, Reference<TupleObject> ar
     /* move to prevent copy */
     return std::move(self);
 }
-
-ObjectRef NativeType::nativeObjectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
-{
-    throw Exceptions::TypeError(Utils::Strings::format(
-        "\"%s\" object is not callable",
-        name()
-    ));
-}
-
-/***** NativeType Implementations *****/
 
 #define APPLY_UNARY(name, func, native, self) {                         \
     /* find the user function */                                        \

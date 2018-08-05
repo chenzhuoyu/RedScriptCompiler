@@ -58,6 +58,9 @@ void shutdown(void)
 {
     /** clear built-in attributes and functions **/
 
+    /* perform a full collection */
+    Engine::GarbageCollector::collect(Engine::GarbageCollector::CollectionMode::Full);
+
     /* shutdown built-in globals and exceptions */
     Engine::Builtins::shutdown();
     Runtime::ExceptionType::shutdown();
@@ -113,9 +116,6 @@ void shutdown(void)
     Runtime::SliceObject::shutdown();
     Runtime::ProxyObject::shutdown();
     Runtime::Object::shutdown();
-
-    /* perform a full garbage collection */
-    Engine::GarbageCollector::collect(Engine::GarbageCollector::CollectionMode::Full);
 }
 
 void initialize(size_t stack)

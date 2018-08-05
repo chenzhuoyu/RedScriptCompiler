@@ -1,3 +1,4 @@
+#include "utils/Strings.h"
 #include "runtime/MapObject.h"
 #include "runtime/TupleObject.h"
 #include "runtime/UnboundMethodObject.h"
@@ -10,39 +11,34 @@ TypeRef NativeFunctionTypeObject;
 
 void NativeFunctionType::addBuiltins(void)
 {
-    attrs().emplace(
+    addMethod(UnboundMethodObject::newUnboundVariadic(
         "__invoke__",
-        UnboundMethodObject::newUnboundVariadic([](ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
-        {
-            /* invoke the object protocol */
-            return self->type()->objectInvoke(self, args, kwargs);
-        })
-    );
+        [](ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs){ return self->type()->objectInvoke(self, args, kwargs); }
+    ));
 }
 
 /*** Native Object Protocol ***/
 
-ObjectRef NativeFunctionType::nativeObjectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
+std::string NativeFunctionType::nativeObjectRepr(ObjectRef self)
 {
-    /* check object type */
-    if (self->isNotInstanceOf(NativeFunctionTypeObject))
-        throw Exceptions::InternalError("Invalid native function call");
-
-    /* convert to function object */
-    auto func = self.as<NativeFunctionObject>();
-    NativeFunction function = func->function();
-
-    /* check for function instance */
-    if (function == nullptr)
-        throw Exceptions::InternalError("Empty native function call");
-
-    /* call the native function */
-    return function(std::move(args), std::move(kwargs));
+    return Utils::Strings::format(
+        "<native function \"%s\" at %p>",
+        self.as<NativeFunctionObject>()->name(),
+        static_cast<void *>(self.get())
+    );
 }
 
-ObjectRef NativeFunctionObject::newNullary(NullaryFunction function)
+ObjectRef NativeFunctionType::nativeObjectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
 {
-    return newVariadic([=](Utils::NFI::VariadicArgs args, Utils::NFI::KeywordArgs kwargs)
+    if (self->isNotInstanceOf(NativeFunctionTypeObject))
+        throw Exceptions::InternalError("Invalid native function call");
+    else
+        return self.as<NativeFunctionObject>()->function()(std::move(args), std::move(kwargs));
+}
+
+ObjectRef NativeFunctionObject::newNullary(const std::string &name, NullaryFunction function)
+{
+    return newVariadic(name, [=](Utils::NFI::VariadicArgs args, Utils::NFI::KeywordArgs kwargs)
     {
         /* no variadic arguments acceptable */
         if (args->size())
@@ -57,9 +53,9 @@ ObjectRef NativeFunctionObject::newNullary(NullaryFunction function)
     });
 }
 
-ObjectRef NativeFunctionObject::newUnary(UnaryFunction function)
+ObjectRef NativeFunctionObject::newUnary(const std::string &name, UnaryFunction function)
 {
-    return newVariadic([=](Utils::NFI::VariadicArgs args, Utils::NFI::KeywordArgs kwargs)
+    return newVariadic(name, [=](Utils::NFI::VariadicArgs args, Utils::NFI::KeywordArgs kwargs)
     {
         /* only 1 argument acceptable */
         if (args->size() != 1)
@@ -74,9 +70,9 @@ ObjectRef NativeFunctionObject::newUnary(UnaryFunction function)
     });
 }
 
-ObjectRef NativeFunctionObject::newBinary(BinaryFunction function)
+ObjectRef NativeFunctionObject::newBinary(const std::string &name, BinaryFunction function)
 {
-    return newVariadic([=](Utils::NFI::VariadicArgs args, Utils::NFI::KeywordArgs kwargs)
+    return newVariadic(name, [=](Utils::NFI::VariadicArgs args, Utils::NFI::KeywordArgs kwargs)
     {
         /* only 2 arguments acceptable */
         if (args->size() != 2)
@@ -91,9 +87,9 @@ ObjectRef NativeFunctionObject::newBinary(BinaryFunction function)
     });
 }
 
-ObjectRef NativeFunctionObject::newTernary(TernaryFunction function)
+ObjectRef NativeFunctionObject::newTernary(const std::string &name, TernaryFunction function)
 {
-    return newVariadic([=](Utils::NFI::VariadicArgs args, Utils::NFI::KeywordArgs kwargs)
+    return newVariadic(name, [=](Utils::NFI::VariadicArgs args, Utils::NFI::KeywordArgs kwargs)
     {
         /* only 3 arguments acceptable */
         if (args->size() != 3)

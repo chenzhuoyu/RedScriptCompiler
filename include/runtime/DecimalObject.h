@@ -85,10 +85,12 @@ public:
 public:
     bool isSafeFloat(void) { return _value.isSafeFloat(); }
     bool isSafeDouble(void) { return _value.isSafeDouble(); }
+    bool isSafeLongDouble(void) { return _value.isSafeLongDouble(); }
 
 public:
     float toFloat(void) { return _value.toFloat(); }
     double toDouble(void) { return _value.toDouble(); }
+    long double toLongDouble(void) { return _value.toLongDouble(); }
 
 public:
     static ObjectRef fromDouble(double value)                 { return Object::newObject<DecimalObject>(value); }

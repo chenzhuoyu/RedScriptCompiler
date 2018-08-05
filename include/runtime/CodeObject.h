@@ -13,17 +13,6 @@
 
 namespace RedScript::Runtime
 {
-class CodeType : public NativeType
-{
-public:
-    explicit CodeType() : NativeType("code") {}
-
-protected:
-    virtual void addBuiltins(void) override {}
-    virtual void clearBuiltins(void) override {}
-
-};
-
 /* type object for code */
 extern TypeRef CodeTypeObject;
 
@@ -99,6 +88,17 @@ public:
 public:
     static void shutdown(void);
     static void initialize(void);
+
+};
+
+class CodeType : public NativeType
+{
+public:
+    explicit CodeType() : NativeType("code") {}
+
+protected:
+    virtual void addBuiltins(void) override {}
+    virtual void clearBuiltins(void) override {}
 
 };
 }

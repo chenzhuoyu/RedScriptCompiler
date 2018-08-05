@@ -343,9 +343,26 @@ void CodeGenerator::visitNative(const std::unique_ptr<AST::Native> &node)
     }
 
     /* wrap as map */
-    emitOperand(node, Engine::OpCode::MAKE_MAP, static_cast<uint32_t>(node->opts.size()));
-    emitOperand(node, Engine::OpCode::MAKE_NATIVE, addConst(Runtime::Object::newObject<Runtime::StringObject>(node->code)));
-    emitOperand(node->name, Engine::OpCode::STOR_LOCAL, addLocal(node->name->name));
+    emitOperand(
+        node,
+        Engine::OpCode::MAKE_MAP,
+        static_cast<uint32_t>(node->opts.size())
+    );
+
+    /* make it a native class */
+    emitOperand2(
+        node,
+        Engine::OpCode::MAKE_NATIVE,
+        addName(node->name->name),
+        addConst(Runtime::Object::newObject<Runtime::StringObject>(node->code))
+    );
+
+    /* store to local variable */
+    emitOperand(
+        node->name,
+        Engine::OpCode::STOR_LOCAL,
+        addLocal(node->name->name)
+    );
 }
 
 void CodeGenerator::visitSwitch(const std::unique_ptr<AST::Switch> &node)

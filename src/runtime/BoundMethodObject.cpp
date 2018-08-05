@@ -1,3 +1,4 @@
+#include "utils/Strings.h"
 #include "runtime/BoundMethodObject.h"
 #include "runtime/UnboundMethodObject.h"
 
@@ -8,17 +9,22 @@ TypeRef BoundMethodTypeObject;
 
 void BoundMethodType::addBuiltins(void)
 {
-    attrs().emplace(
+    addMethod(UnboundMethodObject::newUnboundVariadic(
         "__invoke__",
-        UnboundMethodObject::newUnboundVariadic([](ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
-        {
-            /* invoke the object protocol */
-            return self->type()->objectInvoke(self, args, kwargs);
-        })
-    );
+        [](ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs){ return self->type()->objectInvoke(self, args, kwargs); }
+    ));
 }
 
 /*** Native Object Protocol ***/
+
+std::string BoundMethodType::nativeObjectRepr(ObjectRef self)
+{
+    return Utils::Strings::format(
+        "<bound method \"%s\" at %p>",
+        self.as<BoundMethodObject>()->name(),
+        static_cast<void *>(self.get())
+    );
+}
 
 ObjectRef BoundMethodType::nativeObjectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
 {
@@ -28,13 +34,15 @@ ObjectRef BoundMethodType::nativeObjectInvoke(ObjectRef self, Reference<TupleObj
         return self.as<BoundMethodObject>()->invoke(std::move(args), std::move(kwargs));
 }
 
-BoundMethodObject::BoundMethodObject(ObjectRef self, ObjectRef func) :
+BoundMethodObject::BoundMethodObject(const std::string &name, ObjectRef self, ObjectRef func) :
     Object(BoundMethodTypeObject),
+    _name(name),
     _self(self),
     _func(func)
 {
-    attrs().emplace("bm_func", _func);
-    attrs().emplace("bm_self", _self);
+    addObject("bm_func", _func);
+    addObject("bm_self", _self);
+    addObject("bm_name", StringObject::fromStringInterned(name));
 }
 
 ObjectRef BoundMethodObject::invoke(Reference<TupleObject> args, Reference<MapObject> kwargs)

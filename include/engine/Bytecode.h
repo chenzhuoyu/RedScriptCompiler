@@ -104,7 +104,7 @@ enum class OpCode : uint8_t
     MAKE_FUNCTION   = 0x63,         // MAKE_FUNCTION    <name>, <code>          Store bytecodes into new function, with default values at <stack_top>
     MAKE_CLASS      = 0x64,         // MAKE_CLASS       <name>, <code>          Construct a class object named <name>
     MAKE_ITER       = 0x65,         // MAKE_ITER                                <stack_top> <-- <stack_top>.__iter__()
-    MAKE_NATIVE     = 0x66,         // MAKE_NATIVE      <code>                  Construct a native class object with options on <stack_top>
+    MAKE_NATIVE     = 0x66,         // MAKE_NATIVE      <name>, <code>          Construct a native class object with options on <stack_top>
 };
 
 /* opcode flags */
@@ -249,7 +249,7 @@ static const uint32_t OpCodeFlags[256] = {
     OP_V | OP_V2,                       /* 0x63 :: MAKE_FUNCTION */
     OP_V | OP_V2,                       /* 0x64 :: MAKE_CLASS    */
     0,                                  /* 0x65 :: MAKE_ITER     */
-    OP_V,                               /* 0x66 :: MAKE_NATIVE   */
+    OP_V | OP_V2,                       /* 0x66 :: MAKE_NATIVE   */
 
     0,
     /* ... */

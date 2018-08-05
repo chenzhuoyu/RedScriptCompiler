@@ -47,8 +47,8 @@ ObjectRef ExceptionType::nativeObjectNew(TypeRef type, Reference<TupleObject> ar
 
 ObjectRef ExceptionType::nativeObjectInit(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
 {
-    self->attrs().emplace("args", args);
-    self->attrs().emplace("message", StringObject::fromString(self.as<ExceptionObject>()->message()));
+    self->addObject("args", args);
+    self->addObject("message", StringObject::fromString(self.as<ExceptionObject>()->message()));
     return self;
 }
 
@@ -158,23 +158,16 @@ void ExceptionType::initialize(void)
 
 void ExceptionType::addBuiltins(void)
 {
-    attrs().emplace(
-        "__parent__",
-        UnboundMethodObject::fromFunction([&](ObjectRef self)
-        {
-            auto parent = self.as<ExceptionObject>()->parent();
-            return parent.isNull() ? NullObject : parent.as<Object>();
-        })
-    );
-
-    attrs().emplace(
+    addMethod(UnboundMethodObject::fromFunction(
         "__traceback__",
-        UnboundMethodObject::fromFunction([&](ObjectRef self)
-        {
-            /* dump traceback */
-            return self.as<ExceptionObject>()->format();
-        })
-    );
+        [&](ObjectRef self) { return self.as<ExceptionObject>()->format(); }
+    ));
+
+    addMethod(UnboundMethodObject::fromFunction("__parent__", [&](ObjectRef self)
+    {
+        auto parent = self.as<ExceptionObject>()->parent();
+        return parent.isNull() ? NullObject : parent.as<Object>();
+    }));
 }
 
 ExceptionObject::ExceptionObject(TypeRef type, const std::string &message) : Object(type), _message(message)
@@ -286,8 +279,8 @@ ObjectRef NameErrorType::nativeObjectNew(TypeRef type, Reference<TupleObject> ar
 
 ObjectRef NameErrorType::nativeObjectInit(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
 {
-    attrs().emplace("row", IntObject::fromInt(self.as<NameErrorImpl>()->row()));
-    attrs().emplace("col", IntObject::fromInt(self.as<NameErrorImpl>()->col()));
+    addObject("row", IntObject::fromInt(self.as<NameErrorImpl>()->row()));
+    addObject("col", IntObject::fromInt(self.as<NameErrorImpl>()->col()));
     return ExceptionType::nativeObjectInit(self, args, kwargs);
 }
 
@@ -301,8 +294,8 @@ ObjectRef SyntaxErrorType::nativeObjectNew(TypeRef type, Reference<TupleObject> 
 
 ObjectRef SyntaxErrorType::nativeObjectInit(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
 {
-    attrs().emplace("row", IntObject::fromInt(self.as<SyntaxErrorImpl>()->row()));
-    attrs().emplace("col", IntObject::fromInt(self.as<SyntaxErrorImpl>()->col()));
+    addObject("row", IntObject::fromInt(self.as<SyntaxErrorImpl>()->row()));
+    addObject("col", IntObject::fromInt(self.as<SyntaxErrorImpl>()->col()));
     return ExceptionType::nativeObjectInit(self, args, kwargs);
 }
 
@@ -316,8 +309,8 @@ ObjectRef NativeSyntaxErrorType::nativeObjectNew(TypeRef type, Reference<TupleOb
 
 ObjectRef NativeSyntaxErrorType::nativeObjectInit(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs)
 {
-    attrs().emplace("is_warning", BoolObject::fromBool(self.as<NativeSyntaxErrorImpl>()->isWarning()));
-    attrs().emplace("filename"  , StringObject::fromString(self.as<NativeSyntaxErrorImpl>()->filename()));
+    addObject("is_warning", BoolObject::fromBool(self.as<NativeSyntaxErrorImpl>()->isWarning()));
+    addObject("filename"  , StringObject::fromString(self.as<NativeSyntaxErrorImpl>()->filename()));
     return SyntaxErrorType::nativeObjectInit(self, args, kwargs);
 }
 

@@ -32,22 +32,17 @@ add_definitions(-DCONFIG_TRIPLET="x86_64-linux-gnu")
 
 link_directories(
         /usr/local/lib
-        ${CMAKE_SOURCE_DIR}/libbid/lib
-        ${CMAKE_SOURCE_DIR}/libmpir/lib)
+        ${CMAKE_SOURCE_DIR}/libbid/lib)
 
 include_directories(
         /usr/local/include
         ${CMAKE_SOURCE_DIR}/libbid/include
-        ${CMAKE_SOURCE_DIR}/libmpir/include
         ${CMAKE_SOURCE_DIR}/libtcc-mt
         ${CMAKE_SOURCE_DIR}/include)
 
 set(LIBBID
         libbid/include/bid_conf.h
         libbid/include/bid_dfp.h)
-
-set(LIBMPIR
-        libmpir/include/mpir.h)
 
 set(LIBTCC_MT
         libtcc-mt/tccelf.h
@@ -70,7 +65,6 @@ set(LIBTCC_MT
 
 set(SOURCE_FILES
         ${LIBBID}
-        ${LIBMPIR}
         ${LIBTCC_MT}
         include/compiler/AST.h
         include/compiler/CodeGenerator.h
@@ -148,4 +142,4 @@ set(SOURCE_FILES
         src/main.cpp)
 
 add_executable(rsc ${SOURCE_FILES})
-target_link_libraries(rsc bid_${CMAKE_SYSTEM_NAME} mpir_${CMAKE_SYSTEM_NAME} dl fmt jemalloc)
+target_link_libraries(rsc dl fmt jemalloc ffi mpir bid_${CMAKE_SYSTEM_NAME})

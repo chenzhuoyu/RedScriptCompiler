@@ -24,9 +24,7 @@ protected:
 
 public:
     virtual std::string nativeObjectRepr(ObjectRef self) override;
-
-public:
-    virtual ObjectRef nativeObjectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs) override;
+    virtual ObjectRef   nativeObjectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs) override;
 
 };
 

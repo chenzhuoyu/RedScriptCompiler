@@ -87,13 +87,14 @@ void Builtins::initialize(void)
     /* built-in print function */
     Globals.emplace(
         "print",
-        Closure::ref(Runtime::NativeFunctionObject::newVariadic(&print))
+        Closure::ref(Runtime::NativeFunctionObject::newVariadic("print", &print))
     );
 
     /* built-in `id()` function */
     Globals.emplace(
         "id",
         Closure::ref(Runtime::NativeFunctionObject::fromFunction(
+            "id",
             Utils::NFI::KeywordNames({"obj"}),
             [](Runtime::ObjectRef self){ return reinterpret_cast<uintptr_t>(self.get()); }
         ))
@@ -103,6 +104,7 @@ void Builtins::initialize(void)
     Globals.emplace(
         "dir",
         Closure::ref(Runtime::NativeFunctionObject::fromFunction(
+            "dir",
             Utils::NFI::KeywordNames({"obj"}),
             [](Runtime::ObjectRef self){ return self->type()->objectDir(self); }
         ))
@@ -112,6 +114,7 @@ void Builtins::initialize(void)
     Globals.emplace(
         "len",
         Closure::ref(Runtime::NativeFunctionObject::fromFunction(
+            "len",
             Utils::NFI::KeywordNames({"obj"}),
             [](Runtime::ObjectRef self){ return self->type()->sequenceLen(self); }
         ))
@@ -121,6 +124,7 @@ void Builtins::initialize(void)
     Globals.emplace(
         "hash",
         Closure::ref(Runtime::NativeFunctionObject::fromFunction(
+            "hash",
             Utils::NFI::KeywordNames({"obj"}),
             [](Runtime::ObjectRef self){ return self->type()->objectHash(self); }
         ))
@@ -130,6 +134,7 @@ void Builtins::initialize(void)
     Globals.emplace(
         "iter",
         Closure::ref(Runtime::NativeFunctionObject::fromFunction(
+            "iter",
             Utils::NFI::KeywordNames({"obj"}),
             [](Runtime::ObjectRef self){ return self->type()->iterableIter(self); }
         ))
@@ -139,6 +144,7 @@ void Builtins::initialize(void)
     Globals.emplace(
         "next",
         Closure::ref(Runtime::NativeFunctionObject::fromFunction(
+            "next",
             Utils::NFI::KeywordNames({"iter"}),
             [](Runtime::ObjectRef self){ return self->type()->iterableNext(self); }
         ))
@@ -148,6 +154,7 @@ void Builtins::initialize(void)
     Globals.emplace(
         "repr",
         Closure::ref(Runtime::NativeFunctionObject::fromFunction(
+            "repr",
             Utils::NFI::KeywordNames({"obj"}),
             [](Runtime::ObjectRef self){ return self->type()->objectRepr(self); }
         ))
@@ -157,6 +164,7 @@ void Builtins::initialize(void)
     Globals.emplace(
         "intern",
         Closure::ref(Runtime::NativeFunctionObject::fromFunction(
+            "intern",
             Utils::NFI::KeywordNames({"str"}),
             [](const std::string &str){ return Runtime::StringObject::fromStringInterned(str); }
         ))
@@ -166,6 +174,7 @@ void Builtins::initialize(void)
     Globals.emplace(
         "hasattr",
         Closure::ref(Runtime::NativeFunctionObject::fromFunction(
+            "hasattr",
             Utils::NFI::KeywordNames({"obj", "attr"}),
             [](Runtime::ObjectRef self, const std::string &name){ return self->type()->objectHasAttr(self, name); }
         ))
@@ -175,6 +184,7 @@ void Builtins::initialize(void)
     Globals.emplace(
         "delattr",
         Closure::ref(Runtime::NativeFunctionObject::fromFunction(
+            "delattr",
             Utils::NFI::KeywordNames({"obj", "attr"}),
             [](Runtime::ObjectRef self, const std::string &name){ self->type()->objectDelAttr(self, name); }
         ))
@@ -184,6 +194,7 @@ void Builtins::initialize(void)
     Globals.emplace(
         "setattr",
         Closure::ref(Runtime::NativeFunctionObject::fromFunction(
+            "setattr",
             Utils::NFI::KeywordNames({"obj", "attr", "value"}),
             [](Runtime::ObjectRef self, const std::string &name, Runtime::ObjectRef value){ self->type()->objectSetAttr(self, name, value); }
         ))
@@ -193,6 +204,7 @@ void Builtins::initialize(void)
     Globals.emplace(
         "getattr",
         Closure::ref(Runtime::NativeFunctionObject::fromFunction(
+            "getattr",
             Utils::NFI::KeywordNames({"obj", "attr", "value"}),
             Utils::NFI::DefaultValues({nullptr}),
             &getattr

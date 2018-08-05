@@ -54,6 +54,7 @@ public:
 
 public:
     Decimal(double value)             : Decimal(withFlagsChecked(binary64_to_bid128, value)) {}
+    Decimal(long double value)        : Decimal(withFlagsChecked(binary80_to_bid128, value)) {}
     Decimal(const std::string &value) : Decimal(withFlagsChecked(bid128_from_string, value.c_str())) {}
 
 public:

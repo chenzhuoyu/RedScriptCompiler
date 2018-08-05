@@ -19,7 +19,8 @@ protected:
 /*** Native Object Protocol ***/
 
 public:
-    virtual ObjectRef nativeObjectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs) override;
+    virtual std::string nativeObjectRepr(ObjectRef self) override;
+    virtual ObjectRef   nativeObjectInvoke(ObjectRef self, Reference<TupleObject> args, Reference<MapObject> kwargs) override;
 
 };
 
@@ -30,10 +31,16 @@ class BoundMethodObject : public Object
 {
     ObjectRef _self;
     ObjectRef _func;
+    std::string _name;
 
 public:
     virtual ~BoundMethodObject() = default;
-    explicit BoundMethodObject(ObjectRef self, ObjectRef func);
+    explicit BoundMethodObject(const std::string &name, ObjectRef self, ObjectRef func);
+
+public:
+    ObjectRef &func(void) { return _func; }
+    ObjectRef &inst(void) { return _self; }
+    std::string &name(void) { return _name; }
 
 public:
     ObjectRef invoke(Reference<TupleObject> args, Reference<MapObject> kwargs);
