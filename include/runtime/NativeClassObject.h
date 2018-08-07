@@ -63,69 +63,92 @@ public:
 
 struct ForeignType : public NativeType
 {
-    enum class Type
-    {
-        Enum,
-        Value,
-        Struct,
-        Pointer,
-    };
-
-private:
-    Type _type;
     size_t _size;
     ffi_type *_ftype;
 
 public:
-    typedef std::function<void(ObjectRef, void *, size_t)> BoxerFunc;
-    typedef std::function<ObjectRef(const void *, size_t)> UnboxerFunc;
-
-private:
-    BoxerFunc _boxer;
-    UnboxerFunc _unboxer;
-
-private:
-    Reference<ForeignType> _ref;
-    std::unordered_map<std::string, int64_t> _values;
-    std::unordered_map<std::string, Reference<ForeignType>> _fields;
+    virtual ~ForeignType() { attrs().clear(); }
+    explicit ForeignType(const std::string &name, ffi_type *type);
 
 public:
-    explicit ForeignType(const std::string &name, ffi_type *type, BoxerFunc &&boxer, UnboxerFunc &&unboxer) :
-        NativeType(name),
-        _type     (Type::Value),
-        _size     (type->size),
-        _ftype    (type),
-        _boxer    (std::move(boxer)),
-        _unboxer  (std::move(unboxer)) {}
-
-public:
-    explicit ForeignType(const std::string &name, Reference<ForeignType> ref) :
-        NativeType(name),
-        _ref      (ref),
-        _type     (Type::Pointer),
-        _size     (sizeof(void *)),
-        _ftype    (&ffi_type_pointer) {}
-
-public:
-    Type type(void) const { return _type; }
     size_t size(void) const { return _size; }
     ffi_type *ftype(void) const { return _ftype; }
 
 public:
-    const auto &boxer(void) const { return _boxer; }
-    const auto &unboxer(void) const { return _unboxer; }
-
-public:
-    const auto &ref(void)  const   { return _ref; }
-    const auto &fields(void) const { return _fields; }
-    const auto &values(void) const { return _values; }
+    virtual void pack(ObjectRef value, void *buffer, size_t size) const = 0;
+    virtual void unpack(ObjectRef &value, const void *buffer, size_t size) const = 0;
 
 public:
     static Reference<ForeignType> buildFrom(TCCType *type);
 
 };
 
-/* wrapped FFI types */
+struct ForeignVoidType : public ForeignType
+{
+    virtual ~ForeignVoidType() = default;
+    explicit ForeignVoidType() : ForeignType("void", &ffi_type_void) {}
+
+public:
+    virtual void pack(ObjectRef value, void *buffer, size_t size) const override;
+    virtual void unpack(ObjectRef &value, const void *buffer, size_t size) const override;
+
+};
+
+#define FFI_MAKE_INT_TYPE(bits)                                                                         \
+struct ForeignInt ## bits ## Type : public ForeignType                                                  \
+{                                                                                                       \
+    virtual ~ForeignInt ## bits ## Type() = default;                                                    \
+    explicit ForeignInt ## bits ## Type() : ForeignType("int" #bits "_t", &ffi_type_sint ## bits) {}    \
+                                                                                                        \
+public:                                                                                                 \
+    virtual void pack(ObjectRef value, void *buffer, size_t size) const override;                       \
+    virtual void unpack(ObjectRef &value, const void *buffer, size_t size) const override;              \
+                                                                                                        \
+}
+
+#define FFI_MAKE_UINT_TYPE(bits)                                                                        \
+struct ForeignUInt ## bits ## Type : public ForeignType                                                 \
+{                                                                                                       \
+    virtual ~ForeignUInt ## bits ## Type() = default;                                                   \
+    explicit ForeignUInt ## bits ## Type() : ForeignType("uint" #bits "_t", &ffi_type_uint ## bits) {}  \
+                                                                                                        \
+public:                                                                                                 \
+    virtual void pack(ObjectRef value, void *buffer, size_t size) const override;                       \
+    virtual void unpack(ObjectRef &value, const void *buffer, size_t size) const override;              \
+                                                                                                        \
+}
+
+#define FFI_MAKE_FLOAT_TYPE(name, type, ftype)                                                          \
+struct Foreign ## name ## Type : public ForeignType                                                     \
+{                                                                                                       \
+    virtual ~Foreign ## name ## Type() = default;                                                       \
+    explicit Foreign ## name ## Type() : ForeignType(#ftype, &ffi_type_ ## ftype) {}                    \
+                                                                                                        \
+public:                                                                                                 \
+    virtual void pack(ObjectRef value, void *buffer, size_t size) const override;                       \
+    virtual void unpack(ObjectRef &value, const void *buffer, size_t size) const override;              \
+                                                                                                        \
+}
+
+FFI_MAKE_INT_TYPE(8);
+FFI_MAKE_INT_TYPE(16);
+FFI_MAKE_INT_TYPE(32);
+FFI_MAKE_INT_TYPE(64);
+
+FFI_MAKE_UINT_TYPE(8);
+FFI_MAKE_UINT_TYPE(16);
+FFI_MAKE_UINT_TYPE(32);
+FFI_MAKE_UINT_TYPE(64);
+
+FFI_MAKE_FLOAT_TYPE(Float, float, float);
+FFI_MAKE_FLOAT_TYPE(Double, double, double);
+FFI_MAKE_FLOAT_TYPE(LongDouble, long double, longdouble);
+
+#undef FFI_MAKE_INT_TYPE
+#undef FFI_MAKE_UINT_TYPE
+#undef FFI_MAKE_FLOAT_TYPE
+
+/* wrapped primitive FFI types */
 extern Reference<ForeignType> ForeignVoidTypeObject;
 extern Reference<ForeignType> ForeignInt8TypeObject;
 extern Reference<ForeignType> ForeignUInt8TypeObject;
@@ -139,13 +162,52 @@ extern Reference<ForeignType> ForeignFloatTypeObject;
 extern Reference<ForeignType> ForeignDoubleTypeObject;
 extern Reference<ForeignType> ForeignLongDoubleTypeObject;
 
-class ForeignInstance : public Object
+class ForeignPointerType : public ForeignType
 {
-    void *_buffer;
+    bool _isConst;
+    Reference<ForeignType> _base;
 
 public:
-    virtual ~ForeignInstance() { std::free(_buffer); }
-    explicit ForeignInstance(TypeRef type) : Object(type), _buffer(std::malloc(type.as<ForeignType>()->size())) {}
+    virtual ~ForeignPointerType() = default;
+    explicit ForeignPointerType(Reference<ForeignType> base, bool isConst) :
+        ForeignType(Utils::Strings::format("%s *", base->name()), &ffi_type_pointer),
+        _base(base),
+        _isConst(isConst){}
+
+public:
+    bool isConst(void) const { return _isConst; }
+    size_t baseSize(void) const { return _base->size(); }
+    Reference<ForeignType> &base(void) { return _base; }
+
+public:
+    virtual void pack(ObjectRef value, void *buffer, size_t size) const override;
+    virtual void unpack(ObjectRef &value, const void *buffer, size_t size) const override;
+
+};
+
+struct ForeignCStringType : public ForeignPointerType
+{
+    virtual ~ForeignCStringType() = default;
+    explicit ForeignCStringType(bool isConst) : ForeignPointerType(ForeignInt8TypeObject, isConst) {}
+
+public:
+    virtual void pack(ObjectRef value, void *buffer, size_t size) const override;
+    virtual void unpack(ObjectRef &value, const void *buffer, size_t size) const override;
+
+};
+
+class ForeignInstance : public Object
+{
+    void *_data;
+    size_t _size;
+
+public:
+    virtual ~ForeignInstance() { std::free(_data); }
+    explicit ForeignInstance(TypeRef type) : Object(type), _size(type.as<ForeignType>()->size()) { _data = std::malloc(_size); }
+
+public:
+    void set(ObjectRef value) { type().as<ForeignType>()->pack(value, _data, _size); }
+    void get(ObjectRef &value) { type().as<ForeignType>()->unpack(value, _data, _size); }
 
 };
 
@@ -158,9 +220,16 @@ private:
     bool _isVarg;
     std::string _name;
 
-public:
+private:
+    std::vector<char> _ret;
+    std::vector<void *> _argsp;
+    std::vector<ffi_type *> _argsf;
+    std::vector<std::vector<char>> _argsv;
+
+private:
     Reference<ForeignType> _rettype;
-    std::vector<std::pair<std::string, Reference<ForeignType>>> _argtypes;
+    std::vector<std::string> _argnames;
+    std::vector<Reference<ForeignType>> _argtypes;
 
 public:
     virtual ~ForeignFunction() = default;

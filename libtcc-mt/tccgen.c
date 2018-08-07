@@ -7045,7 +7045,7 @@ ST_FUNC void free_inline_functions(TCCState *s)
 
 static char *make_arg_name(TCCState *s1, int arg) {
     char *s = tcc_mallocz(s1, 16);
-    snprintf(s, 16, "_arg%d_", arg);
+    snprintf(s, 16, "__arg%d__", arg);
     return s;
 }
 

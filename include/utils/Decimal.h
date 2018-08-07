@@ -53,6 +53,7 @@ public:
     Decimal(BID_UINT128 value) : _value(value) {}
 
 public:
+    Decimal(float value)              : Decimal(withFlagsChecked(binary32_to_bid128, value)) {}
     Decimal(double value)             : Decimal(withFlagsChecked(binary64_to_bid128, value)) {}
     Decimal(long double value)        : Decimal(withFlagsChecked(binary80_to_bid128, value)) {}
     Decimal(const std::string &value) : Decimal(withFlagsChecked(bid128_from_string, value.c_str())) {}

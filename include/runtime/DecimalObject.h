@@ -93,7 +93,11 @@ public:
     long double toLongDouble(void) { return _value.toLongDouble(); }
 
 public:
+    static ObjectRef fromFloat(float value)                   { return Object::newObject<DecimalObject>(value); }
     static ObjectRef fromDouble(double value)                 { return Object::newObject<DecimalObject>(value); }
+    static ObjectRef fromLongDouble(double value)             { return Object::newObject<DecimalObject>(value); }
+
+public:
     static ObjectRef fromDecimal(Utils::Decimal &&value)      { return Object::newObject<DecimalObject>(std::move(value)); }
     static ObjectRef fromDecimal(const Utils::Decimal &value) { return Object::newObject<DecimalObject>(value); }
 
