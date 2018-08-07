@@ -248,8 +248,7 @@ public:
 struct ForeignCStringType : public ForeignPointerType
 {
     virtual ~ForeignCStringType() = default;
-    explicit ForeignCStringType(bool isConst) :
-        ForeignPointerType(isConst ? "const_char_p" : "char_p", ForeignInt8TypeObject, isConst) {}
+    explicit ForeignCStringType(bool isConst);
 
 public:
     virtual void pack(void *buffer, size_t size, ObjectRef value) const override;
@@ -335,8 +334,9 @@ FFI_MAKE_INSTANCE(LongDouble, long double);
 
 class ForeignStringBuffer : public ForeignInstance
 {
+    bool _free;
     char *_data;
-    ssize_t _size;
+    size_t _size;
 
 public:
     virtual ~ForeignStringBuffer();
@@ -345,7 +345,11 @@ public:
 
 public:
     char *str(void) const { return _data; }
-    ssize_t length(void) const { return _size; }
+    size_t length(void) const { return _size; }
+
+public:
+    bool isAutoRelease(void) const { return _free; }
+    void setAutoRelease(bool value) { _free = value; }
 
 public:
     virtual void set(ObjectRef value) override;

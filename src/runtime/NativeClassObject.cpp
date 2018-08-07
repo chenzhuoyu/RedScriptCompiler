@@ -3,6 +3,7 @@
 #include "utils/Strings.h"
 
 #include "runtime/IntObject.h"
+#include "runtime/BoolObject.h"
 #include "runtime/NullObject.h"
 #include "runtime/ProxyObject.h"
 #include "runtime/StringObject.h"
@@ -32,10 +33,9 @@ Reference<ForeignType> ForeignLongDoubleTypeObject;
 Reference<ForeignType> ForeignCStringTypeObject;
 Reference<ForeignType> ForeignConstCStringTypeObject;
 
-static inline size_t min(size_t a, ssize_t b)
+static inline size_t min(size_t a, size_t b)
 {
-    size_t t = static_cast<size_t>(b);
-    return a < t ? a : t;
+    return a < b ? a : b;
 }
 
 static inline size_t align(size_t val, size_t to)
@@ -323,12 +323,12 @@ void NativeClassObject::initialize(void)
 
     /* string types */
     ForeignCStringTypeObject        = Object::newObject<ForeignTypeFactory<ForeignCStringType, ForeignStringBuffer, const std::string &>>(false);
-    ForeignConstCStringTypeObject   = Object::newObject<ForeignTypeFactory<ForeignCStringType, ForeignStringBuffer, const std::string &>>(true);
+    ForeignConstCStringTypeObject   = Object::newObject<ForeignCStringType>(true);
 }
 
 /** Abstract Foreign Type **/
 
-static ObjectRef foreignTypeGetter(ObjectRef self, ObjectRef type)
+static ObjectRef foreignTypeValueGetter(ObjectRef self, ObjectRef type)
 {
     /* convert to root foreign instance */
     Object *obj = self.get();
@@ -338,7 +338,7 @@ static ObjectRef foreignTypeGetter(ObjectRef self, ObjectRef type)
     if (fvalue == nullptr)
     {
         throw Exceptions::TypeError(Utils::Strings::format(
-            "Must be a foreign instance, not \"%s\"",
+            "Argument must be a foreign instance, not \"%s\"",
             self->type()->name()
         ));
     }
@@ -347,7 +347,7 @@ static ObjectRef foreignTypeGetter(ObjectRef self, ObjectRef type)
     return fvalue->get();
 }
 
-static ObjectRef foreignTypeSetter(ObjectRef self, ObjectRef type, ObjectRef value)
+static ObjectRef foreignTypeValueSetter(ObjectRef self, ObjectRef type, ObjectRef value)
 {
     /* convert to root foreign instance */
     Object *obj = self.get();
@@ -357,7 +357,7 @@ static ObjectRef foreignTypeSetter(ObjectRef self, ObjectRef type, ObjectRef val
     if (fvalue == nullptr)
     {
         throw Exceptions::TypeError(Utils::Strings::format(
-            "Must be a foreign instance, not \"%s\"",
+            "Argument must be a foreign instance, not \"%s\"",
             self->type()->name()
         ));
     }
@@ -370,8 +370,8 @@ static ObjectRef foreignTypeSetter(ObjectRef self, ObjectRef type, ObjectRef val
 ForeignType::ForeignType(const std::string &name, ffi_type *type) : NativeType(name), _size(type->size), _ftype(type)
 {
     addObject("value", ProxyObject::newReadWrite(
-        NativeFunctionObject::newBinary("__get__", &foreignTypeGetter),
-        NativeFunctionObject::newTernary("__set__", &foreignTypeSetter)
+        NativeFunctionObject::newBinary("__get__", &foreignTypeValueGetter),
+        NativeFunctionObject::newTernary("__set__", &foreignTypeValueSetter)
     ));
 }
 
@@ -583,6 +583,46 @@ ObjectRef ForeignPointerType::unpack(const void *buffer, size_t size) const
 
 /** Foreign CString Type Implementations **/
 
+static ObjectRef foreignCStringAutoReleaseGetter(ObjectRef self, ObjectRef type)
+{
+    /* object type check */
+    if (self->isNotInstanceOf(ForeignCStringTypeObject))
+    {
+        throw Exceptions::TypeError(Utils::Strings::format(
+            "Argument must be a string buffer, not \"%s\"",
+            self->type()->name()
+        ));
+    }
+
+    /* read it's value */
+    return BoolObject::fromBool(self.as<ForeignStringBuffer>()->isAutoRelease());
+}
+
+static ObjectRef foreignCStringAutoReleaseSetter(ObjectRef self, ObjectRef type, ObjectRef value)
+{
+    /* object type check */
+    if (self->isNotInstanceOf(ForeignCStringTypeObject))
+    {
+        throw Exceptions::TypeError(Utils::Strings::format(
+            "Argument must be a string buffer, not \"%s\"",
+            self->type()->name()
+        ));
+    }
+
+    /* set it's value */
+    self.as<ForeignStringBuffer>()->setAutoRelease(value->type()->objectIsTrue(value));
+    return std::move(value);
+}
+
+ForeignCStringType::ForeignCStringType(bool isConst) :
+    ForeignPointerType(isConst ? "const_char_p" : "char_p", ForeignInt8TypeObject, isConst)
+{
+    addObject("auto_release", ProxyObject::newReadWrite(
+        NativeFunctionObject::newBinary("__get__", &foreignCStringAutoReleaseGetter),
+        NativeFunctionObject::newTernary("__set__", &foreignCStringAutoReleaseSetter)
+    ));
+}
+
 void ForeignCStringType::pack(void *buffer, size_t size, ObjectRef value) const
 {
     /* type size check */
@@ -595,7 +635,7 @@ void ForeignCStringType::pack(void *buffer, size_t size, ObjectRef value) const
 
     /* string buffer, use it's address directly */
     else if (value->isInstanceOf(ForeignCStringTypeObject) ||
-        value->isInstanceOf(ForeignConstCStringTypeObject))
+             value->isInstanceOf(ForeignConstCStringTypeObject))
         *(reinterpret_cast<const char **>(buffer)) = value.as<ForeignStringBuffer>()->str();
 
     /* otherwise, pack as plain pointer */
@@ -732,14 +772,15 @@ ObjectRef ForeignFunction::invoke(Utils::NFI::VariadicArgs args, Utils::NFI::Key
 
 ForeignStringBuffer::~ForeignStringBuffer()
 {
-    if (_size != -1)
+    if (_free)
         Engine::Memory::free(_data);
 }
 
 ForeignStringBuffer::ForeignStringBuffer(char *value) : ForeignInstance(ForeignCStringTypeObject)
 {
-    _size = -1;
+    _size = 0;
     _data = value;
+    _free = false;
 }
 
 ForeignStringBuffer::ForeignStringBuffer(const std::string &value) : ForeignInstance(ForeignCStringTypeObject)
@@ -749,12 +790,13 @@ ForeignStringBuffer::ForeignStringBuffer(const std::string &value) : ForeignInst
         throw Exceptions::ValueError("String too long");
 
     /* string length and buffer */
+    _free = true;
     _size = value.size();
-    _data = Engine::Memory::alloc<char>(static_cast<size_t>(_size) + 1);
+    _data = Engine::Memory::alloc<char>(_size + 1);
 
     /* make a copy of string */
     _data[_size] = 0;
-    memcpy(_data, value.data(), static_cast<size_t>(_size));
+    memcpy(_data, value.data(), _size);
 }
 
 void ForeignStringBuffer::set(ObjectRef value)
