@@ -552,8 +552,26 @@ void ForeignCStringType::unpack(ObjectRef &value, const void *buffer, size_t siz
     if (size < sizeof(const char *))
         throw Exceptions::RuntimeError("EOF when unpacking pointers");
 
-    /* unpack as string */
-    value = StringObject::fromString(*(reinterpret_cast<const char * const *>(buffer)));
+    /* get the string pointer */
+    auto sp = reinterpret_cast<char * const *>(buffer);
+    auto *str = *sp;
+
+    /* null pointer, unpack as null */
+    if (str == nullptr)
+    {
+        value = NullObject;
+        return;
+    }
+
+    /* unpack as string, if constant */
+    if (isConst())
+    {
+        value = StringObject::fromString(str);
+        return;
+    }
+
+    // TODO: implement unpack char *
+    throw Exceptions::InternalError("not implemented: unpack char *");
 }
 
 /** Foreign Function Implementations **/
