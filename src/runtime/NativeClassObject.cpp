@@ -744,6 +744,10 @@ ForeignStringBuffer::ForeignStringBuffer(char *value) : ForeignInstance(ForeignC
 
 ForeignStringBuffer::ForeignStringBuffer(const std::string &value) : ForeignInstance(ForeignCStringTypeObject)
 {
+    /* string length check (though very unlikely) */
+    if (value.size() == SIZE_T_MAX)
+        throw Exceptions::ValueError("String too long");
+
     /* string length and buffer */
     _size = value.size();
     _data = Engine::Memory::alloc<char>(static_cast<size_t>(_size) + 1);
