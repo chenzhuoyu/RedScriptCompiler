@@ -32,10 +32,10 @@ Reference<ForeignType> ForeignLongDoubleTypeObject;
 Reference<ForeignType> ForeignCStringTypeObject;
 Reference<ForeignType> ForeignConstCStringTypeObject;
 
-template <typename A, typename B>
-static inline auto min(A &&a, B &&b)
+static inline size_t min(size_t a, ssize_t b)
 {
-    return a < b ? std::forward<A>(a) : std::forward<B>(b);
+    size_t t = static_cast<size_t>(b);
+    return a < t ? a : t;
 }
 
 static inline size_t align(size_t val, size_t to)
@@ -746,11 +746,11 @@ ForeignStringBuffer::ForeignStringBuffer(const std::string &value) : ForeignInst
 {
     /* string length and buffer */
     _size = value.size();
-    _data = Engine::Memory::alloc<char>(_size + 1);
+    _data = Engine::Memory::alloc<char>(static_cast<size_t>(_size) + 1);
 
     /* make a copy of string */
     _data[_size] = 0;
-    memcpy(_data, value.data(), _size);
+    memcpy(_data, value.data(), static_cast<size_t>(_size));
 }
 
 void ForeignStringBuffer::set(ObjectRef value)
