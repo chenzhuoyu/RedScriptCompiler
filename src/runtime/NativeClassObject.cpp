@@ -1,6 +1,3 @@
-
-#include <runtime/NativeClassObject.h>
-
 #include "utils/Decimal.h"
 #include "utils/Integer.h"
 #include "utils/Strings.h"
@@ -30,6 +27,10 @@ Reference<ForeignType> ForeignUInt64TypeObject;
 Reference<ForeignType> ForeignFloatTypeObject;
 Reference<ForeignType> ForeignDoubleTypeObject;
 Reference<ForeignType> ForeignLongDoubleTypeObject;
+
+/* string types */
+Reference<ForeignType> ForeignCStringTypeObject;
+Reference<ForeignType> ForeignConstCStringTypeObject;
 
 static std::string type2str(TCCState *s, TCCType *t, const char *n)
 {
@@ -167,42 +168,50 @@ NativeClassObject::NativeClassObject(
 void NativeClassObject::shutdown(void)
 {
     /* clear FFI types */
-    ForeignVoidTypeObject        = nullptr;
-    ForeignInt8TypeObject        = nullptr;
-    ForeignUInt8TypeObject       = nullptr;
-    ForeignInt16TypeObject       = nullptr;
-    ForeignUInt16TypeObject      = nullptr;
-    ForeignInt32TypeObject       = nullptr;
-    ForeignUInt32TypeObject      = nullptr;
-    ForeignInt64TypeObject       = nullptr;
-    ForeignUInt64TypeObject      = nullptr;
-    ForeignFloatTypeObject       = nullptr;
-    ForeignDoubleTypeObject      = nullptr;
-    ForeignLongDoubleTypeObject  = nullptr;
+    ForeignVoidTypeObject           = nullptr;
+    ForeignInt8TypeObject           = nullptr;
+    ForeignUInt8TypeObject          = nullptr;
+    ForeignInt16TypeObject          = nullptr;
+    ForeignUInt16TypeObject         = nullptr;
+    ForeignInt32TypeObject          = nullptr;
+    ForeignUInt32TypeObject         = nullptr;
+    ForeignInt64TypeObject          = nullptr;
+    ForeignUInt64TypeObject         = nullptr;
+    ForeignFloatTypeObject          = nullptr;
+    ForeignDoubleTypeObject         = nullptr;
+    ForeignLongDoubleTypeObject     = nullptr;
+
+    /* clear string types */
+    ForeignCStringTypeObject        = nullptr;
+    ForeignConstCStringTypeObject   = nullptr;
 
     /* clear type instance */
-    NativeClassTypeObject = nullptr;
+    NativeClassTypeObject           = nullptr;
 }
 
 void NativeClassObject::initialize(void)
 {
     /* native class type object */
     static NativeClassType nullType;
-    NativeClassTypeObject = Reference<NativeClassType>::refStatic(nullType);
+    NativeClassTypeObject           = Reference<NativeClassType>::refStatic(nullType);
 
     /* wrapped primitive FFI types */
-    ForeignVoidTypeObject       = Object::newObject<ForeignVoidType>();
-    ForeignInt8TypeObject       = Object::newObject<ForeignInt8Type>();
-    ForeignUInt8TypeObject      = Object::newObject<ForeignUInt8Type>();
-    ForeignInt16TypeObject      = Object::newObject<ForeignInt16Type>();
-    ForeignUInt16TypeObject     = Object::newObject<ForeignUInt16Type>();
-    ForeignInt32TypeObject      = Object::newObject<ForeignInt32Type>();
-    ForeignUInt32TypeObject     = Object::newObject<ForeignUInt32Type>();
-    ForeignInt64TypeObject      = Object::newObject<ForeignInt64Type>();
-    ForeignUInt64TypeObject     = Object::newObject<ForeignUInt64Type>();
-    ForeignFloatTypeObject      = Object::newObject<ForeignFloatType>();
-    ForeignDoubleTypeObject     = Object::newObject<ForeignDoubleType>();
-    ForeignLongDoubleTypeObject = Object::newObject<ForeignLongDoubleType>();
+    ForeignVoidTypeObject           = Object::newObject<ForeignVoidType>();
+    ForeignInt8TypeObject           = Object::newObject<ForeignInt8Type>();
+    ForeignUInt8TypeObject          = Object::newObject<ForeignUInt8Type>();
+    ForeignInt16TypeObject          = Object::newObject<ForeignInt16Type>();
+    ForeignUInt16TypeObject         = Object::newObject<ForeignUInt16Type>();
+    ForeignInt32TypeObject          = Object::newObject<ForeignInt32Type>();
+    ForeignUInt32TypeObject         = Object::newObject<ForeignUInt32Type>();
+    ForeignInt64TypeObject          = Object::newObject<ForeignInt64Type>();
+    ForeignUInt64TypeObject         = Object::newObject<ForeignUInt64Type>();
+    ForeignFloatTypeObject          = Object::newObject<ForeignFloatType>();
+    ForeignDoubleTypeObject         = Object::newObject<ForeignDoubleType>();
+    ForeignLongDoubleTypeObject     = Object::newObject<ForeignLongDoubleType>();
+
+    /* string types */
+    ForeignCStringTypeObject        = Object::newObject<ForeignCStringType>(false);
+    ForeignConstCStringTypeObject   = Object::newObject<ForeignCStringType>(true);
 }
 
 static ObjectRef foreignTypeGetter(ObjectRef self, ObjectRef type)
@@ -247,7 +256,7 @@ static ObjectRef foreignTypeSetter(ObjectRef self, ObjectRef type, ObjectRef val
 
 ForeignType::ForeignType(const std::string &name, ffi_type *type) : NativeType(name), _size(type->size), _ftype(type)
 {
-    attrs().emplace("value", ProxyObject::newReadWrite(
+    addObject("value", ProxyObject::newReadWrite(
         NativeFunctionObject::newBinary("__get__", &foreignTypeGetter),
         NativeFunctionObject::newTernary("__set__", &foreignTypeSetter)
     ));
@@ -284,7 +293,7 @@ Reference<ForeignType> ForeignType::buildFrom(TCCType *type)
             /* special case for "char *" and "const char *" */
             if ((typeId & VT_BTYPE) == VT_BYTE)
             {
-                result = Object::newObject<ForeignCStringType>(isConst);
+                result = isConst ? ForeignConstCStringTypeObject : ForeignCStringTypeObject;
                 break;
             }
 
@@ -537,13 +546,16 @@ void ForeignCStringType::pack(ObjectRef value, void *buffer, size_t size) const
 
     /* const string, use the content directly */
     if (isConst() && value->isInstanceOf(StringTypeObject))
-    {
         *(reinterpret_cast<const char **>(buffer)) = value.as<StringObject>()->value().c_str();
-        return;
-    }
 
-    // TODO: implement pack char *
-    throw Exceptions::InternalError("not implemented: pack char *");
+    /* string buffer, use it's address directly */
+    else if (value->isInstanceOf(ForeignCStringTypeObject) ||
+        value->isInstanceOf(ForeignConstCStringTypeObject))
+        *(reinterpret_cast<const char **>(buffer)) = value.as<ForeignStringBuffer>()->str();
+
+    /* otherwise, pack as plain pointer */
+    else
+        ForeignPointerType::pack(std::move(value), buffer, size);
 }
 
 void ForeignCStringType::unpack(ObjectRef &value, const void *buffer, size_t size) const
@@ -558,20 +570,15 @@ void ForeignCStringType::unpack(ObjectRef &value, const void *buffer, size_t siz
 
     /* null pointer, unpack as null */
     if (str == nullptr)
-    {
         value = NullObject;
-        return;
-    }
 
     /* unpack as string, if constant */
-    if (isConst())
-    {
+    else if (isConst())
         value = StringObject::fromString(str);
-        return;
-    }
 
-    // TODO: implement unpack char *
-    throw Exceptions::InternalError("not implemented: unpack char *");
+    /* non-const string pointer, wrap as string buffer */
+    else
+        value = Object::newObject<ForeignStringBuffer>(str);
 }
 
 /** Foreign Function Implementations **/
@@ -674,5 +681,54 @@ ObjectRef ForeignFunction::invoke(Utils::NFI::VariadicArgs args, Utils::NFI::Key
     /* unpack the result */
     _rettype->unpack(result, _ret.data(), _ret.size());
     return std::move(result);
+}
+
+ForeignStringBuffer::~ForeignStringBuffer()
+{
+    if (_size >= 0)
+        delete[] _data;
+}
+
+ForeignStringBuffer::ForeignStringBuffer(char *value) : ForeignInstance(ForeignCStringTypeObject)
+{
+    _size = -1;
+    _data = value;
+}
+
+ForeignStringBuffer::ForeignStringBuffer(const std::string &value) : ForeignInstance(ForeignCStringTypeObject)
+{
+    _size = value.size();
+    _data = new char [_size];
+    memcpy(_data, value.data(), value.size());
+}
+
+void ForeignStringBuffer::set(ObjectRef value)
+{
+    /* type check */
+    if (value->isNotInstanceOf(StringTypeObject))
+    {
+        throw Exceptions::TypeError(Utils::Strings::format(
+            "Argument must be a string, not \"%s\"",
+            value->type()->name()
+        ));
+    }
+
+    /* read the string value */
+    auto obj = value.as<StringObject>();
+    auto &str = obj->value();
+
+    /* update pointer values */
+    if (_size < 0)
+        memcpy(_data, str.data(), str.size());
+    else
+        memcpy(_data, str.data(), (str.size() < _size ? str.size() : _size));
+}
+
+void ForeignStringBuffer::get(ObjectRef &value)
+{
+    if (_size < 0)
+        value = StringObject::fromString(_data);
+    else
+        value = StringObject::fromString(std::string(_data, _data + _size));
 }
 }

@@ -9,6 +9,7 @@
 #include "runtime/NullObject.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/TupleObject.h"
+#include "runtime/ModuleObject.h"
 #include "runtime/StringObject.h"
 #include "runtime/FunctionObject.h"
 #include "runtime/ExceptionObject.h"
@@ -1283,8 +1284,25 @@ Runtime::ObjectRef Interpreter::eval(void)
             /* import module */
             case OpCode::IMPORT_ALIAS:
             {
-                // TODO: implement these
-                throw Runtime::Exceptions::InternalError("not implemented: IMPORT_ALIAS");
+                /* check stack */
+                if (_stack.empty())
+                    throw Runtime::Exceptions::InternalError("Stack is empty");
+
+                /* name ID and "from" expression */
+                auto id = frame->nextOperand();
+                auto from = std::move(_stack.back());
+
+                /* check name ID */
+                if (id >= _code->names().size())
+                    throw Runtime::Exceptions::InternalError(Utils::Strings::format("Name ID %u out of range", id));
+
+                /* "import xxx" or "import xxx from null" */
+                if (from.isIdenticalWith(Runtime::NullObject))
+                    _stack.back() = Runtime::ModuleObject::import(_code->names()[id]);
+                else
+                    _stack.back() = Runtime::ModuleObject::importFrom(_code->names()[id], std::move(from));
+
+                break;
             }
 
             /* build a map object */

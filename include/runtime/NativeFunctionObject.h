@@ -37,6 +37,10 @@ typedef std::function<ObjectRef(ObjectRef, ObjectRef)> BinaryFunction;
 typedef std::function<ObjectRef(ObjectRef, ObjectRef, ObjectRef)> TernaryFunction;
 typedef std::function<ObjectRef(Utils::NFI::VariadicArgs, Utils::NFI::KeywordArgs)> NativeFunction;
 
+/* function reference type */
+class NativeFunctionObject;
+typedef Reference<NativeFunctionObject> FunctionRef;
+
 class NativeFunctionObject : public Object
 {
     std::string _name;
@@ -56,15 +60,15 @@ public:
     static void initialize(void);
 
 public:
-    static ObjectRef newNullary (const std::string &name, NullaryFunction function);
-    static ObjectRef newUnary   (const std::string &name, UnaryFunction   function);
-    static ObjectRef newBinary  (const std::string &name, BinaryFunction  function);
-    static ObjectRef newTernary (const std::string &name, TernaryFunction function);
-    static ObjectRef newVariadic(const std::string &name, NativeFunction  function) { return Object::newObject<NativeFunctionObject>(name, function); }
+    static FunctionRef newNullary (const std::string &name, NullaryFunction function);
+    static FunctionRef newUnary   (const std::string &name, UnaryFunction   function);
+    static FunctionRef newBinary  (const std::string &name, BinaryFunction  function);
+    static FunctionRef newTernary (const std::string &name, TernaryFunction function);
+    static FunctionRef newVariadic(const std::string &name, NativeFunction  function) { return Object::newObject<NativeFunctionObject>(name, function); }
 
 public:
     template <typename Function>
-    static ObjectRef fromFunction(const std::string &name, Function &&function)
+    static FunctionRef fromFunction(const std::string &name, Function &&function)
     {
         /* wrap the function-like object as `std::function` */
         return fromFunction(name, Utils::NFI::forwardAsFunction(std::forward<Function>(function)));
@@ -72,7 +76,7 @@ public:
 
 public:
     template <typename Function>
-    static ObjectRef fromFunction(const std::string &name, Utils::NFI::KeywordNames keywords, Function &&function)
+    static FunctionRef fromFunction(const std::string &name, Utils::NFI::KeywordNames keywords, Function &&function)
     {
         /* wrap the function-like object as `std::function` */
         return fromFunction(name, std::move(keywords), Utils::NFI::forwardAsFunction(std::forward<Function>(function)));
@@ -80,7 +84,7 @@ public:
 
 public:
     template <typename Function>
-    static ObjectRef fromFunction(const std::string &name, Utils::NFI::DefaultValues defaults, Function &&function)
+    static FunctionRef fromFunction(const std::string &name, Utils::NFI::DefaultValues defaults, Function &&function)
     {
         /* wrap the function-like object as `std::function` */
         return fromFunction(name, std::move(defaults), Utils::NFI::forwardAsFunction(std::forward<Function>(function)));
@@ -88,7 +92,7 @@ public:
 
 public:
     template <typename Function>
-    static ObjectRef fromFunction(
+    static FunctionRef fromFunction(
         const std::string          &name,
         Utils::NFI::KeywordNames    keywords,
         Utils::NFI::DefaultValues   defaults,
@@ -105,7 +109,7 @@ public:
 
 public:
     template <typename Ret, typename ... Args>
-    static ObjectRef fromFunction(const std::string &name, std::function<Ret(Args ...)> function)
+    static FunctionRef fromFunction(const std::string &name, std::function<Ret(Args ...)> function)
     {
         /* without both keywords and default values */
         Utils::NFI::KeywordNames names(sizeof ... (Args));
@@ -114,7 +118,7 @@ public:
 
 public:
     template <typename Ret, typename ... Args>
-    static ObjectRef fromFunction(
+    static FunctionRef fromFunction(
         const std::string            &name,
         Utils::NFI::KeywordNames      keywords,
         std::function<Ret(Args ...)>  function)
@@ -125,7 +129,7 @@ public:
 
 public:
     template <typename Ret, typename ... Args>
-    static ObjectRef fromFunction(
+    static FunctionRef fromFunction(
         const std::string            &name,
         Utils::NFI::DefaultValues     defaults,
         std::function<Ret(Args ...)>  function)
@@ -137,7 +141,7 @@ public:
 
 public:
     template <typename Ret, typename ... Args>
-    static ObjectRef fromFunction(
+    static FunctionRef fromFunction(
         const std::string            &name,
         Utils::NFI::KeywordNames      keywords,
         Utils::NFI::DefaultValues     defaults,

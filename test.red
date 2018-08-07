@@ -11,6 +11,11 @@ int add(int x, int y) {
 }
 }
 
+import ffi
+print(ffi)
+print(dir(ffi))
+print(ffi.pointer_of(ffi.int8_t))
+
 print(dir(NativeClass))
 print(NativeClass.add)
 print(NativeClass.add(x = 1, y = 2))

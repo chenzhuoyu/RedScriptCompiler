@@ -81,6 +81,12 @@ void Object::addMethod(Reference<UnboundMethodObject> &&method)
     _attrs.emplace(method->name(), method);
 }
 
+void Object::addFunction(Reference<NativeFunctionObject> &&function)
+{
+    /* add to built-in attributes map */
+    _attrs.emplace(function->name(), function);
+}
+
 void Object::shutdown(void)
 {
     TypeObject = nullptr;

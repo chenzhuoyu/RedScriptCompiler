@@ -77,6 +77,8 @@ set(SOURCE_FILES
         include/engine/Interpreter.h
         include/engine/Memory.h
         include/engine/Thread.h
+        include/modules/FFI.h
+        include/modules/System.h
         include/runtime/ArrayObject.h
         include/runtime/BoolObject.h
         include/runtime/BoundMethodObject.h
@@ -86,6 +88,7 @@ set(SOURCE_FILES
         include/runtime/FunctionObject.h
         include/runtime/IntObject.h
         include/runtime/MapObject.h
+        include/runtime/ModuleObject.h
         include/runtime/NativeClassObject.h
         include/runtime/NativeFunctionObject.h
         include/runtime/NullObject.h
@@ -116,6 +119,8 @@ set(SOURCE_FILES
         src/engine/GarbageCollector.cpp
         src/engine/Interpreter.cpp
         src/engine/Memory.cpp
+        src/modules/FFI.cpp
+        src/modules/System.cpp
         src/runtime/ArrayObject.cpp
         src/runtime/BoolObject.cpp
         src/runtime/BoundMethodObject.cpp
@@ -125,6 +130,7 @@ set(SOURCE_FILES
         src/runtime/FunctionObject.cpp
         src/runtime/IntObject.cpp
         src/runtime/MapObject.cpp
+        src/runtime/ModuleObject.cpp
         src/runtime/NativeClassObject.cpp
         src/runtime/NativeFunctionObject.cpp
         src/runtime/NullObject.cpp

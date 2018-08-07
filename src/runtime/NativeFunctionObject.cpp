@@ -36,7 +36,7 @@ ObjectRef NativeFunctionType::nativeObjectInvoke(ObjectRef self, Reference<Tuple
         return self.as<NativeFunctionObject>()->function()(std::move(args), std::move(kwargs));
 }
 
-ObjectRef NativeFunctionObject::newNullary(const std::string &name, NullaryFunction function)
+FunctionRef NativeFunctionObject::newNullary(const std::string &name, NullaryFunction function)
 {
     return newVariadic(name, [=](Utils::NFI::VariadicArgs args, Utils::NFI::KeywordArgs kwargs)
     {
@@ -53,7 +53,7 @@ ObjectRef NativeFunctionObject::newNullary(const std::string &name, NullaryFunct
     });
 }
 
-ObjectRef NativeFunctionObject::newUnary(const std::string &name, UnaryFunction function)
+FunctionRef NativeFunctionObject::newUnary(const std::string &name, UnaryFunction function)
 {
     return newVariadic(name, [=](Utils::NFI::VariadicArgs args, Utils::NFI::KeywordArgs kwargs)
     {
@@ -70,7 +70,7 @@ ObjectRef NativeFunctionObject::newUnary(const std::string &name, UnaryFunction 
     });
 }
 
-ObjectRef NativeFunctionObject::newBinary(const std::string &name, BinaryFunction function)
+FunctionRef NativeFunctionObject::newBinary(const std::string &name, BinaryFunction function)
 {
     return newVariadic(name, [=](Utils::NFI::VariadicArgs args, Utils::NFI::KeywordArgs kwargs)
     {
@@ -87,7 +87,7 @@ ObjectRef NativeFunctionObject::newBinary(const std::string &name, BinaryFunctio
     });
 }
 
-ObjectRef NativeFunctionObject::newTernary(const std::string &name, TernaryFunction function)
+FunctionRef NativeFunctionObject::newTernary(const std::string &name, TernaryFunction function)
 {
     return newVariadic(name, [=](Utils::NFI::VariadicArgs args, Utils::NFI::KeywordArgs kwargs)
     {

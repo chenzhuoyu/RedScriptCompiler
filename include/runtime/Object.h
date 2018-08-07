@@ -15,6 +15,7 @@ class Object;
 class MapObject;
 class TupleObject;
 class UnboundMethodObject;
+class NativeFunctionObject;
 
 /* reference names */
 typedef Reference<Type> TypeRef;
@@ -78,6 +79,7 @@ public:
 public:
     void addObject(const char *name, ObjectRef value) { _attrs.emplace(name, std::move(value)); }
     void addMethod(Reference<UnboundMethodObject> &&method);
+    void addFunction(Reference<NativeFunctionObject> &&function);
 
 public:
     /* for object system initialization and destruction, internal use only! */

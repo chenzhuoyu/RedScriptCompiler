@@ -122,7 +122,7 @@ public:                                                                         
 struct Foreign ## name ## Type : public ForeignType                                                     \
 {                                                                                                       \
     virtual ~Foreign ## name ## Type() = default;                                                       \
-    explicit Foreign ## name ## Type() : ForeignType(#ftype, &ffi_type_ ## ftype) {}                    \
+    explicit Foreign ## name ## Type() : ForeignType(#type, &ffi_type_ ## ftype) {}                     \
                                                                                                         \
 public:                                                                                                 \
     virtual void pack(ObjectRef value, void *buffer, size_t size) const override;                       \
@@ -142,7 +142,7 @@ FFI_MAKE_UINT_TYPE(64);
 
 FFI_MAKE_FLOAT_TYPE(Float, float, float);
 FFI_MAKE_FLOAT_TYPE(Double, double, double);
-FFI_MAKE_FLOAT_TYPE(LongDouble, long double, longdouble);
+FFI_MAKE_FLOAT_TYPE(LongDouble, long_double, longdouble);
 
 #undef FFI_MAKE_INT_TYPE
 #undef FFI_MAKE_UINT_TYPE
@@ -162,6 +162,10 @@ extern Reference<ForeignType> ForeignFloatTypeObject;
 extern Reference<ForeignType> ForeignDoubleTypeObject;
 extern Reference<ForeignType> ForeignLongDoubleTypeObject;
 
+/* string types */
+extern Reference<ForeignType> ForeignCStringTypeObject;
+extern Reference<ForeignType> ForeignConstCStringTypeObject;
+
 class ForeignPointerType : public ForeignType
 {
     bool _isConst;
@@ -169,8 +173,16 @@ class ForeignPointerType : public ForeignType
 
 public:
     virtual ~ForeignPointerType() = default;
-    explicit ForeignPointerType(Reference<ForeignType> base, bool isConst) :
-        ForeignType(Utils::Strings::format("%s *", base->name()), &ffi_type_pointer),
+    explicit ForeignPointerType(Reference<ForeignType> base, bool isConst) : ForeignPointerType(base->name(), base, isConst) {}
+    explicit ForeignPointerType(const std::string &baseName, Reference<ForeignType> base, bool isConst) :
+        ForeignType(
+            Utils::Strings::format(
+                "%s%s_p",
+                (isConst ? "const_" : ""),
+                baseName
+            ),
+            &ffi_type_pointer
+        ),
         _base(base),
         _isConst(isConst){}
 
@@ -183,12 +195,29 @@ public:
     virtual void pack(ObjectRef value, void *buffer, size_t size) const override;
     virtual void unpack(ObjectRef &value, const void *buffer, size_t size) const override;
 
+public:
+    static Reference<ForeignPointerType> ref(Reference<ForeignType> base)
+    {
+        if (base.isIdenticalWith(ForeignInt8TypeObject))
+            return ForeignCStringTypeObject.as<ForeignPointerType>();
+        else
+            return Object::newObject<ForeignPointerType>(base, false);
+    }
+
+public:
+    static Reference<ForeignPointerType> refConst(Reference<ForeignType> base)
+    {
+        if (base.isIdenticalWith(ForeignInt8TypeObject))
+            return ForeignConstCStringTypeObject.as<ForeignPointerType>();
+        else
+            return Object::newObject<ForeignPointerType>(base, true);
+    }
 };
 
 struct ForeignCStringType : public ForeignPointerType
 {
     virtual ~ForeignCStringType() = default;
-    explicit ForeignCStringType(bool isConst) : ForeignPointerType(ForeignInt8TypeObject, isConst) {}
+    explicit ForeignCStringType(bool isConst) : ForeignPointerType("char", ForeignInt8TypeObject, isConst) {}
 
 public:
     virtual void pack(ObjectRef value, void *buffer, size_t size) const override;
@@ -206,8 +235,12 @@ public:
     explicit ForeignInstance(TypeRef type) : Object(type), _size(type.as<ForeignType>()->size()) { _data = std::malloc(_size); }
 
 public:
-    void set(ObjectRef value) { type().as<ForeignType>()->pack(value, _data, _size); }
-    void get(ObjectRef &value) { type().as<ForeignType>()->unpack(value, _data, _size); }
+    void *data(void) const { return _data; }
+    size_t size(void) const { return _size; }
+
+public:
+    virtual void set(ObjectRef value) { type().as<ForeignType>()->pack(value, _data, _size); }
+    virtual void get(ObjectRef &value) { type().as<ForeignType>()->unpack(value, _data, _size); }
 
 };
 
@@ -237,6 +270,26 @@ public:
 
 public:
     ObjectRef invoke(Utils::NFI::VariadicArgs args, Utils::NFI::KeywordArgs kwargs);
+
+};
+
+class ForeignStringBuffer : public ForeignInstance
+{
+    char *_data;
+    ssize_t _size;
+
+public:
+    virtual ~ForeignStringBuffer();
+    explicit ForeignStringBuffer(char *value);
+    explicit ForeignStringBuffer(const std::string &value = "");
+
+public:
+    char *str(void) const { return _data; }
+    ssize_t length(void) const { return _size; }
+
+public:
+    virtual void set(ObjectRef value) override;
+    virtual void get(ObjectRef &value) override;
 
 };
 }

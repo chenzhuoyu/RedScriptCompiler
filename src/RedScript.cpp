@@ -16,6 +16,7 @@
 #include "runtime/ProxyObject.h"
 #include "runtime/SliceObject.h"
 #include "runtime/TupleObject.h"
+#include "runtime/ModuleObject.h"
 #include "runtime/StringObject.h"
 #include "runtime/DecimalObject.h"
 #include "runtime/FunctionObject.h"
@@ -72,6 +73,7 @@ void shutdown(void)
     Runtime::BoundMethodTypeObject->typeShutdown();
     Runtime::FunctionTypeObject->typeShutdown();
     Runtime::DecimalTypeObject->typeShutdown();
+    Runtime::ModuleTypeObject->typeShutdown();
     Runtime::TupleTypeObject->typeShutdown();
     Runtime::ArrayTypeObject->typeShutdown();
     Runtime::CodeTypeObject->typeShutdown();
@@ -99,6 +101,7 @@ void shutdown(void)
     Runtime::BoundMethodObject::shutdown();
     Runtime::FunctionObject::shutdown();
     Runtime::DecimalObject::shutdown();
+    Runtime::ModuleObject::shutdown();
     Runtime::TupleObject::shutdown();
     Runtime::ArrayObject::shutdown();
     Runtime::CodeObject::shutdown();
@@ -143,6 +146,7 @@ void initialize(size_t stack)
     Runtime::CodeObject::initialize();
     Runtime::ArrayObject::initialize();
     Runtime::TupleObject::initialize();
+    Runtime::ModuleObject::initialize();
     Runtime::DecimalObject::initialize();
     Runtime::FunctionObject::initialize();
     Runtime::BoundMethodObject::initialize();
@@ -170,6 +174,7 @@ void initialize(size_t stack)
     Runtime::CodeTypeObject->typeInitialize();
     Runtime::ArrayTypeObject->typeInitialize();
     Runtime::TupleTypeObject->typeInitialize();
+    Runtime::ModuleTypeObject->typeInitialize();
     Runtime::DecimalTypeObject->typeInitialize();
     Runtime::FunctionTypeObject->typeInitialize();
     Runtime::BoundMethodTypeObject->typeInitialize();

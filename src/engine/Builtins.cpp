@@ -1,17 +1,20 @@
 #include <iostream>
 
+#include "engine/Builtins.h"
 #include "runtime/IntObject.h"
 #include "runtime/NullObject.h"
 #include "runtime/TupleObject.h"
 #include "runtime/StringObject.h"
 #include "runtime/ExceptionObject.h"
 
-#include "engine/Builtins.h"
+#include "modules/FFI.h"
+#include "modules/System.h"
 
 namespace RedScript::Engine
 {
-/* built-in globals */
+/* built-in globals and modules */
 std::unordered_map<std::string, ClosureRef> Builtins::Globals;
+std::unordered_map<std::string, Runtime::ModuleRef> Builtins::Modules;
 
 Runtime::ObjectRef Builtins::print(Utils::NFI::VariadicArgs args, Utils::NFI::KeywordArgs kwargs)
 {
@@ -54,161 +57,139 @@ Runtime::ObjectRef Builtins::getattr(Runtime::ObjectRef self, const std::string 
 
 void Builtins::shutdown(void)
 {
-    /* clear before garbage collector shutdown */
+    /* shutdown modules */
+    Modules::FFI::shutdown();
+    Modules::System::shutdown();
+
+    /* clear all objects before collection */
+    Runtime::ModuleObject::flush();
+    Modules.clear();
     Globals.clear();
 }
 
 void Builtins::initialize(void)
 {
+    /* initialize modules */
+    Modules::FFI::initialize();
+    Modules::System::initialize();
+
     /* built-in objects */
-    Globals.emplace("type"              , Closure::ref(Runtime::TypeObject));
-    Globals.emplace("object"            , Closure::ref(Runtime::ObjectTypeObject));
+    addObject("type"              , Runtime::TypeObject);
+    addObject("object"            , Runtime::ObjectTypeObject);
 
     /* built-in base exceptions */
-    Globals.emplace("Exception"         , Closure::ref(Runtime::ExceptionTypeObject));
-    Globals.emplace("BaseException"     , Closure::ref(Runtime::BaseExceptionTypeObject));
+    addObject("Exception"         , Runtime::ExceptionTypeObject);
+    addObject("BaseException"     , Runtime::BaseExceptionTypeObject);
 
     /* built-in exception objects */
-    Globals.emplace("NameError"         , Closure::ref(Runtime::NameErrorTypeObject));
-    Globals.emplace("TypeError"         , Closure::ref(Runtime::TypeErrorTypeObject));
-    Globals.emplace("IndexError"        , Closure::ref(Runtime::IndexErrorTypeObject));
-    Globals.emplace("ValueError"        , Closure::ref(Runtime::ValueErrorTypeObject));
-    Globals.emplace("SyntaxError"       , Closure::ref(Runtime::SyntaxErrorTypeObject));
-    Globals.emplace("RuntimeError"      , Closure::ref(Runtime::RuntimeErrorTypeObject));
-    Globals.emplace("InternalError"     , Closure::ref(Runtime::InternalErrorTypeObject));
-    Globals.emplace("AttributeError"    , Closure::ref(Runtime::AttributeErrorTypeObject));
-    Globals.emplace("ZeroDivisionError" , Closure::ref(Runtime::ZeroDivisionErrorTypeObject));
-    Globals.emplace("NativeSyntaxError" , Closure::ref(Runtime::NativeSyntaxErrorTypeObject));
+    addObject("NameError"         , Runtime::NameErrorTypeObject);
+    addObject("TypeError"         , Runtime::TypeErrorTypeObject);
+    addObject("IndexError"        , Runtime::IndexErrorTypeObject);
+    addObject("ValueError"        , Runtime::ValueErrorTypeObject);
+    addObject("SyntaxError"       , Runtime::SyntaxErrorTypeObject);
+    addObject("RuntimeError"      , Runtime::RuntimeErrorTypeObject);
+    addObject("InternalError"     , Runtime::InternalErrorTypeObject);
+    addObject("AttributeError"    , Runtime::AttributeErrorTypeObject);
+    addObject("ZeroDivisionError" , Runtime::ZeroDivisionErrorTypeObject);
+    addObject("NativeSyntaxError" , Runtime::NativeSyntaxErrorTypeObject);
 
     /* built-in non-error exceptions */
-    Globals.emplace("SystemExit"        , Closure::ref(Runtime::SystemExitTypeObject));
-    Globals.emplace("StopIteration"     , Closure::ref(Runtime::StopIterationTypeObject));
+    addObject("SystemExit"        , Runtime::SystemExitTypeObject);
+    addObject("StopIteration"     , Runtime::StopIterationTypeObject);
+
+    /* built-in modules */
+    addModule(Modules::FFIModule);
+    addModule(Modules::SystemModule);
 
     /* built-in print function */
-    Globals.emplace(
+    addFunction(Runtime::NativeFunctionObject::newVariadic(
         "print",
-        Closure::ref(Runtime::NativeFunctionObject::newVariadic("print", &print))
-    );
+        &print
+    ));
 
     /* built-in `id()` function */
-    Globals.emplace(
+    addFunction(Runtime::NativeFunctionObject::fromFunction(
         "id",
-        Closure::ref(Runtime::NativeFunctionObject::fromFunction(
-            "id",
-            Utils::NFI::KeywordNames({"obj"}),
-            [](Runtime::ObjectRef self){ return reinterpret_cast<uintptr_t>(self.get()); }
-        ))
-    );
+        Utils::NFI::KeywordNames({"obj"}),
+        [](Runtime::ObjectRef self){ return reinterpret_cast<uintptr_t>(self.get()); }
+    ));
 
     /* built-in `dir()` function */
-    Globals.emplace(
+    addFunction(Runtime::NativeFunctionObject::fromFunction(
         "dir",
-        Closure::ref(Runtime::NativeFunctionObject::fromFunction(
-            "dir",
-            Utils::NFI::KeywordNames({"obj"}),
-            [](Runtime::ObjectRef self){ return self->type()->objectDir(self); }
-        ))
-    );
+        Utils::NFI::KeywordNames({"obj"}),
+        [](Runtime::ObjectRef self){ return self->type()->objectDir(self); }
+    ));
 
     /* built-in `len()` function */
-    Globals.emplace(
+    addFunction(Runtime::NativeFunctionObject::fromFunction(
         "len",
-        Closure::ref(Runtime::NativeFunctionObject::fromFunction(
-            "len",
-            Utils::NFI::KeywordNames({"obj"}),
-            [](Runtime::ObjectRef self){ return self->type()->sequenceLen(self); }
-        ))
-    );
+        Utils::NFI::KeywordNames({"obj"}),
+        [](Runtime::ObjectRef self){ return self->type()->sequenceLen(self); }
+    ));
 
     /* built-in `hash()` function */
-    Globals.emplace(
+    addFunction(Runtime::NativeFunctionObject::fromFunction(
         "hash",
-        Closure::ref(Runtime::NativeFunctionObject::fromFunction(
-            "hash",
-            Utils::NFI::KeywordNames({"obj"}),
-            [](Runtime::ObjectRef self){ return self->type()->objectHash(self); }
-        ))
-    );
+        Utils::NFI::KeywordNames({"obj"}),
+        [](Runtime::ObjectRef self){ return self->type()->objectHash(self); }
+    ));
 
     /* built-in `iter()` function */
-    Globals.emplace(
+    addFunction(Runtime::NativeFunctionObject::fromFunction(
         "iter",
-        Closure::ref(Runtime::NativeFunctionObject::fromFunction(
-            "iter",
-            Utils::NFI::KeywordNames({"obj"}),
-            [](Runtime::ObjectRef self){ return self->type()->iterableIter(self); }
-        ))
-    );
+        Utils::NFI::KeywordNames({"obj"}),
+        [](Runtime::ObjectRef self){ return self->type()->iterableIter(self); }
+    ));
 
     /* built-in `next()` function */
-    Globals.emplace(
+    addFunction(Runtime::NativeFunctionObject::fromFunction(
         "next",
-        Closure::ref(Runtime::NativeFunctionObject::fromFunction(
-            "next",
-            Utils::NFI::KeywordNames({"iter"}),
-            [](Runtime::ObjectRef self){ return self->type()->iterableNext(self); }
-        ))
-    );
+        Utils::NFI::KeywordNames({"iter"}),
+        [](Runtime::ObjectRef self){ return self->type()->iterableNext(self); }
+    ));
 
     /* built-in `repr()` function */
-    Globals.emplace(
+    addFunction(Runtime::NativeFunctionObject::fromFunction(
         "repr",
-        Closure::ref(Runtime::NativeFunctionObject::fromFunction(
-            "repr",
-            Utils::NFI::KeywordNames({"obj"}),
-            [](Runtime::ObjectRef self){ return self->type()->objectRepr(self); }
-        ))
-    );
+        Utils::NFI::KeywordNames({"obj"}),
+        [](Runtime::ObjectRef self){ return self->type()->objectRepr(self); }
+    ));
 
     /* built-in `intern()` function */
-    Globals.emplace(
+    addFunction(Runtime::NativeFunctionObject::fromFunction(
         "intern",
-        Closure::ref(Runtime::NativeFunctionObject::fromFunction(
-            "intern",
-            Utils::NFI::KeywordNames({"str"}),
-            [](const std::string &str){ return Runtime::StringObject::fromStringInterned(str); }
-        ))
-    );
+        Utils::NFI::KeywordNames({"str"}),
+        [](const std::string &str){ return Runtime::StringObject::fromStringInterned(str); }
+    ));
 
     /* built-in `hasattr()` function */
-    Globals.emplace(
+    addFunction(Runtime::NativeFunctionObject::fromFunction(
         "hasattr",
-        Closure::ref(Runtime::NativeFunctionObject::fromFunction(
-            "hasattr",
-            Utils::NFI::KeywordNames({"obj", "attr"}),
-            [](Runtime::ObjectRef self, const std::string &name){ return self->type()->objectHasAttr(self, name); }
-        ))
-    );
+        Utils::NFI::KeywordNames({"obj", "attr"}),
+        [](Runtime::ObjectRef self, const std::string &name){ return self->type()->objectHasAttr(self, name); }
+    ));
 
     /* built-in `delattr()` function */
-    Globals.emplace(
+    addFunction(Runtime::NativeFunctionObject::fromFunction(
         "delattr",
-        Closure::ref(Runtime::NativeFunctionObject::fromFunction(
-            "delattr",
-            Utils::NFI::KeywordNames({"obj", "attr"}),
-            [](Runtime::ObjectRef self, const std::string &name){ self->type()->objectDelAttr(self, name); }
-        ))
-    );
+        Utils::NFI::KeywordNames({"obj", "attr"}),
+        [](Runtime::ObjectRef self, const std::string &name){ self->type()->objectDelAttr(self, name); }
+    ));
 
     /* built-in `setattr()` function */
-    Globals.emplace(
+    addFunction(Runtime::NativeFunctionObject::fromFunction(
         "setattr",
-        Closure::ref(Runtime::NativeFunctionObject::fromFunction(
-            "setattr",
-            Utils::NFI::KeywordNames({"obj", "attr", "value"}),
-            [](Runtime::ObjectRef self, const std::string &name, Runtime::ObjectRef value){ self->type()->objectSetAttr(self, name, value); }
-        ))
-    );
+        Utils::NFI::KeywordNames({"obj", "attr", "value"}),
+        [](Runtime::ObjectRef self, const std::string &name, Runtime::ObjectRef value){ self->type()->objectSetAttr(self, name, value); }
+    ));
 
     /* built-in `getattr()` function */
-    Globals.emplace(
+    addFunction(Runtime::NativeFunctionObject::fromFunction(
         "getattr",
-        Closure::ref(Runtime::NativeFunctionObject::fromFunction(
-            "getattr",
-            Utils::NFI::KeywordNames({"obj", "attr", "value"}),
-            Utils::NFI::DefaultValues({nullptr}),
-            &getattr
-        ))
-    );
+        Utils::NFI::KeywordNames({"obj", "attr", "value"}),
+        Utils::NFI::DefaultValues({nullptr}),
+        &getattr
+    ));
 }
 }
