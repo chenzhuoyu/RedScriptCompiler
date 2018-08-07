@@ -733,7 +733,7 @@ ObjectRef ForeignFunction::invoke(Utils::NFI::VariadicArgs args, Utils::NFI::Key
 ForeignStringBuffer::~ForeignStringBuffer()
 {
     if (_size != -1)
-        delete[] _data;
+        Engine::Memory::free(_data);
 }
 
 ForeignStringBuffer::ForeignStringBuffer(char *value) : ForeignInstance(ForeignCStringTypeObject)
@@ -744,9 +744,13 @@ ForeignStringBuffer::ForeignStringBuffer(char *value) : ForeignInstance(ForeignC
 
 ForeignStringBuffer::ForeignStringBuffer(const std::string &value) : ForeignInstance(ForeignCStringTypeObject)
 {
+    /* string length and buffer */
     _size = value.size();
-    _data = new char [_size];
-    memcpy(_data, value.data(), value.size());
+    _data = Engine::Memory::alloc<char>(_size + 1);
+
+    /* make a copy of string */
+    _data[_size] = 0;
+    memcpy(_data, value.data(), _size);
 }
 
 void ForeignStringBuffer::set(ObjectRef value)
