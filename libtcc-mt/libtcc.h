@@ -200,7 +200,8 @@ LIBTCCAPI ssize_t tcc_type_list_fields(TCCState *s, TCCType *t, tcc_type_field_e
 #define VT_STATIC  0x00002000  /* static variable */
 #define VT_TYPEDEF 0x00004000  /* typedef definition */
 #define VT_INLINE  0x00008000  /* inline definition */
-#define VT_FORWARD 0x00010000  /* forward declaration, Only used for TCCType::t */
+#define VT_FORWARD 0x00010000  /* forward declaration, only used for TCCType::t */
+#define VT_PARTIAL 0x00020000  /* incomplete type, only used for TCCType::t */
 /* currently unused: 0x000[124]00000  */
 
 #define VT_STRUCT_SHIFT 20     /* shift for bitfield shift values (32 - 2*6) */

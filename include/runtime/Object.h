@@ -145,9 +145,10 @@ public:
     virtual std::string nativeObjectRepr(ObjectRef self);
 
 public:
-    virtual bool nativeObjectIsTrue(ObjectRef self) { return true; }
-    virtual bool nativeObjectIsSubclassOf(ObjectRef self, TypeRef type);
-    virtual bool nativeObjectIsInstanceOf(ObjectRef self, TypeRef type) { return objectIsSubclassOf(self->type(), type); }
+    virtual bool nativeObjectIsTrue        (ObjectRef self)               { return true; }
+    virtual bool nativeObjectIsSubclassOf  (ObjectRef self, TypeRef type);
+    virtual bool nativeObjectIsInstanceOf  (ObjectRef self, TypeRef type) { return objectIsSubclassOf(self->type(), type); }
+    virtual void nativeObjectDefineSubclass(TypeRef   self, TypeRef type) {}
 
 public:
     virtual bool      nativeObjectHasAttr   (ObjectRef self, const std::string &name);
@@ -253,9 +254,10 @@ public:
     virtual std::string objectRepr(ObjectRef self) { return nativeObjectRepr(self); }
 
 public:
-    virtual bool objectIsTrue(ObjectRef self) { return nativeObjectIsTrue(self); }
-    virtual bool objectIsSubclassOf(ObjectRef self, TypeRef type) { return nativeObjectIsSubclassOf(self, type); }
-    virtual bool objectIsInstanceOf(ObjectRef self, TypeRef type) { return nativeObjectIsInstanceOf(self, type); }
+    virtual bool objectIsTrue        (ObjectRef self)               { return nativeObjectIsTrue        (self);       }
+    virtual bool objectIsSubclassOf  (ObjectRef self, TypeRef type) { return nativeObjectIsSubclassOf  (self, type); }
+    virtual bool objectIsInstanceOf  (ObjectRef self, TypeRef type) { return nativeObjectIsInstanceOf  (self, type); }
+    virtual void objectDefineSubclass(TypeRef   self, TypeRef type) { return nativeObjectDefineSubclass(self, type); }
 
 public:
     virtual bool      objectHasAttr   (ObjectRef self, const std::string &name)                  { return nativeObjectHasAttr   (self, name);        }
@@ -388,9 +390,10 @@ public:
     virtual std::string objectRepr(ObjectRef self) override;
 
 public:
-    virtual bool objectIsTrue(ObjectRef self) override;
-    virtual bool objectIsSubclassOf(ObjectRef self, TypeRef type) override;
-    virtual bool objectIsInstanceOf(ObjectRef self, TypeRef type) override;
+    virtual bool objectIsTrue        (ObjectRef self) override;
+    virtual bool objectIsSubclassOf  (ObjectRef self, TypeRef type) override;
+    virtual bool objectIsInstanceOf  (ObjectRef self, TypeRef type) override;
+    virtual void objectDefineSubclass(TypeRef   self, TypeRef type) override;
 
 public:
     virtual void      objectDelAttr   (ObjectRef self, const std::string &name) override;

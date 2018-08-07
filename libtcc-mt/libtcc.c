@@ -1243,17 +1243,6 @@ static void del_type(TCCState *s1, TCCType *type)
     dynarray_reset(s1, &type->values, &type->nb_values);
 }
 
-static void copy_type(TCCType *dest, TCCType *src)
-{
-    dest->t = src->t;
-    dest->ref = src->ref;
-    dest->name = src->name;
-    dest->names = src->names;
-    dest->values = src->values;
-    dest->nb_names = src->nb_names;
-    dest->nb_values = src->nb_values;
-}
-
 static void free_type(TCCState *s1, TCCType *type)
 {
     if (--type->rc == 0) {
@@ -1435,9 +1424,19 @@ ST_FUNC TCCType *tcc_resolver_add_type(TCCState *s1, CType *type)
             Sym *sym = type->ref->next;
             vtype->name = tcc_strdup(s1, get_tok_str(s1, type->ref->v & ~SYM_STRUCT, NULL));
 
-            if (!sym) {
+            if (!(ptype = (TCCType **)hashmap_lookup(s1, &s1->types, vtype->name))) {
                 vtype->t |= VT_FORWARD;
-                break;
+                hashmap_insert(s1, &s1->types, vtype->name, vtype, (hashdtor_t)free_type);
+
+                if (sym)
+                    vtype->t |= VT_PARTIAL;
+            }
+            else {
+                free_type(s1, vtype);
+                vtype = *ptype;
+
+                if (!sym || (vtype->t & VT_PARTIAL) || !(vtype->t & VT_FORWARD))
+                    return vtype;
             }
 
             while (sym) {
@@ -1449,27 +1448,25 @@ ST_FUNC TCCType *tcc_resolver_add_type(TCCState *s1, CType *type)
                 sym = sym->next;
             }
 
-            break;
+            if (type->ref->next) {
+                vtype->t &= ~VT_FORWARD;
+                vtype->t &= ~VT_PARTIAL;
+            }
+
+            return vtype;
         }
 
         default:
             tcc_error(s1, "unknown type");
     }
 
-    if (!(ptype = (TCCType **)hashmap_lookup(s1, &s1->types, vtype->name))) {
-        hashmap_insert(s1, &s1->types, vtype->name, vtype, (hashdtor_t)free_type);
-        return vtype;
-    }
-
-    if ((vtype->t & VT_FORWARD) || !((*ptype)->t & VT_FORWARD)) {
+    if ((ptype = (TCCType **)hashmap_lookup(s1, &s1->types, vtype->name))) {
         free_type(s1, vtype);
         return *ptype;
     }
 
-    del_type(s1, *ptype);
-    copy_type(*ptype, vtype);
-    tcc_free(s1, vtype);
-    return *ptype;
+    hashmap_insert(s1, &s1->types, vtype->name, vtype, (hashdtor_t)free_type);
+    return vtype;
 }
 
 ST_FUNC TCCFunction *tcc_resolver_add_func(TCCState *s1, const char *funcname, char is_variadic, CType *ret)

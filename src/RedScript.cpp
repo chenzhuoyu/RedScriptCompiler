@@ -67,7 +67,6 @@ void shutdown(void)
     Runtime::ExceptionType::shutdown();
 
     /* generic objects */
-    Runtime::NativeFunctionTypeObject->typeShutdown();
     Runtime::UnboundMethodTypeObject->typeShutdown();
     Runtime::NativeClassTypeObject->typeShutdown();
     Runtime::BoundMethodTypeObject->typeShutdown();
@@ -88,6 +87,7 @@ void shutdown(void)
     Runtime::BoolTypeObject->typeShutdown();
 
     /* meta objects */
+    Runtime::NativeFunctionTypeObject->typeShutdown();
     Runtime::SliceTypeObject->typeShutdown();
     Runtime::ProxyTypeObject->typeShutdown();
     Runtime::TypeObject->typeShutdown();
@@ -95,7 +95,6 @@ void shutdown(void)
     /** shutdown objects **/
 
     /* generic objects */
-    Runtime::NativeFunctionObject::shutdown();
     Runtime::UnboundMethodObject::shutdown();
     Runtime::NativeClassObject::shutdown();
     Runtime::BoundMethodObject::shutdown();
@@ -116,6 +115,7 @@ void shutdown(void)
     Runtime::BoolObject::shutdown();
 
     /* meta objects */
+    Runtime::NativeFunctionObject::shutdown();
     Runtime::SliceObject::shutdown();
     Runtime::ProxyObject::shutdown();
     Runtime::Object::shutdown();
@@ -132,6 +132,7 @@ void initialize(size_t stack)
     Runtime::Object::initialize();
     Runtime::ProxyObject::initialize();
     Runtime::SliceObject::initialize();
+    Runtime::NativeFunctionObject::initialize();
 
     /* singleton objects */
     Runtime::BoolObject::initialize();
@@ -152,7 +153,6 @@ void initialize(size_t stack)
     Runtime::BoundMethodObject::initialize();
     Runtime::NativeClassObject::initialize();
     Runtime::UnboundMethodObject::initialize();
-    Runtime::NativeFunctionObject::initialize();
 
     /** initialize built-in attributes and functions **/
 
@@ -160,6 +160,7 @@ void initialize(size_t stack)
     Runtime::TypeObject->typeInitialize();
     Runtime::ProxyTypeObject->typeInitialize();
     Runtime::SliceTypeObject->typeInitialize();
+    Runtime::NativeFunctionTypeObject->typeInitialize();
 
     /* singleton objects */
     Runtime::BoolTypeObject->typeInitialize();
@@ -180,7 +181,6 @@ void initialize(size_t stack)
     Runtime::BoundMethodTypeObject->typeInitialize();
     Runtime::NativeClassTypeObject->typeInitialize();
     Runtime::UnboundMethodTypeObject->typeInitialize();
-    Runtime::NativeFunctionTypeObject->typeInitialize();
 
     /* built-in globals and exceptions */
     Runtime::ExceptionType::initialize();

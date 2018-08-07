@@ -32,10 +32,26 @@ Reference<ForeignType> ForeignLongDoubleTypeObject;
 Reference<ForeignType> ForeignCStringTypeObject;
 Reference<ForeignType> ForeignConstCStringTypeObject;
 
+template <typename A, typename B>
+static inline auto min(A &&a, B &&b)
+{
+    return a < b ? std::forward<A>(a) : std::forward<B>(b);
+}
+
+static inline size_t align(size_t val, size_t to)
+{
+    return val ? ((val - 1) / to + 1) * to : 0;
+}
+
 static std::string type2str(TCCState *s, TCCType *t, const char *n)
 {
     int id = tcc_type_get_id(t);
     std::string name = n ?: tcc_type_get_name(t);
+    static std::unordered_set<TCCType *> ts;
+
+    if (ts.find(t) != ts.end())
+        return Utils::Strings::format("(%p...)", static_cast<void *>(t));
+    ts.insert(t);
 
     if (!n || !strcmp(n, tcc_type_get_name(t)))
     {
@@ -61,7 +77,13 @@ static std::string type2str(TCCState *s, TCCType *t, const char *n)
         name += "\")";
     }
 
-    if (IS_ENUM(id))
+    if (IS_PTR(id))
+    {
+        name += "/";
+        name += type2str(s, tcc_type_get_ref(t), nullptr);
+    }
+
+    else if (IS_ENUM(id))
     {
         name += " { ";
         tcc_type_list_items(s, t, [](TCCState *s, TCCType *t, const char *name, long long val, void *pn) -> char
@@ -89,7 +111,8 @@ static std::string type2str(TCCState *s, TCCType *t, const char *n)
         name += "}";
     }
 
-    return name;
+    ts.erase(t);
+    return Utils::Strings::format("(%p)%s", static_cast<void *>(t), name);
 }
 
 std::string NativeClassType::nativeObjectRepr(ObjectRef self)
@@ -153,16 +176,105 @@ NativeClassObject::NativeClassObject(
     /* add all the types */
     tcc_list_types(_tcc, [](TCCState *s, const char *name, TCCType *type, void *self) -> char
     {
-        printf("* TYPE :: %s\n", type2str(s, type, name).c_str());
+        static_cast<NativeClassObject *>(self)->addType(name, type);
         return 1;
     }, this);
 
     /* add all the functions */
     tcc_list_functions(_tcc, [](TCCState *s, const char *name, TCCFunction *func, void *self) -> char
     {
-        static_cast<NativeClassObject *>(self)->addObject(name, Object::newObject<ForeignFunction>(s, name, func));
+        static_cast<NativeClassObject *>(self)->addFunction(name, func);
         return 1;
     }, this);
+}
+
+void NativeClassObject::addType(const char *name, TCCType *type)
+{
+    printf("* TYPE :: %s\n", type2str(_tcc, type, name).c_str());
+}
+
+void NativeClassObject::addFunction(const char *name, TCCFunction *func)
+{
+    auto fname = name ?: tcc_function_get_name(func);
+    addObject(name, Object::newObject<ForeignFunction>(this, _tcc, fname, func));
+}
+
+Reference<ForeignType> NativeClassObject::makeForeignType(TCCType *type)
+{
+    /* type ID */
+    int id = tcc_type_get_id(type);
+    decltype(_types.find(type)) iter;
+
+    /* convert types */
+    switch (id & VT_BTYPE)
+    {
+        /* primitive types */
+        case VT_VOID    : return ForeignVoidTypeObject;
+        case VT_BOOL    : return ForeignInt8TypeObject;
+        case VT_FLOAT   : return ForeignFloatTypeObject;
+        case VT_DOUBLE  : return ForeignDoubleTypeObject;
+        case VT_LDOUBLE : return ForeignLongDoubleTypeObject;
+        case VT_BYTE    : return (id & VT_UNSIGNED) ? ForeignUInt8TypeObject  : ForeignInt8TypeObject;
+        case VT_SHORT   : return (id & VT_UNSIGNED) ? ForeignUInt16TypeObject : ForeignInt16TypeObject;
+        case VT_INT     : return (id & VT_UNSIGNED) ? ForeignUInt32TypeObject : ForeignInt32TypeObject;
+        case VT_LLONG   : return (id & VT_UNSIGNED) ? ForeignUInt64TypeObject : ForeignInt64TypeObject;
+
+        /* pointers */
+        case VT_PTR:
+        {
+            /* pointer base type */
+            auto base = tcc_type_get_ref(type);
+            auto typeId = tcc_type_get_id(base);
+            bool isConst = (typeId & VT_CONSTANT) != 0;
+
+            /* special case for "char *" and "const char *" */
+            if ((typeId & VT_BTYPE) == VT_BYTE)
+                return isConst ? ForeignConstCStringTypeObject : ForeignCStringTypeObject;
+
+            /* read from cache if possible */
+            if ((iter = _types.find(type)) != _types.end())
+                return iter->second;
+
+            /* wrap with pointer type */
+            auto btype = makeForeignType(base);
+            auto result = Object::newObject<ForeignPointerType>(std::move(btype), isConst);
+
+            /* add to type cache */
+            _types.emplace(type, result);
+            return std::move(result);
+        }
+
+        /* 128-bit integers */
+        case VT_QLONG:
+            throw Exceptions::TypeError("FFI currently doesn't support 128-bit integers");
+
+        /* 128-bit floating point numbers */
+        case VT_QFLOAT:
+            throw Exceptions::TypeError("FFI currently doesn't support 128-bit floating point numbers");
+
+        /* function pointers */
+        case VT_FUNC:
+        {
+            // TODO: implement VT_FUNC
+            throw Exceptions::InternalError("not implemented: VT_FUNC");
+        }
+
+        /* structs */
+        case VT_STRUCT:
+        {
+            // TODO: implement VT_STRUCT
+            throw Exceptions::InternalError("not implemented: VT_STRUCT");
+        }
+
+        /* other unknown types */
+        default:
+        {
+            throw Exceptions::InternalError(Utils::Strings::format(
+                "Unknown type ID: %#08x",
+                static_cast<uint32_t>(id)
+            ));
+        }
+    }
 }
 
 void NativeClassObject::shutdown(void)
@@ -197,28 +309,30 @@ void NativeClassObject::initialize(void)
 
     /* wrapped primitive FFI types */
     ForeignVoidTypeObject           = Object::newObject<ForeignVoidType>();
-    ForeignInt8TypeObject           = Object::newObject<ForeignInt8Type>();
-    ForeignUInt8TypeObject          = Object::newObject<ForeignUInt8Type>();
-    ForeignInt16TypeObject          = Object::newObject<ForeignInt16Type>();
-    ForeignUInt16TypeObject         = Object::newObject<ForeignUInt16Type>();
-    ForeignInt32TypeObject          = Object::newObject<ForeignInt32Type>();
-    ForeignUInt32TypeObject         = Object::newObject<ForeignUInt32Type>();
-    ForeignInt64TypeObject          = Object::newObject<ForeignInt64Type>();
-    ForeignUInt64TypeObject         = Object::newObject<ForeignUInt64Type>();
-    ForeignFloatTypeObject          = Object::newObject<ForeignFloatType>();
-    ForeignDoubleTypeObject         = Object::newObject<ForeignDoubleType>();
-    ForeignLongDoubleTypeObject     = Object::newObject<ForeignLongDoubleType>();
+    ForeignInt8TypeObject           = Object::newObject<ForeignTypeFactory<ForeignInt8Type      , ForeignInt8      , int8_t     >>();
+    ForeignUInt8TypeObject          = Object::newObject<ForeignTypeFactory<ForeignUInt8Type     , ForeignUInt8     , uint8_t    >>();
+    ForeignInt16TypeObject          = Object::newObject<ForeignTypeFactory<ForeignInt16Type     , ForeignInt16     , int16_t    >>();
+    ForeignUInt16TypeObject         = Object::newObject<ForeignTypeFactory<ForeignUInt16Type    , ForeignUInt16    , uint16_t   >>();
+    ForeignInt32TypeObject          = Object::newObject<ForeignTypeFactory<ForeignInt32Type     , ForeignInt32     , int32_t    >>();
+    ForeignUInt32TypeObject         = Object::newObject<ForeignTypeFactory<ForeignUInt32Type    , ForeignUInt32    , uint32_t   >>();
+    ForeignInt64TypeObject          = Object::newObject<ForeignTypeFactory<ForeignInt64Type     , ForeignInt64     , int64_t    >>();
+    ForeignUInt64TypeObject         = Object::newObject<ForeignTypeFactory<ForeignUInt64Type    , ForeignUInt64    , uint64_t   >>();
+    ForeignFloatTypeObject          = Object::newObject<ForeignTypeFactory<ForeignFloatType     , ForeignFloat     , float      >>();
+    ForeignDoubleTypeObject         = Object::newObject<ForeignTypeFactory<ForeignDoubleType    , ForeignDouble    , double     >>();
+    ForeignLongDoubleTypeObject     = Object::newObject<ForeignTypeFactory<ForeignLongDoubleType, ForeignLongDouble, long double>>();
 
     /* string types */
-    ForeignCStringTypeObject        = Object::newObject<ForeignCStringType>(false);
-    ForeignConstCStringTypeObject   = Object::newObject<ForeignCStringType>(true);
+    ForeignCStringTypeObject        = Object::newObject<ForeignTypeFactory<ForeignCStringType, ForeignStringBuffer, const std::string &>>(false);
+    ForeignConstCStringTypeObject   = Object::newObject<ForeignTypeFactory<ForeignCStringType, ForeignStringBuffer, const std::string &>>(true);
 }
+
+/** Abstract Foreign Type **/
 
 static ObjectRef foreignTypeGetter(ObjectRef self, ObjectRef type)
 {
     /* convert to root foreign instance */
-    ObjectRef result;
-    ForeignInstance *fvalue = dynamic_cast<ForeignInstance *>(self.get());
+    Object *obj = self.get();
+    ForeignInstance *fvalue = dynamic_cast<ForeignInstance *>(obj);
 
     /* foreign type check */
     if (fvalue == nullptr)
@@ -230,8 +344,7 @@ static ObjectRef foreignTypeGetter(ObjectRef self, ObjectRef type)
     }
 
     /* read it's value */
-    fvalue->get(result);
-    return std::move(result);
+    return fvalue->get();
 }
 
 static ObjectRef foreignTypeSetter(ObjectRef self, ObjectRef type, ObjectRef value)
@@ -262,85 +375,21 @@ ForeignType::ForeignType(const std::string &name, ffi_type *type) : NativeType(n
     ));
 }
 
-Reference<ForeignType> ForeignType::buildFrom(TCCType *type)
+std::string ForeignType::nativeObjectRepr(ObjectRef self)
 {
-    /* type ID and name */
-    int id = tcc_type_get_id(type);
-    Reference<ForeignType> result = nullptr;
+    auto obj = self.as<ForeignInstance>()->get();
+    return Utils::Strings::format("ffi.%s(%s)", name(), obj->type()->objectRepr(obj));
+}
 
-    /* convert types */
-    switch (id & VT_BTYPE)
-    {
-        /* primitive types */
-        case VT_VOID    : result = ForeignVoidTypeObject; break;
-        case VT_BOOL    : result = ForeignInt8TypeObject; break;
-        case VT_FLOAT   : result = ForeignFloatTypeObject; break;
-        case VT_DOUBLE  : result = ForeignDoubleTypeObject; break;
-        case VT_LDOUBLE : result = ForeignLongDoubleTypeObject; break;
-        case VT_BYTE    : result = (id & VT_UNSIGNED) ? ForeignUInt8TypeObject  : ForeignInt8TypeObject ; break;
-        case VT_SHORT   : result = (id & VT_UNSIGNED) ? ForeignUInt16TypeObject : ForeignInt16TypeObject; break;
-        case VT_INT     : result = (id & VT_UNSIGNED) ? ForeignUInt32TypeObject : ForeignInt32TypeObject; break;
-        case VT_LLONG   : result = (id & VT_UNSIGNED) ? ForeignUInt64TypeObject : ForeignInt64TypeObject; break;
-
-        /* pointers */
-        case VT_PTR:
-        {
-            /* pointer base type */
-            auto base = tcc_type_get_ref(type);
-            auto typeId = tcc_type_get_id(base);
-            bool isConst = (typeId & VT_CONSTANT) != 0;
-
-            /* special case for "char *" and "const char *" */
-            if ((typeId & VT_BTYPE) == VT_BYTE)
-            {
-                result = isConst ? ForeignConstCStringTypeObject : ForeignCStringTypeObject;
-                break;
-            }
-
-            /* wrap with pointer type */
-            result = Object::newObject<ForeignPointerType>(buildFrom(base), isConst);
-            break;
-        }
-
-        /* 128-bit integers */
-        case VT_QLONG:
-            throw Exceptions::TypeError("FFI currently doesn't support 128-bit integers");
-
-        /* 128-bit floating point numbers */
-        case VT_QFLOAT:
-            throw Exceptions::TypeError("FFI currently doesn't support 128-bit floating point numbers");
-
-        /* function pointers */
-        case VT_FUNC:
-        {
-            // TODO: implement VT_FUNC
-            throw Exceptions::InternalError("not implemented: VT_FUNC");
-        }
-
-        /* structs */
-        case VT_STRUCT:
-        {
-            // TODO: implement VT_STRUCT
-            throw Exceptions::InternalError("not implemented: VT_STRUCT");
-        }
-
-        /* other unknown types */
-        default:
-        {
-            throw Exceptions::InternalError(Utils::Strings::format(
-                "Unknown type code: %#08x",
-                static_cast<uint32_t>(id)
-            ));
-        }
-    }
-
-    /* move to prevent copy */
-    return std::move(result);
+void ForeignType::nativeObjectDefineSubclass(TypeRef self, TypeRef type)
+{
+    /* FFI types contains pointers, no sub-classes allowed */
+    throw Exceptions::TypeError("Cannot create subclass of FFI types");
 }
 
 /** Primitive Type Packers **/
 
-void ForeignVoidType::pack(ObjectRef value, void *buffer, size_t size) const
+void ForeignVoidType::pack(void *buffer, size_t size, ObjectRef value) const
 {
     /* value check */
     if (value.isNotIdenticalWith(NullObject))
@@ -436,19 +485,19 @@ void ForeignVoidType::pack(ObjectRef value, void *buffer, size_t size) const
     memcpy(buffer, &data, sizeof(vtype));                                               \
 }
 
-void ForeignInt8Type ::pack(ObjectRef value, void *buffer, size_t size) const FFI_PACK_INT(8)
-void ForeignInt16Type::pack(ObjectRef value, void *buffer, size_t size) const FFI_PACK_INT(16)
-void ForeignInt32Type::pack(ObjectRef value, void *buffer, size_t size) const FFI_PACK_INT(32)
-void ForeignInt64Type::pack(ObjectRef value, void *buffer, size_t size) const FFI_PACK_INT(64)
+void ForeignInt8Type ::pack(void *buffer, size_t size, ObjectRef value) const FFI_PACK_INT(8)
+void ForeignInt16Type::pack(void *buffer, size_t size, ObjectRef value) const FFI_PACK_INT(16)
+void ForeignInt32Type::pack(void *buffer, size_t size, ObjectRef value) const FFI_PACK_INT(32)
+void ForeignInt64Type::pack(void *buffer, size_t size, ObjectRef value) const FFI_PACK_INT(64)
 
-void ForeignUInt8Type ::pack(ObjectRef value, void *buffer, size_t size) const FFI_PACK_UINT(8)
-void ForeignUInt16Type::pack(ObjectRef value, void *buffer, size_t size) const FFI_PACK_UINT(16)
-void ForeignUInt32Type::pack(ObjectRef value, void *buffer, size_t size) const FFI_PACK_UINT(32)
-void ForeignUInt64Type::pack(ObjectRef value, void *buffer, size_t size) const FFI_PACK_UINT(64)
+void ForeignUInt8Type ::pack(void *buffer, size_t size, ObjectRef value) const FFI_PACK_UINT(8)
+void ForeignUInt16Type::pack(void *buffer, size_t size, ObjectRef value) const FFI_PACK_UINT(16)
+void ForeignUInt32Type::pack(void *buffer, size_t size, ObjectRef value) const FFI_PACK_UINT(32)
+void ForeignUInt64Type::pack(void *buffer, size_t size, ObjectRef value) const FFI_PACK_UINT(64)
 
-void ForeignFloatType     ::pack(ObjectRef value, void *buffer, size_t size) const FFI_PACK_FLOAT(float      , Float     )
-void ForeignDoubleType    ::pack(ObjectRef value, void *buffer, size_t size) const FFI_PACK_FLOAT(double     , Double    )
-void ForeignLongDoubleType::pack(ObjectRef value, void *buffer, size_t size) const FFI_PACK_FLOAT(long double, LongDouble)
+void ForeignFloatType     ::pack(void *buffer, size_t size, ObjectRef value) const FFI_PACK_FLOAT(float      , Float     )
+void ForeignDoubleType    ::pack(void *buffer, size_t size, ObjectRef value) const FFI_PACK_FLOAT(double     , Double    )
+void ForeignLongDoubleType::pack(void *buffer, size_t size, ObjectRef value) const FFI_PACK_FLOAT(long double, LongDouble)
 
 #undef FFI_PACK_INT
 #undef FFI_PACK_UINT
@@ -456,67 +505,63 @@ void ForeignLongDoubleType::pack(ObjectRef value, void *buffer, size_t size) con
 
 /** Primitive Type Unpackers **/
 
-void ForeignVoidType::unpack(ObjectRef &value, const void *buffer, size_t size) const
+ObjectRef ForeignVoidType::unpack(const void *buffer, size_t size) const
 {
-    /* type size check */
+    /* unpack as null */
     if (size != 0)
         throw Exceptions::RuntimeError("\"void\" type size mismatch");
-
-    /* unpack as null */
-    value = NullObject;
+    else
+        return NullObject;
 }
 
 #define FFI_UNPACK_INT(bits)                                                            \
 {                                                                                       \
-    /* type size check */                                                               \
+    /* unpack as integer */                                                             \
     if (size < sizeof(int ## bits ## _t))                                               \
         throw Exceptions::RuntimeError("EOF when unpacking \"int" #bits "_t\"");        \
-                                                                                        \
-    /* unpack as integer */                                                             \
-    value = IntObject::fromInt(*(static_cast<const int ## bits ## _t *>(buffer)));      \
+    else                                                                                \
+        return IntObject::fromInt(*(static_cast<const int ## bits ## _t *>(buffer)));   \
 }
 
 #define FFI_UNPACK_UINT(bits)                                                           \
 {                                                                                       \
-    /* type size check */                                                               \
+    /* unpack as integer */                                                             \
     if (size < sizeof(uint ## bits ## _t))                                              \
         throw Exceptions::RuntimeError("EOF when unpacking \"uint" #bits "_t\"");       \
-                                                                                        \
-    /* unpack as integer */                                                             \
-    value = IntObject::fromUInt(*(static_cast<const uint ## bits ## _t *>(buffer)));    \
+    else                                                                                \
+        return IntObject::fromUInt(*(static_cast<const uint ## bits ## _t *>(buffer))); \
 }
 
 #define FFI_UNPACK_FLOAT(vtype, dtype)                                                  \
 {                                                                                       \
-    /* type size check */                                                               \
+    /* unpack as decimal */                                                             \
     if (size < sizeof(vtype))                                                           \
         throw Exceptions::RuntimeError("EOF when unpacking \"" #vtype "\"");            \
-                                                                                        \
-    /* unpack as decimal */                                                             \
-    value = DecimalObject::from ## dtype(*(static_cast<const vtype *>(buffer)));        \
+    else                                                                                \
+        return DecimalObject::from ## dtype(*(static_cast<const vtype *>(buffer)));     \
 }
 
-void ForeignInt8Type ::unpack(ObjectRef &value, const void *buffer, size_t size) const FFI_UNPACK_INT(8)
-void ForeignInt16Type::unpack(ObjectRef &value, const void *buffer, size_t size) const FFI_UNPACK_INT(16)
-void ForeignInt32Type::unpack(ObjectRef &value, const void *buffer, size_t size) const FFI_UNPACK_INT(32)
-void ForeignInt64Type::unpack(ObjectRef &value, const void *buffer, size_t size) const FFI_UNPACK_INT(64)
+ObjectRef ForeignInt8Type ::unpack(const void *buffer, size_t size) const FFI_UNPACK_INT(8)
+ObjectRef ForeignInt16Type::unpack(const void *buffer, size_t size) const FFI_UNPACK_INT(16)
+ObjectRef ForeignInt32Type::unpack(const void *buffer, size_t size) const FFI_UNPACK_INT(32)
+ObjectRef ForeignInt64Type::unpack(const void *buffer, size_t size) const FFI_UNPACK_INT(64)
 
-void ForeignUInt8Type ::unpack(ObjectRef &value, const void *buffer, size_t size) const FFI_UNPACK_UINT(8)
-void ForeignUInt16Type::unpack(ObjectRef &value, const void *buffer, size_t size) const FFI_UNPACK_UINT(16)
-void ForeignUInt32Type::unpack(ObjectRef &value, const void *buffer, size_t size) const FFI_UNPACK_UINT(32)
-void ForeignUInt64Type::unpack(ObjectRef &value, const void *buffer, size_t size) const FFI_UNPACK_UINT(64)
+ObjectRef ForeignUInt8Type ::unpack(const void *buffer, size_t size) const FFI_UNPACK_UINT(8)
+ObjectRef ForeignUInt16Type::unpack(const void *buffer, size_t size) const FFI_UNPACK_UINT(16)
+ObjectRef ForeignUInt32Type::unpack(const void *buffer, size_t size) const FFI_UNPACK_UINT(32)
+ObjectRef ForeignUInt64Type::unpack(const void *buffer, size_t size) const FFI_UNPACK_UINT(64)
 
-void ForeignFloatType     ::unpack(ObjectRef &value, const void *buffer, size_t size) const FFI_UNPACK_FLOAT(float, Float)
-void ForeignDoubleType    ::unpack(ObjectRef &value, const void *buffer, size_t size) const FFI_UNPACK_FLOAT(double, Double)
-void ForeignLongDoubleType::unpack(ObjectRef &value, const void *buffer, size_t size) const FFI_UNPACK_FLOAT(long double, LongDouble)
+ObjectRef ForeignFloatType     ::unpack(const void *buffer, size_t size) const FFI_UNPACK_FLOAT(float, Float)
+ObjectRef ForeignDoubleType    ::unpack(const void *buffer, size_t size) const FFI_UNPACK_FLOAT(double, Double)
+ObjectRef ForeignLongDoubleType::unpack(const void *buffer, size_t size) const FFI_UNPACK_FLOAT(long double, LongDouble)
 
 #undef FFI_UNPACK_INT
 #undef FFI_UNPACK_UINT
 #undef FFI_UNPACK_FLOAT
 
-/** Foreign Pointer Type **/
+/** Foreign Pointer Type Implementations **/
 
-void ForeignPointerType::pack(ObjectRef value, void *buffer, size_t size) const
+void ForeignPointerType::pack(void *buffer, size_t size, ObjectRef value) const
 {
     /* type size check */
     if (size < sizeof(void *))
@@ -526,7 +571,7 @@ void ForeignPointerType::pack(ObjectRef value, void *buffer, size_t size) const
     throw Exceptions::InternalError("not implemented: pack pointer");
 }
 
-void ForeignPointerType::unpack(ObjectRef &value, const void *buffer, size_t size) const
+ObjectRef ForeignPointerType::unpack(const void *buffer, size_t size) const
 {
     /* type size check */
     if (size < sizeof(void *))
@@ -536,9 +581,9 @@ void ForeignPointerType::unpack(ObjectRef &value, const void *buffer, size_t siz
     throw Exceptions::InternalError("not implemented: unpack pointer");
 }
 
-/** Foreign CString Type **/
+/** Foreign CString Type Implementations **/
 
-void ForeignCStringType::pack(ObjectRef value, void *buffer, size_t size) const
+void ForeignCStringType::pack(void *buffer, size_t size, ObjectRef value) const
 {
     /* type size check */
     if (size < sizeof(char *))
@@ -555,10 +600,10 @@ void ForeignCStringType::pack(ObjectRef value, void *buffer, size_t size) const
 
     /* otherwise, pack as plain pointer */
     else
-        ForeignPointerType::pack(std::move(value), buffer, size);
+        ForeignPointerType::pack(buffer, size, std::move(value));
 }
 
-void ForeignCStringType::unpack(ObjectRef &value, const void *buffer, size_t size) const
+ObjectRef ForeignCStringType::unpack(const void *buffer, size_t size) const
 {
     /* type size check */
     if (size < sizeof(const char *))
@@ -570,20 +615,20 @@ void ForeignCStringType::unpack(ObjectRef &value, const void *buffer, size_t siz
 
     /* null pointer, unpack as null */
     if (str == nullptr)
-        value = NullObject;
+        return NullObject;
 
     /* unpack as string, if constant */
     else if (isConst())
-        value = StringObject::fromString(str);
+        return StringObject::fromString(str);
 
     /* non-const string pointer, wrap as string buffer */
     else
-        value = Object::newObject<ForeignStringBuffer>(str);
+        return Object::newObject<ForeignStringBuffer>(str);
 }
 
 /** Foreign Function Implementations **/
 
-ForeignFunction::ForeignFunction(TCCState *s, const char *name, TCCFunction *func) :
+ForeignFunction::ForeignFunction(NativeClassObject *self, TCCState *s, const char *name, TCCFunction *func) :
     NativeFunctionObject(name, std::bind(
         &ForeignFunction::invoke,
         this,
@@ -593,7 +638,7 @@ ForeignFunction::ForeignFunction(TCCState *s, const char *name, TCCFunction *fun
     _name(name),
     _func(tcc_function_get_addr(s, func)),
     _isVarg(tcc_function_is_variadic(func)),
-    _rettype(ForeignType::buildFrom(tcc_function_get_return_type(func)))
+    _rettype(self->makeForeignType(tcc_function_get_return_type(func)))
 {
     /* reserve spaces */
     _argsf.resize(tcc_function_get_nargs(func));
@@ -616,24 +661,21 @@ ForeignFunction::ForeignFunction(TCCState *s, const char *name, TCCFunction *fun
     {
         /* cache argument name and type */
         _argnames[i] = tcc_function_get_arg_name(func, i);
-        _argtypes[i] = ForeignType::buildFrom(tcc_function_get_arg_type(func, i));
+        _argtypes[i] = self->makeForeignType(tcc_function_get_arg_type(func, i));
 
         /* cache all the pointers */
-        _argsv[i].resize(_argtypes[i]->size());
+        _argsv[i].resize(align(_argtypes[i]->size(), sizeof(void *)));
         _argsf[i] = _argtypes[i]->ftype();
         _argsp[i] = _argsv[i].data();
     }
 
     /* prepare FFI context */
-    _ret.resize(_rettype->size());
+    _ret.resize(align(_rettype->size(), sizeof(void *)));
     ffi_prep_cif(&_cif, FFI_DEFAULT_ABI, static_cast<uint32_t>(_argtypes.size()), _rettype->ftype(), _argsf.data());
 }
 
 ObjectRef ForeignFunction::invoke(Utils::NFI::VariadicArgs args, Utils::NFI::KeywordArgs kwargs)
 {
-    ObjectRef arg;
-    ObjectRef result;
-
     /* check for variadic arguments */
     if (_isVarg)
     {
@@ -647,9 +689,13 @@ ObjectRef ForeignFunction::invoke(Utils::NFI::VariadicArgs args, Utils::NFI::Key
     for (size_t i = 0; i < _argtypes.size(); i++)
     {
         /* keyword arguments have higher priority than positional arguments */
-        if ((arg = kwargs->pop(StringObject::fromStringInterned(_argnames[i]))).isNull())
+        auto &name = _argnames[i];
+        ObjectRef arg = kwargs->pop(StringObject::fromStringInterned(name));
+
+        /* no keyword arguments, try positional arguments */
+        if (arg.isNull())
         {
-            /* check for positional arguments */
+            /* check for positional argument count */
             if (i >= args->size())
             {
                 throw Exceptions::TypeError(Utils::Strings::format(
@@ -664,9 +710,9 @@ ObjectRef ForeignFunction::invoke(Utils::NFI::VariadicArgs args, Utils::NFI::Key
 
         /* pack object into buffer */
         _argtypes[i]->pack(
-            std::move(arg),
             _argsv[i].data(),
-            _argsv[i].size()
+            _argsv[i].size(),
+            std::move(arg)
         );
     }
 
@@ -679,13 +725,14 @@ ObjectRef ForeignFunction::invoke(Utils::NFI::VariadicArgs args, Utils::NFI::Key
     );
 
     /* unpack the result */
-    _rettype->unpack(result, _ret.data(), _ret.size());
-    return std::move(result);
+    return _rettype->unpack(_ret.data(), _ret.size());
 }
+
+/** Foreign String Buffer Implementations **/
 
 ForeignStringBuffer::~ForeignStringBuffer()
 {
-    if (_size >= 0)
+    if (_size != -1)
         delete[] _data;
 }
 
@@ -718,17 +765,17 @@ void ForeignStringBuffer::set(ObjectRef value)
     auto &str = obj->value();
 
     /* update pointer values */
-    if (_size < 0)
+    if (_size == -1)
         memcpy(_data, str.data(), str.size());
     else
-        memcpy(_data, str.data(), (str.size() < _size ? str.size() : _size));
+        memcpy(_data, str.data(), min(str.size(), _size));
 }
 
-void ForeignStringBuffer::get(ObjectRef &value)
+ObjectRef ForeignStringBuffer::get(void) const
 {
-    if (_size < 0)
-        value = StringObject::fromString(_data);
+    if (_size == -1)
+        return StringObject::fromString(_data);
     else
-        value = StringObject::fromString(std::string(_data, _data + _size));
+        return StringObject::fromString(std::string(_data, _data + _size));
 }
 }

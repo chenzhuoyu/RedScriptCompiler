@@ -9,8 +9,8 @@ namespace RedScript::Engine
 struct Memory
 {
     static inline void free(void *ptr) { ::free(ptr); }
-    static inline void *alloc(size_t size) { return ::malloc(size); }
-    static inline void *realloc(void *ptr, size_t size) { return ::realloc(ptr, size); }
+    static inline void *alloc(size_t size) { return ::malloc(size ? (((size - 1) >> 4) + 1) << 4 : 0); }
+    static inline void *realloc(void *ptr, size_t size) { return ::realloc(ptr, size ? (((size - 1) >> 4) + 1) << 4 : 0); }
 
 /*** Object Construction and Destruction ***/
 

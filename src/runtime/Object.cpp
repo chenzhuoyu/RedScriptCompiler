@@ -260,6 +260,14 @@ StringList Type::nativeObjectDir(ObjectRef self)
     for (const auto &x : self->attrs())
         result.emplace_back(x.first);
 
+    /* and class-level dict */
+    for (const auto &x : self->type()->dict())
+        result.emplace_back(x.first);
+
+    /* and class-level attribute */
+    for (const auto &x : self->type()->attrs())
+        result.emplace_back(x.first);
+
     /* type object, also add all attributes from super types */
     if (self->isInstanceOf(TypeObject))
     {
@@ -877,6 +885,10 @@ TypeRef Type::create(const std::string &name, Reference<MapObject> dict, TypeRef
         });
     }
 
+    /* notify sub-class creation if possible */
+    if (super.isNotNull())
+        super->objectDefineSubclass(super, type);
+
     /* move to prevent copy */
     return std::move(type);
 }
@@ -1219,6 +1231,56 @@ bool ObjectType::objectIsInstanceOf(ObjectRef self, TypeRef type)
 
     /* get it's value */
     return ret.as<BoolObject>()->value();
+}
+
+void ObjectType::objectDefineSubclass(TypeRef self, TypeRef type)
+{
+    /* type reference and dict iterator */
+    Dict &dict = self->dict();
+    Dict::iterator iter = dict.find("__define_subclass__");
+
+    /* have "__define_subclass__" method */
+    if (iter != dict.end())
+    {
+        /* must be an unbound method */
+        if (iter->second->isNotInstanceOf(UnboundMethodTypeObject))
+        {
+            throw Exceptions::TypeError(Utils::Strings::format(
+                "\"__define_subclass__\" must be an unbound method, not \"%s\"",
+                iter->second->type()->name()
+            ));
+        }
+
+        /* bind `self` */
+        auto func = iter->second.as<UnboundMethodObject>()->bind(self);
+        auto args = TupleObject::fromObjects(type);
+        auto kwargs = MapObject::newOrdered();
+
+        /* invoke the method */
+        func->type()->objectInvoke(
+            std::move(func),
+            std::move(args),
+            std::move(kwargs)
+        );
+    }
+
+    /* don't have "__define_subclass__" method, but have super class */
+    else if (self->super().isNotNull())
+    {
+        self->super()->objectDefineSubclass(
+            std::move(self),
+            std::move(type)
+        );
+    }
+
+    /* don't have both */
+    else
+    {
+        self->nativeObjectDefineSubclass(
+            std::move(self),
+            std::move(type)
+        );
+    }
 }
 
 void ObjectType::objectDelAttr(ObjectRef self, const std::string &name)
