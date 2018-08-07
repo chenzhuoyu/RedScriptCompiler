@@ -11,6 +11,8 @@
 #include <ffi/ffi.h>
 
 #include "utils/NFI.h"
+#include "engine/Memory.h"
+
 #include "runtime/Object.h"
 #include "runtime/MapObject.h"
 #include "runtime/ExceptionObject.h"
@@ -262,11 +264,11 @@ class ForeignInstance : public Object
     ForeignType *_ftype;
 
 public:
-    virtual ~ForeignInstance() { std::free(_data); }
+    virtual ~ForeignInstance() { Engine::Memory::free(_data); }
     explicit ForeignInstance(TypeRef type) : Object(type), _ftype(type.as<ForeignType>().get())
     {
         _size = _ftype->size();
-        _data = std::malloc(_size);
+        _data = Engine::Memory::alloc(_size);
     }
 
 public:
