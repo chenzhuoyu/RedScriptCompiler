@@ -269,8 +269,11 @@ public:
 /** Native Object Protocol **/
 
 public:
-    virtual std::string nativeObjectRepr(ObjectRef self) override;
-
+    virtual std::string nativeObjectRepr(ObjectRef self) override
+    {
+        /* use the original FFI object representation */
+        return ForeignType::nativeObjectRepr(self);
+    }
 };
 
 class ForeignInstance : public Object

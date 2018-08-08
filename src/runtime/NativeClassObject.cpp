@@ -768,12 +768,6 @@ ObjectRef ForeignCStringType::unpack(const void *buffer, size_t size) const
         return Object::newObject<ForeignStringBuffer>(str);
 }
 
-std::string ForeignCStringType::nativeObjectRepr(ObjectRef self)
-{
-    auto obj = self.as<ForeignStringBuffer>()->get();
-    return Utils::Strings::format("ffi.%s(%s)", (isConst() ? "const_char_p" : "char_p"), obj->type()->objectRepr(obj));
-}
-
 /** Foreign Function Implementations **/
 
 ForeignFunction::ForeignFunction(NativeClassObject *self, TCCState *s, const char *name, TCCFunction *func) :
