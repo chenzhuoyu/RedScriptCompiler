@@ -291,28 +291,9 @@ struct ForeignTypeFactory : public Type
     }
 };
 
-struct NullPointerFactory : public ForeignPointerType
+struct ArgsParser
 {
-    using ForeignPointerType::ForeignPointerType;
-    virtual ObjectRef nativeObjectNew(TypeRef type, Reference<TupleObject> args, Reference<MapObject> kwargs) override
-    {
-        /* positional arguments */
-        if (args->size())
-            throw Exceptions::TypeError("Constructor takes no arguments");
-
-        /* keyword arguments */
-        if (kwargs->size())
-            throw Exceptions::TypeError("Constructor takes no keyword arguments");
-
-        /* construct a null pointer */
-        return Object::newObject<ForeignRawBuffer>(ForeignRawPointerTypeObject, nullptr, 0, false);
-    }
-};
-
-struct CStringFactory : public ForeignCStringType
-{
-    using ForeignCStringType::ForeignCStringType;
-    virtual ObjectRef nativeObjectNew(TypeRef type, Reference<TupleObject> args, Reference<MapObject> kwargs) override
+    ObjectRef parse(Reference<TupleObject> &args, Reference<MapObject> &kwargs)
     {
         /* takes at most 1 argument */
         if (args->size() > 1)
@@ -341,21 +322,83 @@ struct CStringFactory : public ForeignCStringType
             ));
         }
 
+        /* move to prevent copy */
+        return std::move(value);
+    }
+};
+
+struct PointerFactory : public ForeignPointerType, public ArgsParser
+{
+    using ForeignPointerType::ForeignPointerType;
+    virtual ObjectRef nativeObjectNew(TypeRef type, Reference<TupleObject> args, Reference<MapObject> kwargs) override
+    {
+        /* parse arguments */
+        auto value = parse(args, kwargs);
+        auto &vtype = value->type();
+
+        /* no arguments or a single null */
+        if (value.isNull() || value.isIdenticalWith(NullObject))
+            return Object::newObject<ForeignRawBuffer>(ForeignRawPointerTypeObject, nullptr, 0, false);
+
+        /* it's a string, but we can't handle it here */
+        if (vtype.isIdenticalWith(StringTypeObject))
+            throw Exceptions::TypeError("Cannot convert strings into raw pointers, use `ffi.char_p` instead");
+
+        /* already raw pointers */
+        if (vtype.isIdenticalWith(ForeignRawPointerTypeObject) ||
+            vtype.isIdenticalWith(ForeignConstRawPointerTypeObject))
+            return std::move(value);
+
+        /* try convert to raw buffer */
+        Object *obj = value.get();
+        ForeignRawBuffer *frb = dynamic_cast<ForeignRawBuffer *>(obj);
+
+        /* otherwise, it must be a raw buffer */
+        if (frb == nullptr)
+        {
+            throw Exceptions::TypeError(Utils::Strings::format(
+                "Cannot convert \"%s\" object into pointers",
+                vtype->name()
+            ));
+        }
+
+        /* wrap with raw pointers */
+        return Object::newObject<ForeignRawBuffer>(
+            ForeignRawPointerTypeObject,
+            frb->buffer(),
+            frb->bufferSize(),
+            false
+        );
+    }
+};
+
+struct CStringFactory : public ForeignCStringType, public ArgsParser
+{
+    using ForeignCStringType::ForeignCStringType;
+    virtual ObjectRef nativeObjectNew(TypeRef type, Reference<TupleObject> args, Reference<MapObject> kwargs) override
+    {
+        /* parse arguments */
+        auto value = parse(args, kwargs);
+        auto &vtype = value->type();
+
         /* no arguments or a single null */
         if (value.isNull() || value.isIdenticalWith(NullObject))
             return Object::newObject<ForeignStringBuffer>(nullptr);
 
-        /* otherwise it must be a string */
-        if (value->isNotInstanceOf(StringTypeObject))
-        {
-            throw Exceptions::TypeError(Utils::Strings::format(
-                "Argument must be a string, not \"%s\"",
-                value->type()->objectStr(value)
-            ));
-        }
+        /* it's a string */
+        if (vtype.isIdenticalWith(StringTypeObject))
+            return Object::newObject<ForeignStringBuffer>(value.as<StringObject>()->value());
 
-        /* wrap as a string buffer */
-        return Object::newObject<ForeignStringBuffer>(value.as<StringObject>()->value());
+        /* already string buffers */
+        if (vtype.isIdenticalWith(ForeignCStringTypeObject) ||
+            vtype.isIdenticalWith(ForeignConstCStringTypeObject))
+            return std::move(value);
+
+        /* otherwise it's an error */
+        throw Exceptions::TypeError(Utils::Strings::format(
+            "Argument must be a string or string buffer, not \"%s\"",
+            vtype->objectStr(value)
+        ));
     }
 };
 }
@@ -409,7 +452,7 @@ void NativeClassObject::initialize(void)
     ForeignLongDoubleTypeObject      = Object::newObject<ForeignTypeFactory<ForeignLongDoubleType, ForeignLongDouble, long double>>();
 
     /* raw pointer types */
-    ForeignRawPointerTypeObject      = Object::newObject<NullPointerFactory>(false);
+    ForeignRawPointerTypeObject      = Object::newObject<PointerFactory>(false);
     ForeignConstRawPointerTypeObject = Object::newObject<ForeignPointerType>(true);
 
     /* string types */

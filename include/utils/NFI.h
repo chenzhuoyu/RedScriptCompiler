@@ -49,35 +49,35 @@ struct IntegerBoxer;
 template <>
 struct IntegerBoxer<sizeof(int8_t)>
 {
-    static Runtime::ObjectRef boxSigned(int8_t value)    { return Runtime::IntObject::fromInt(value);  }
-    static Runtime::ObjectRef boxUnsigned(uint8_t value) { return Runtime::IntObject::fromUInt(value); }
+    static inline Runtime::ObjectRef boxSigned(int8_t value)    { return Runtime::IntObject::fromInt(value);  }
+    static inline Runtime::ObjectRef boxUnsigned(uint8_t value) { return Runtime::IntObject::fromUInt(value); }
 };
 
 template <>
 struct IntegerBoxer<sizeof(int16_t)>
 {
-    static Runtime::ObjectRef boxSigned(int16_t value)    { return Runtime::IntObject::fromInt(value);  }
-    static Runtime::ObjectRef boxUnsigned(uint16_t value) { return Runtime::IntObject::fromUInt(value); }
+    static inline Runtime::ObjectRef boxSigned(int16_t value)    { return Runtime::IntObject::fromInt(value);  }
+    static inline Runtime::ObjectRef boxUnsigned(uint16_t value) { return Runtime::IntObject::fromUInt(value); }
 };
 
 template <>
 struct IntegerBoxer<sizeof(int32_t)>
 {
-    static Runtime::ObjectRef boxSigned(int32_t value)    { return Runtime::IntObject::fromInt(value);  }
-    static Runtime::ObjectRef boxUnsigned(uint32_t value) { return Runtime::IntObject::fromUInt(value); }
+    static inline Runtime::ObjectRef boxSigned(int32_t value)    { return Runtime::IntObject::fromInt(value);  }
+    static inline Runtime::ObjectRef boxUnsigned(uint32_t value) { return Runtime::IntObject::fromUInt(value); }
 };
 
 template <>
 struct IntegerBoxer<sizeof(int64_t)>
 {
-    static Runtime::ObjectRef boxSigned(int64_t value)    { return Runtime::IntObject::fromInt(value);  }
-    static Runtime::ObjectRef boxUnsigned(uint64_t value) { return Runtime::IntObject::fromUInt(value); }
+    static inline Runtime::ObjectRef boxSigned(int64_t value)    { return Runtime::IntObject::fromInt(value);  }
+    static inline Runtime::ObjectRef boxUnsigned(uint64_t value) { return Runtime::IntObject::fromUInt(value); }
 };
 
 template <bool Signed, bool Unsigned, typename T>
 struct BoxerHelper
 {
-    static Runtime::ObjectRef box(T &&value)
+    static inline Runtime::ObjectRef box(T &&value)
     {
         /* types that not recognized, try casting to `ObjectRef` */
         return static_cast<Runtime::ObjectRef>(value);
@@ -87,7 +87,7 @@ struct BoxerHelper
 template <typename T>
 struct BoxerHelper<true, false, T>
 {
-    static Runtime::ObjectRef box(T &&value)
+    static inline Runtime::ObjectRef box(T &&value)
     {
         /* signed integers */
         return IntegerBoxer<sizeof(T)>::boxSigned(std::forward<T>(value));
@@ -97,7 +97,7 @@ struct BoxerHelper<true, false, T>
 template <typename T>
 struct BoxerHelper<false, true, T>
 {
-    static Runtime::ObjectRef box(T &&value)
+    static inline Runtime::ObjectRef box(T &&value)
     {
         /* unsigned integers */
         return IntegerBoxer<sizeof(T)>::boxUnsigned(std::forward<T>(value));
@@ -108,7 +108,7 @@ struct BoxerHelper<false, true, T>
 template <typename T>
 struct Boxer
 {
-    static Runtime::ObjectRef box(T &&value)
+    static inline Runtime::ObjectRef box(T &&value)
     {
         /* doesn't support pointers, R-value references or mutable references */
         static_assert(!(std::is_pointer_v<T>), "Pointers are not supported");
@@ -128,7 +128,7 @@ struct Boxer
 template <typename T>
 struct Boxer<const T &>
 {
-    static Runtime::ObjectRef box(const T &value)
+    static inline Runtime::ObjectRef box(const T &value)
     {
         /* call the reference-removed version */
         return Boxer<std::decay_t<T>>::box(value);
@@ -136,41 +136,48 @@ struct Boxer<const T &>
 };
 
 /* simple types */
-template <> struct Boxer<bool>               { static Runtime::ObjectRef box(bool value)               { return Runtime::BoolObject::fromBool(value);       }};
-template <> struct Boxer<float>              { static Runtime::ObjectRef box(float value)              { return Runtime::DecimalObject::fromDouble(value);  }};
-template <> struct Boxer<double>             { static Runtime::ObjectRef box(double value)             { return Runtime::DecimalObject::fromDouble(value);  }};
-template <> struct Boxer<long double>        { static Runtime::ObjectRef box(long double value)        { return Runtime::DecimalObject::fromDecimal(value); }};
-template <> struct Boxer<Runtime::ObjectRef> { static Runtime::ObjectRef box(Runtime::ObjectRef value) { return value;                                      }};
+template <> struct Boxer<bool>        { static inline Runtime::ObjectRef box(bool value)        { return Runtime::BoolObject::fromBool(value);       }};
+template <> struct Boxer<float>       { static inline Runtime::ObjectRef box(float value)       { return Runtime::DecimalObject::fromDouble(value);  }};
+template <> struct Boxer<double>      { static inline Runtime::ObjectRef box(double value)      { return Runtime::DecimalObject::fromDouble(value);  }};
+template <> struct Boxer<long double> { static inline Runtime::ObjectRef box(long double value) { return Runtime::DecimalObject::fromDecimal(value); }};
 
 /* high-precision decimal */
 template <>
 struct Boxer<Decimal>
 {
-    static Runtime::ObjectRef box(Decimal &&value)      { return Runtime::DecimalObject::fromDecimal(std::move(value)); }
-    static Runtime::ObjectRef box(const Decimal &value) { return Runtime::DecimalObject::fromDecimal(value); }
+    static inline Runtime::ObjectRef box(Decimal &&value)      { return Runtime::DecimalObject::fromDecimal(std::move(value)); }
+    static inline Runtime::ObjectRef box(const Decimal &value) { return Runtime::DecimalObject::fromDecimal(value); }
 };
 
 /* high-precision integer */
 template <>
 struct Boxer<Integer>
 {
-    static Runtime::ObjectRef box(Integer &&value)      { return Runtime::IntObject::fromInteger(std::move(value)); }
-    static Runtime::ObjectRef box(const Integer &value) { return Runtime::IntObject::fromInteger(value); }
+    static inline Runtime::ObjectRef box(Integer &&value)      { return Runtime::IntObject::fromInteger(std::move(value)); }
+    static inline Runtime::ObjectRef box(const Integer &value) { return Runtime::IntObject::fromInteger(value); }
+};
+
+/* reference type */
+template <typename T>
+struct Boxer<Runtime::Reference<T>>
+{
+    static inline Runtime::ObjectRef box(Runtime::Reference<T> &&value)      { return std::move(value); }
+    static inline Runtime::ObjectRef box(const Runtime::Reference<T> &value) { return value; }
 };
 
 /* STL string */
 template <>
 struct Boxer<std::string>
 {
-    static Runtime::ObjectRef box(std::string &&value)      { return Runtime::StringObject::fromString(std::move(value)); }
-    static Runtime::ObjectRef box(const std::string &value) { return Runtime::StringObject::fromString(value); }
+    static inline Runtime::ObjectRef box(std::string &&value)      { return Runtime::StringObject::fromString(std::move(value)); }
+    static inline Runtime::ObjectRef box(const std::string &value) { return Runtime::StringObject::fromString(value); }
 };
 
 /* STL vector (arrays) */
 template <typename Item>
 struct Boxer<std::vector<Item>>
 {
-    static Runtime::ObjectRef box(const std::vector<Item> &value)
+    static inline Runtime::ObjectRef box(const std::vector<Item> &value)
     {
         /* create the result tuple */
         size_t i = 0;
@@ -192,7 +199,7 @@ struct Boxer<std::vector<Item>>
 template <typename Map, typename Key, typename Value>
 struct MapBoxer
 {
-    static Runtime::ObjectRef box(const Map &value)
+    static inline Runtime::ObjectRef box(const Map &value)
     {
         /* create the result map, create as ordered map */
         Runtime::Reference<Runtime::MapObject> result = Runtime::MapObject::newOrdered();
@@ -215,7 +222,7 @@ struct MapBoxer
 template <typename Key, typename Value>
 struct Boxer<std::map<Key, Value>>
 {
-    static Runtime::ObjectRef box(const std::map<Key, Value> &value)
+    static inline Runtime::ObjectRef box(const std::map<Key, Value> &value)
     {
         /* call the map boxer, tree maps */
         return MapBoxer<std::map<Key, Value>, Key, Value>::box(value);
@@ -226,7 +233,7 @@ struct Boxer<std::map<Key, Value>>
 template <typename Key, typename Value>
 struct Boxer<std::unordered_map<Key, Value>>
 {
-    static Runtime::ObjectRef box(const std::unordered_map<Key, Value> &value)
+    static inline Runtime::ObjectRef box(const std::unordered_map<Key, Value> &value)
     {
         /* call the map boxer, hash maps */
         return MapBoxer<std::unordered_map<Key, Value>, Key, Value>::box(value);
@@ -264,13 +271,13 @@ struct IntegerUnboxer;
 template <size_t I>
 struct IntegerUnboxer<I, sizeof(int8_t)>
 {
-    static int8_t unboxSigned(Runtime::Reference<Runtime::IntObject> value, const std::string &name)
+    static inline int8_t unboxSigned(Runtime::Reference<Runtime::IntObject> value, const std::string &name)
     {
         int64_t val = value->toInt();
         return ((val >= INT8_MIN) && (val <= INT8_MAX)) ? static_cast<int8_t>(val) : throw ValueCheckFailed<I>(value, name);
     }
 
-    static uint8_t unboxUnsigned(Runtime::Reference<Runtime::IntObject> value, const std::string &name)
+    static inline uint8_t unboxUnsigned(Runtime::Reference<Runtime::IntObject> value, const std::string &name)
     {
         uint64_t val = value->toUInt();
         return (val <= UINT8_MAX) ? static_cast<uint8_t>(val) : throw ValueCheckFailed<I>(value, name);
@@ -280,13 +287,13 @@ struct IntegerUnboxer<I, sizeof(int8_t)>
 template <size_t I>
 struct IntegerUnboxer<I, sizeof(int16_t)>
 {
-    static int16_t unboxSigned(Runtime::Reference<Runtime::IntObject> value, const std::string &name)
+    static inline int16_t unboxSigned(Runtime::Reference<Runtime::IntObject> value, const std::string &name)
     {
         int64_t val = value->toInt();
         return ((val >= INT16_MIN) && (val <= INT16_MAX)) ? static_cast<int16_t>(val) : throw ValueCheckFailed<I>(value, name);
     }
 
-    static uint16_t unboxUnsigned(Runtime::Reference<Runtime::IntObject> value, const std::string &name)
+    static inline uint16_t unboxUnsigned(Runtime::Reference<Runtime::IntObject> value, const std::string &name)
     {
         uint64_t val = value->toUInt();
         return (val <= UINT16_MAX) ? static_cast<uint16_t>(val) : throw ValueCheckFailed<I>(value, name);
@@ -296,13 +303,13 @@ struct IntegerUnboxer<I, sizeof(int16_t)>
 template <size_t I>
 struct IntegerUnboxer<I, sizeof(int32_t)>
 {
-    static int32_t unboxSigned(Runtime::Reference<Runtime::IntObject> value, const std::string &name)
+    static inline int32_t unboxSigned(Runtime::Reference<Runtime::IntObject> value, const std::string &name)
     {
         int64_t val = value->toInt();
         return ((val >= INT32_MIN) && (val <= INT32_MAX)) ? static_cast<int32_t>(val) : throw ValueCheckFailed<I>(value, name);
     }
 
-    static uint32_t unboxUnsigned(Runtime::Reference<Runtime::IntObject> value, const std::string &name)
+    static inline uint32_t unboxUnsigned(Runtime::Reference<Runtime::IntObject> value, const std::string &name)
     {
         uint64_t val = value->toUInt();
         return (val <= UINT32_MAX) ? static_cast<uint32_t>(val) : throw ValueCheckFailed<I>(value, name);
@@ -312,14 +319,14 @@ struct IntegerUnboxer<I, sizeof(int32_t)>
 template <size_t I>
 struct IntegerUnboxer<I, sizeof(int64_t)>
 {
-    static int64_t  unboxSigned  (Runtime::Reference<Runtime::IntObject> value, const std::string &name) { return value->toInt();  }
-    static uint64_t unboxUnsigned(Runtime::Reference<Runtime::IntObject> value, const std::string &name) { return value->toUInt(); }
+    static inline int64_t  unboxSigned  (Runtime::Reference<Runtime::IntObject> value, const std::string &name) { return value->toInt();  }
+    static inline uint64_t unboxUnsigned(Runtime::Reference<Runtime::IntObject> value, const std::string &name) { return value->toUInt(); }
 };
 
 template <size_t I, bool Signed, bool Unsigned, typename T>
 struct UnboxerHelper
 {
-    static T unbox(Runtime::ObjectRef value, const std::string &name)
+    static inline T unbox(Runtime::ObjectRef value, const std::string &name)
     {
         /* types that not recognized, try construct from object ref */
         return T(value);
@@ -329,30 +336,30 @@ struct UnboxerHelper
 template <size_t I, typename T>
 struct UnboxerHelper<I, false, false, Runtime::Reference<T>>
 {
-    static Runtime::Reference<T> unbox(Runtime::ObjectRef value, const std::string &name)
+    static inline Runtime::Reference<T> unbox(Runtime::ObjectRef value, const std::string &name)
     {
-        try
-        {
-            /* some kind of reference, try cast to that type */
-            return value.as<T>();
-        }
-        catch (const std::bad_cast &)
-        {
-            /* not convertible */
-            throw Runtime::Exceptions::TypeError(Utils::Strings::format(
-                "Argument at position %zu%s cannot be a \"%s\" object",
-                I,
-                name.empty() ? "" : Utils::Strings::format("(%s)", name),
-                value->type()->name()
-            ));
-        }
+        /* null reference, always convertible */
+        if (value.isNull())
+            return nullptr;
+
+        /* some kind of reference, try cast to that type */
+        if (T *obj = dynamic_cast<T *>(value.get()))
+            return Runtime::Reference<T>::borrow(obj);
+
+        /* not convertible */
+        throw Runtime::Exceptions::TypeError(Utils::Strings::format(
+            "Argument at position %zu%s cannot be a \"%s\" object",
+            I,
+            name.empty() ? "" : Utils::Strings::format("(%s)", name),
+            value->type()->name()
+        ));
     }
 };
 
 template <size_t I, typename T>
 struct UnboxerHelper<I, true, false, T>
 {
-    static T unbox(Runtime::ObjectRef value, const std::string &name)
+    static inline T unbox(Runtime::ObjectRef value, const std::string &name)
     {
         /* object type check */
         if (value->isNotInstanceOf(Runtime::IntTypeObject))
@@ -373,7 +380,7 @@ struct UnboxerHelper<I, true, false, T>
 template <size_t I, typename T>
 struct UnboxerHelper<I, false, true, T>
 {
-    static T unbox(Runtime::ObjectRef value, const std::string &name)
+    static inline T unbox(Runtime::ObjectRef value, const std::string &name)
     {
         /* object type check */
         if (value->isNotInstanceOf(Runtime::IntTypeObject))
@@ -395,7 +402,7 @@ struct UnboxerHelper<I, false, true, T>
 template <size_t I, typename T>
 struct Unboxer
 {
-    static std::decay_t<T> unbox(Runtime::ObjectRef value, const std::string &name)
+    static inline std::decay_t<T> unbox(Runtime::ObjectRef value, const std::string &name)
     {
         /* doesn't support pointers, R-value references or mutable references */
         static_assert(!(std::is_pointer_v<T>), "Pointers are not supported");
@@ -416,7 +423,7 @@ struct Unboxer
 template <size_t I, typename T>
 struct Unboxer<I, const T &>
 {
-    static std::decay_t<T> unbox(Runtime::ObjectRef value, const std::string &name)
+    static inline std::decay_t<T> unbox(Runtime::ObjectRef value, const std::string &name)
     {
         /* call the reference-removed version */
         return Unboxer<I, std::decay_t<T>>::unbox(std::move(value), name);
@@ -427,7 +434,7 @@ struct Unboxer<I, const T &>
 template <size_t I>
 struct Unboxer<I, bool>
 {
-    static bool unbox(Runtime::ObjectRef value, const std::string &name)
+    static inline bool unbox(Runtime::ObjectRef value, const std::string &name)
     {
         /* convert to boolean */
         return value->isTrue();
@@ -438,7 +445,7 @@ struct Unboxer<I, bool>
 template <size_t I>
 struct Unboxer<I, float>
 {
-    static float unbox(Runtime::ObjectRef value, const std::string &name)
+    static inline float unbox(Runtime::ObjectRef value, const std::string &name)
     {
         /* object type check */
         if (value->isNotInstanceOf(Runtime::DecimalTypeObject))
@@ -460,7 +467,7 @@ struct Unboxer<I, float>
 template <size_t I>
 struct Unboxer<I, double>
 {
-    static double unbox(Runtime::ObjectRef value, const std::string &name)
+    static inline double unbox(Runtime::ObjectRef value, const std::string &name)
     {
         /* object type check */
         if (value->isNotInstanceOf(Runtime::DecimalTypeObject))
@@ -482,7 +489,7 @@ struct Unboxer<I, double>
 template <size_t I>
 struct Unboxer<I, long double>
 {
-    static long double unbox(Runtime::ObjectRef value, const std::string &name)
+    static inline long double unbox(Runtime::ObjectRef value, const std::string &name)
     {
         /* object type check */
         if (value->isNotInstanceOf(Runtime::DecimalTypeObject))
@@ -500,22 +507,11 @@ struct Unboxer<I, long double>
     }
 };
 
-/* direct object */
-template <size_t I>
-struct Unboxer<I, Runtime::ObjectRef>
-{
-    static Runtime::ObjectRef unbox(Runtime::ObjectRef value, const std::string &name)
-    {
-        /* just return AS IS */
-        return value;
-    }
-};
-
 /* STL strings */
 template <size_t I>
 struct Unboxer<I, std::string>
 {
-    static std::string unbox(Runtime::ObjectRef value, const std::string &name)
+    static inline std::string unbox(Runtime::ObjectRef value, const std::string &name)
     {
         /* object type checking */
         if (value->isNotInstanceOf(Runtime::StringTypeObject))
@@ -529,7 +525,7 @@ struct Unboxer<I, std::string>
 template <size_t I>
 struct Unboxer<I, Utils::Decimal>
 {
-    static Utils::Decimal unbox(Runtime::ObjectRef value, const std::string &name)
+    static inline Utils::Decimal unbox(Runtime::ObjectRef value, const std::string &name)
     {
         /* object type checking */
         if (value->isNotInstanceOf(Runtime::DecimalTypeObject))
@@ -543,7 +539,7 @@ struct Unboxer<I, Utils::Decimal>
 template <size_t I>
 struct Unboxer<I, Utils::Integer>
 {
-    static Utils::Integer unbox(Runtime::ObjectRef value, const std::string &name)
+    static inline Utils::Integer unbox(Runtime::ObjectRef value, const std::string &name)
     {
         /* object type checking */
         if (value->isNotInstanceOf(Runtime::IntTypeObject))
@@ -553,11 +549,22 @@ struct Unboxer<I, Utils::Integer>
     }
 };
 
+/* direct object */
+template <size_t I>
+struct Unboxer<I, Runtime::ObjectRef>
+{
+    static inline Runtime::ObjectRef unbox(Runtime::ObjectRef value, const std::string &name)
+    {
+        /* just return AS IS */
+        return std::move(value);
+    }
+};
+
 /* STL vector (arrays) */
 template <size_t I, typename Item>
 struct Unboxer<I, std::vector<Item>>
 {
-    static std::vector<Item> unbox(Runtime::ObjectRef value, const std::string &name)
+    static inline std::vector<Item> unbox(Runtime::ObjectRef value, const std::string &name)
     {
         /* result vector */
         size_t size;
@@ -625,7 +632,7 @@ struct Unboxer<I, std::vector<Item>>
 template <size_t I, typename Map, typename Key, typename Value>
 struct MapUnboxer
 {
-    static Map unbox(Runtime::ObjectRef value, const std::string &name)
+    static inline Map unbox(Runtime::ObjectRef value, const std::string &name)
     {
         /* result map */
         Map result;
@@ -714,7 +721,7 @@ struct MapUnboxer
 template <size_t I, typename Key, typename Value>
 struct Unboxer<I, std::map<Key, Value>>
 {
-    static std::map<Key, Value> unbox(Runtime::ObjectRef value, const std::string &name)
+    static inline std::map<Key, Value> unbox(Runtime::ObjectRef value, const std::string &name)
     {
         /* call the map unboxer, tree map */
         return MapUnboxer<I, std::map<Key, Value>, Key, Value>::unbox(std::move(value), name);
@@ -725,7 +732,7 @@ struct Unboxer<I, std::map<Key, Value>>
 template <size_t I, typename Key, typename Value>
 struct Unboxer<I, std::unordered_map<Key, Value>>
 {
-    static std::unordered_map<Key, Value> unbox(Runtime::ObjectRef value, const std::string &name)
+    static inline std::unordered_map<Key, Value> unbox(Runtime::ObjectRef value, const std::string &name)
     {
         /* call the map unboxer, hash map */
         return MapUnboxer<I, std::unordered_map<Key, Value>, Key, Value>::unbox(std::move(value), name);
@@ -740,7 +747,7 @@ struct ArgumentPackUnboxer;
 template <size_t I, typename T, typename ... Args>
 struct ArgumentPackUnboxer<I, T, Args ...>
 {
-    static std::tuple<T, Args ...> unbox(
+    static inline std::tuple<T, Args ...> unbox(
         VariadicArgs        &args,
         KeywordArgs         &kwargs,
         const KeywordNames  &keywords,
@@ -787,7 +794,7 @@ struct ArgumentPackUnboxer<I, T, Args ...>
 template <size_t I>
 struct ArgumentPackUnboxer<I>
 {
-    static std::tuple<> unbox(
+    static inline std::tuple<> unbox(
         VariadicArgs        &args,
         KeywordArgs         &kwargs,
         const KeywordNames  &keywords,
@@ -850,7 +857,7 @@ using ArgsUnboxer = Details::ArgumentPackUnboxer<0, std::decay_t<Args> ...>;
 template <typename Ret, typename ... Args>
 struct MetaFunction
 {
-    static Runtime::ObjectRef invoke(
+    static inline Runtime::ObjectRef invoke(
         const std::function<Ret(Args ...)>  &func,
         VariadicArgs                        &args,
         KeywordArgs                         &kwargs,
@@ -865,7 +872,7 @@ struct MetaFunction
 template <typename ... Args>
 struct MetaFunction<void, Args ...>
 {
-    static Runtime::ObjectRef invoke(
+    static inline Runtime::ObjectRef invoke(
         const std::function<void(Args ...)> &func,
         VariadicArgs                        &args,
         KeywordArgs                         &kwargs,
@@ -883,7 +890,7 @@ struct MetaFunction<void, Args ...>
 template <typename T, typename ... Args>
 struct MetaConstructor
 {
-    static Runtime::Reference<T> construct(
+    static inline Runtime::Reference<T> construct(
         VariadicArgs        &args,
         KeywordArgs         &kwargs,
         const KeywordNames  &keywords,

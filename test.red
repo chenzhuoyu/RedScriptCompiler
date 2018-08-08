@@ -38,5 +38,5 @@ print(a)
 n = test.bar(ffi.ref(a))
 print(n)
 print(a)
-a.size = n + 1
-print(a)
+print('***********')
+print(repr(ffi.string_at(a, n)))
