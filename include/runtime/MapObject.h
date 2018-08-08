@@ -77,9 +77,12 @@ public:
     explicit MapObject(Mode mode = Mode::Ordered) : Object(MapTypeObject), _mode(mode) {}
 
 public:
+    Mode mode(void) const { return _mode; }
     size_t size(void);
-    Runtime::ObjectRef back(void);
-    Runtime::ObjectRef front(void);
+
+public:
+    Runtime::ObjectRef firstKey(void);
+    Runtime::ObjectRef firstValue(void);
 
 public:
     Runtime::ObjectRef pop(Runtime::ObjectRef key);

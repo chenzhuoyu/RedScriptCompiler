@@ -1172,7 +1172,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                 auto off = frame->nextOperand();
                 auto &iter = _stack.back();
 
-                /* try push new object on stack top, don't destroy the iterator */
+                /* try pushing new object on stack top, don't destroy the iterator */
                 try
                 {
                     _stack.emplace_back(iter->type()->iterableNext(iter));

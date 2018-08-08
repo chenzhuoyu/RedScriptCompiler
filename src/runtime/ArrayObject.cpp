@@ -373,7 +373,7 @@ void ArrayObject::setSlice(size_t begin, size_t count, ssize_t step, ObjectRef i
         buffer = tuple->items();
     }
 
-    /* generic object, try invoke it's iterator protocol */
+    /* generic object, try invoking it's iterator protocol */
     else
     {
         /* convert to an iterator */

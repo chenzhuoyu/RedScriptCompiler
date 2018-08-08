@@ -84,7 +84,7 @@ Reference<UnboundMethodObject> UnboundMethodObject::newUnboundVariadic(const std
     /* wrap as variadic function, extract the first argument as `self` */
     return newVariadic(name, [=](Utils::NFI::VariadicArgs args, Utils::NFI::KeywordArgs kwargs)
     {
-        /* try pop from keyword arguments */
+        /* try popping from keyword arguments */
         size_t off = 0;
         ObjectRef self = kwargs->pop(StringObject::fromStringInterned("self"));
 

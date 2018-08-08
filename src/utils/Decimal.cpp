@@ -64,7 +64,7 @@ Integer Decimal::toInt(void) const
         withFlagsChecked(bid128_quiet_less_equal, _value, _maxUInt64))
         return withFlagsChecked(bid128_to_uint64_int, _value);
 
-    /* try convert through string */
+    /* try converting through string */
     char s[256] = {};
     char *delim = nullptr;
     char *start = &(s[0]);

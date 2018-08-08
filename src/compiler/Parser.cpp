@@ -1357,7 +1357,7 @@ std::unique_ptr<AST::Expression> Parser::parseExpression(void)
 
 std::unique_ptr<AST::Expression> Parser::parseReturnExpression(void)
 {
-    /* try parse the first expression */
+    /* try parsing the first expression */
     Token::Ptr next;
     Token::Ptr token = _lexer->peek();
     std::unique_ptr<AST::Tuple> tuple(new AST::Tuple(token));
@@ -1739,7 +1739,7 @@ std::unique_ptr<AST::Expression> Parser::parseFactor(void)
                     _lexer->pushState();
                     _lexer->next();
 
-                    /* try locate the next token */
+                    /* try locating the next token */
                     Token::Ptr next = _lexer->peek();
                     std::unique_ptr<AST::Expression> expr;
 

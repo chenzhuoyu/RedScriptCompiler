@@ -796,9 +796,10 @@ struct ArgumentPackUnboxer<I>
         /* should have no keyword arguments left */
         if (kwargs->size())
         {
+            auto front = kwargs->firstKey();
             throw Runtime::Exceptions::TypeError(Utils::Strings::format(
                 "Function does not accept keyword argument \"%s\"",
-                kwargs->front()->type()->objectStr(kwargs->front())
+                front->type()->objectStr(front)
             ));
         }
 

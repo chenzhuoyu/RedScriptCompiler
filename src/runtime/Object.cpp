@@ -928,10 +928,11 @@ ObjectRef ObjectType::nativeObjectInit(ObjectRef self, Reference<TupleObject> ar
     /* and no keyword arguments */
     if (kwargs->size())
     {
+        auto front = kwargs->firstKey();
         throw Exceptions::TypeError(Utils::Strings::format(
             "\"__init__\" of \"%s\" object doesn't accept keyword argument \"%s\"",
             name(),
-            kwargs->front()->type()->objectStr(kwargs->front())
+            front->type()->objectStr(front)
         ));
     }
 

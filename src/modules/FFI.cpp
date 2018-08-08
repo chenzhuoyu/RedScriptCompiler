@@ -35,7 +35,7 @@ FFI::FFI() : Runtime::ModuleObject("ffi")
     /* value reference function */
     addFunction(Runtime::NativeFunctionObject::fromFunction("ref", {"value"}, [](Runtime::ObjectRef value)
     {
-        /* try convert to FFI instance */
+        /* try converting to FFI instance */
         Runtime::Object *obj = value.get();
         Runtime::ForeignInstance *fip = dynamic_cast<Runtime::ForeignInstance *>(obj);
 

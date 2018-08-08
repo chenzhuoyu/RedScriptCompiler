@@ -101,17 +101,6 @@ public:
 
 };
 
-template <typename Type, typename Instance, typename Arg>
-struct ForeignTypeFactory : public Type
-{
-    using Type::Type;
-    virtual ObjectRef nativeObjectNew(TypeRef type, Reference<TupleObject> args, Reference<MapObject> kwargs) override
-    {
-        using Utils::NFI::MetaConstructor;
-        return MetaConstructor<Instance, Arg>::construct(args, kwargs, {"value"}, {});
-    }
-};
-
 struct ForeignVoidType : public ForeignType
 {
     virtual ~ForeignVoidType() = default;
@@ -269,11 +258,8 @@ public:
 /** Native Object Protocol **/
 
 public:
-    virtual std::string nativeObjectRepr(ObjectRef self) override
-    {
-        /* use the original FFI object representation */
-        return ForeignType::nativeObjectRepr(self);
-    }
+    virtual std::string nativeObjectRepr(ObjectRef self) override;
+
 };
 
 class ForeignInstance : public Object
@@ -293,6 +279,7 @@ public:
 public:
     void *data(void) const { return _data; }
     size_t size(void) const { return _size; }
+    ffi_type *ftype(void) const { return _ftype->ftype(); }
 
 public:
     virtual void set(ObjectRef value) { _ftype->pack(_data, _size, value); }
@@ -355,8 +342,8 @@ FFI_MAKE_INSTANCE(LongDouble, long double);
 class ForeignRawBuffer : public ForeignInstance
 {
     bool _free;
-    void *_data;
     size_t _size;
+    size_t _alloc;
 
 public:
     virtual ~ForeignRawBuffer();
@@ -368,12 +355,14 @@ public:
     explicit ForeignRawBuffer(TypeRef type, const void *data, size_t size) : ForeignRawBuffer(type, const_cast<void *>(data), size, true) {}
 
 public:
-    void *buffer(void) const { return _data; }
+    void *&buffer(void) const { return *(reinterpret_cast<void **>(data())); }
     size_t bufferSize(void) const { return _size; }
+    size_t allocationSize(void) const { return _alloc; }
 
 public:
     bool isAutoRelease(void) const { return _free; }
     void setAutoRelease(bool value) { _free = value; }
+    void setRawBufferSize(size_t value) { _size = value; }
 
 public:
     virtual void set(ObjectRef value) override;

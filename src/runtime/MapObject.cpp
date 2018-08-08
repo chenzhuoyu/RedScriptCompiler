@@ -1,3 +1,6 @@
+
+#include <runtime/MapObject.h>
+
 #include "runtime/MapObject.h"
 
 namespace RedScript::Runtime
@@ -11,13 +14,13 @@ size_t MapObject::size(void)
     return _map.size();
 }
 
-Runtime::ObjectRef MapObject::back(void)
+Runtime::ObjectRef MapObject::firstKey(void)
 {
     Utils::RWLock::Read _(_lock);
-    return _head.prev->value;
+    return _head.next->key;
 }
 
-Runtime::ObjectRef MapObject::front(void)
+Runtime::ObjectRef MapObject::firstValue(void)
 {
     Utils::RWLock::Read _(_lock);
     return _head.next->value;

@@ -94,7 +94,7 @@ private:
             /* traverse each registered object */
             FROM_GC(p)->referenceTraverse([](Runtime::ReferenceCounted *self)
             {
-                /* try unreference the object, static object cannot be collected */
+                /* unreference the object, static object cannot be collected */
                 if (!(self->isStatic()))
                     if (TO_GC(self)->ref > 0)
                         TO_GC(self)->ref--;
