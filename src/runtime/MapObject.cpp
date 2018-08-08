@@ -1,6 +1,3 @@
-
-#include <runtime/MapObject.h>
-
 #include "runtime/MapObject.h"
 
 namespace RedScript::Runtime

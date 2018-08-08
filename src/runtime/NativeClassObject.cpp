@@ -1,6 +1,3 @@
-
-#include <runtime/NativeClassObject.h>
-
 #include "utils/Decimal.h"
 #include "utils/Integer.h"
 #include "utils/Strings.h"
