@@ -1,11 +1,23 @@
 #!/usr/bin/env redscript
 
+native "C" class test()
+{
+    int printf(const char *fmt, ...);
+    int foo(int *x);
+
+    int foo(int *x) {
+        printf("x is %p\n", x);
+        printf("*x is %d\n", *x);
+        *x += 1;
+        printf("now *x is %d\n", *x);
+        return *x * *x;
+    }
+}
+
 import ffi
-p = ffi.int32_t(12345)
-print(id(p), p)
-p.value = 999
-print(id(p), p)
-p = ffi.char_p('hello, world')
-print(id(p), p)
-print(dir(p))
-print(p.auto_release)
+x = ffi.int32_t(123)
+print(test.foo)
+print(x)
+print(ffi.ref(x))
+print(test.foo(ffi.ref(x)))
+print(x)

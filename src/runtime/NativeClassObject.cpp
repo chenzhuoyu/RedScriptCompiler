@@ -4,7 +4,6 @@
 
 #include "runtime/IntObject.h"
 #include "runtime/BoolObject.h"
-#include "runtime/NullObject.h"
 #include "runtime/ProxyObject.h"
 #include "runtime/StringObject.h"
 #include "runtime/DecimalObject.h"
@@ -29,14 +28,13 @@ Reference<ForeignType> ForeignFloatTypeObject;
 Reference<ForeignType> ForeignDoubleTypeObject;
 Reference<ForeignType> ForeignLongDoubleTypeObject;
 
+/* raw pointer types */
+Reference<ForeignType> ForeignRawPointerTypeObject;
+Reference<ForeignType> ForeignConstRawPointerTypeObject;
+
 /* string types */
 Reference<ForeignType> ForeignCStringTypeObject;
 Reference<ForeignType> ForeignConstCStringTypeObject;
-
-static inline size_t min(size_t a, size_t b)
-{
-    return a < b ? a : b;
-}
 
 static inline size_t align(size_t val, size_t to)
 {
@@ -231,6 +229,10 @@ Reference<ForeignType> NativeClassObject::makeForeignType(TCCType *type)
             if ((typeId & VT_BTYPE) == VT_BYTE)
                 return isConst ? ForeignConstCStringTypeObject : ForeignCStringTypeObject;
 
+            /* special case for "void *" and "const void *" */
+            if ((typeId & VT_BTYPE) == VT_VOID)
+                return isConst ? ForeignConstRawPointerTypeObject : ForeignRawPointerTypeObject;
+
             /* read from cache if possible */
             if ((iter = _types.find(type)) != _types.end())
                 return iter->second;
@@ -280,50 +282,58 @@ Reference<ForeignType> NativeClassObject::makeForeignType(TCCType *type)
 void NativeClassObject::shutdown(void)
 {
     /* clear FFI types */
-    ForeignVoidTypeObject           = nullptr;
-    ForeignInt8TypeObject           = nullptr;
-    ForeignUInt8TypeObject          = nullptr;
-    ForeignInt16TypeObject          = nullptr;
-    ForeignUInt16TypeObject         = nullptr;
-    ForeignInt32TypeObject          = nullptr;
-    ForeignUInt32TypeObject         = nullptr;
-    ForeignInt64TypeObject          = nullptr;
-    ForeignUInt64TypeObject         = nullptr;
-    ForeignFloatTypeObject          = nullptr;
-    ForeignDoubleTypeObject         = nullptr;
-    ForeignLongDoubleTypeObject     = nullptr;
+    ForeignVoidTypeObject            = nullptr;
+    ForeignInt8TypeObject            = nullptr;
+    ForeignUInt8TypeObject           = nullptr;
+    ForeignInt16TypeObject           = nullptr;
+    ForeignUInt16TypeObject          = nullptr;
+    ForeignInt32TypeObject           = nullptr;
+    ForeignUInt32TypeObject          = nullptr;
+    ForeignInt64TypeObject           = nullptr;
+    ForeignUInt64TypeObject          = nullptr;
+    ForeignFloatTypeObject           = nullptr;
+    ForeignDoubleTypeObject          = nullptr;
+    ForeignLongDoubleTypeObject      = nullptr;
+
+    /* clear raw pointer types */
+    ForeignRawPointerTypeObject      = nullptr;
+    ForeignConstRawPointerTypeObject = nullptr;
 
     /* clear string types */
-    ForeignCStringTypeObject        = nullptr;
-    ForeignConstCStringTypeObject   = nullptr;
+    ForeignCStringTypeObject         = nullptr;
+    ForeignConstCStringTypeObject    = nullptr;
 
     /* clear type instance */
-    NativeClassTypeObject           = nullptr;
+    NativeClassTypeObject            = nullptr;
 }
 
 void NativeClassObject::initialize(void)
 {
     /* native class type object */
     static NativeClassType nullType;
-    NativeClassTypeObject           = Reference<NativeClassType>::refStatic(nullType);
+    NativeClassTypeObject            = Reference<NativeClassType>::refStatic(nullType);
 
     /* wrapped primitive FFI types */
-    ForeignVoidTypeObject           = Object::newObject<ForeignVoidType>();
-    ForeignInt8TypeObject           = Object::newObject<ForeignTypeFactory<ForeignInt8Type      , ForeignInt8      , int8_t     >>();
-    ForeignUInt8TypeObject          = Object::newObject<ForeignTypeFactory<ForeignUInt8Type     , ForeignUInt8     , uint8_t    >>();
-    ForeignInt16TypeObject          = Object::newObject<ForeignTypeFactory<ForeignInt16Type     , ForeignInt16     , int16_t    >>();
-    ForeignUInt16TypeObject         = Object::newObject<ForeignTypeFactory<ForeignUInt16Type    , ForeignUInt16    , uint16_t   >>();
-    ForeignInt32TypeObject          = Object::newObject<ForeignTypeFactory<ForeignInt32Type     , ForeignInt32     , int32_t    >>();
-    ForeignUInt32TypeObject         = Object::newObject<ForeignTypeFactory<ForeignUInt32Type    , ForeignUInt32    , uint32_t   >>();
-    ForeignInt64TypeObject          = Object::newObject<ForeignTypeFactory<ForeignInt64Type     , ForeignInt64     , int64_t    >>();
-    ForeignUInt64TypeObject         = Object::newObject<ForeignTypeFactory<ForeignUInt64Type    , ForeignUInt64    , uint64_t   >>();
-    ForeignFloatTypeObject          = Object::newObject<ForeignTypeFactory<ForeignFloatType     , ForeignFloat     , float      >>();
-    ForeignDoubleTypeObject         = Object::newObject<ForeignTypeFactory<ForeignDoubleType    , ForeignDouble    , double     >>();
-    ForeignLongDoubleTypeObject     = Object::newObject<ForeignTypeFactory<ForeignLongDoubleType, ForeignLongDouble, long double>>();
+    ForeignVoidTypeObject            = Object::newObject<ForeignVoidType>();
+    ForeignInt8TypeObject            = Object::newObject<ForeignTypeFactory<ForeignInt8Type      , ForeignInt8      , int8_t     >>();
+    ForeignUInt8TypeObject           = Object::newObject<ForeignTypeFactory<ForeignUInt8Type     , ForeignUInt8     , uint8_t    >>();
+    ForeignInt16TypeObject           = Object::newObject<ForeignTypeFactory<ForeignInt16Type     , ForeignInt16     , int16_t    >>();
+    ForeignUInt16TypeObject          = Object::newObject<ForeignTypeFactory<ForeignUInt16Type    , ForeignUInt16    , uint16_t   >>();
+    ForeignInt32TypeObject           = Object::newObject<ForeignTypeFactory<ForeignInt32Type     , ForeignInt32     , int32_t    >>();
+    ForeignUInt32TypeObject          = Object::newObject<ForeignTypeFactory<ForeignUInt32Type    , ForeignUInt32    , uint32_t   >>();
+    ForeignInt64TypeObject           = Object::newObject<ForeignTypeFactory<ForeignInt64Type     , ForeignInt64     , int64_t    >>();
+    ForeignUInt64TypeObject          = Object::newObject<ForeignTypeFactory<ForeignUInt64Type    , ForeignUInt64    , uint64_t   >>();
+    ForeignFloatTypeObject           = Object::newObject<ForeignTypeFactory<ForeignFloatType     , ForeignFloat     , float      >>();
+    ForeignDoubleTypeObject          = Object::newObject<ForeignTypeFactory<ForeignDoubleType    , ForeignDouble    , double     >>();
+    ForeignLongDoubleTypeObject      = Object::newObject<ForeignTypeFactory<ForeignLongDoubleType, ForeignLongDouble, long double>>();
+
+    /* raw pointer types */
+    ForeignRawPointerTypeObject      = Object::newObject<ForeignPointerType>(false);
+    ForeignConstRawPointerTypeObject = Object::newObject<ForeignPointerType>(true);
 
     /* string types */
-    ForeignCStringTypeObject        = Object::newObject<ForeignTypeFactory<ForeignCStringType, ForeignStringBuffer, const std::string &>>(false);
-    ForeignConstCStringTypeObject   = Object::newObject<ForeignCStringType>(true);
+    ForeignCStringTypeObject         = Object::newObject<ForeignTypeFactory<ForeignCStringType, ForeignStringBuffer, const std::string &>>(false);
+    ForeignConstCStringTypeObject    = Object::newObject<ForeignCStringType>(true);
 }
 
 /** Abstract Foreign Type **/
@@ -505,15 +515,6 @@ void ForeignLongDoubleType::pack(void *buffer, size_t size, ObjectRef value) con
 
 /** Primitive Type Unpackers **/
 
-ObjectRef ForeignVoidType::unpack(const void *buffer, size_t size) const
-{
-    /* unpack as null */
-    if (size != 0)
-        throw Exceptions::RuntimeError("\"void\" type size mismatch");
-    else
-        return NullObject;
-}
-
 #define FFI_UNPACK_INT(bits)                                                            \
 {                                                                                       \
     /* unpack as integer */                                                             \
@@ -567,8 +568,21 @@ void ForeignPointerType::pack(void *buffer, size_t size, ObjectRef value) const
     if (size < sizeof(void *))
         throw Exceptions::InternalError("Insufficient space for pointers");
 
-    // TODO: implement pack pointer
-    throw Exceptions::InternalError("not implemented: pack pointer");
+    /* convert to raw buffer */
+    Object *obj = value.get();
+    ForeignRawBuffer *frb = dynamic_cast<ForeignRawBuffer *>(obj);
+
+    /* buffer type check */
+    if (frb == nullptr)
+    {
+        throw Exceptions::TypeError(Utils::Strings::format(
+            "Argument must be a buffer, not \"%s\"",
+            obj->type()->name()
+        ));
+    }
+
+    /* pack the pointer address */
+    *(reinterpret_cast<void **>(buffer)) = frb->buffer();
 }
 
 ObjectRef ForeignPointerType::unpack(const void *buffer, size_t size) const
@@ -581,46 +595,134 @@ ObjectRef ForeignPointerType::unpack(const void *buffer, size_t size) const
     throw Exceptions::InternalError("not implemented: unpack pointer");
 }
 
-/** Foreign CString Type Implementations **/
-
-static ObjectRef foreignCStringAutoReleaseGetter(ObjectRef self, ObjectRef type)
+std::string ForeignPointerType::nativeObjectRepr(ObjectRef self)
 {
+    return Utils::Strings::format(
+        "ffi.%s(ptr=%p, size=%zu, auto_release=%s)",
+        name(),
+        self.as<ForeignRawBuffer>()->buffer(),
+        self.as<ForeignRawBuffer>()->bufferSize(),
+        self.as<ForeignRawBuffer>()->isAutoRelease() ? "true" : "false"
+    );
+}
+
+/** Foreign Pointer Type Implementations **/
+
+static ObjectRef foreignPointerAddrGetter(ObjectRef self, ObjectRef type)
+{
+    /* convert to raw buffer */
+    Object *obj = self.get();
+    ForeignRawBuffer *frb = dynamic_cast<ForeignRawBuffer *>(obj);
+
     /* object type check */
-    if (self->isNotInstanceOf(ForeignCStringTypeObject))
+    if (frb == nullptr)
     {
         throw Exceptions::TypeError(Utils::Strings::format(
-            "Argument must be a string buffer, not \"%s\"",
+            "Argument must be a buffer, not \"%s\"",
+            self->type()->name()
+        ));
+    }
+
+    /* get it's address */
+    return IntObject::fromUInt(reinterpret_cast<uintptr_t>(frb->buffer()));
+}
+
+static ObjectRef foreignPointerSizeGetter(ObjectRef self, ObjectRef type)
+{
+    /* convert to raw buffer */
+    Object *obj = self.get();
+    ForeignRawBuffer *frb = dynamic_cast<ForeignRawBuffer *>(obj);
+
+    /* object type check */
+    if (frb == nullptr)
+    {
+        throw Exceptions::TypeError(Utils::Strings::format(
+            "Argument must be a buffer, not \"%s\"",
+            self->type()->name()
+        ));
+    }
+
+    /* get it's size */
+    return IntObject::fromUInt(frb->bufferSize());
+}
+
+static ObjectRef foreignPointerAutoReleaseGetter(ObjectRef self, ObjectRef type)
+{
+    /* convert to raw buffer */
+    Object *obj = self.get();
+    ForeignRawBuffer *frb = dynamic_cast<ForeignRawBuffer *>(obj);
+
+    /* object type check */
+    if (frb == nullptr)
+    {
+        throw Exceptions::TypeError(Utils::Strings::format(
+            "Argument must be a buffer, not \"%s\"",
             self->type()->name()
         ));
     }
 
     /* read it's value */
-    return BoolObject::fromBool(self.as<ForeignStringBuffer>()->isAutoRelease());
+    return BoolObject::fromBool(frb->isAutoRelease());
 }
 
-static ObjectRef foreignCStringAutoReleaseSetter(ObjectRef self, ObjectRef type, ObjectRef value)
+static ObjectRef foreignPointerAutoReleaseSetter(ObjectRef self, ObjectRef type, ObjectRef value)
 {
+    /* convert to raw buffer */
+    Object *obj = self.get();
+    ForeignRawBuffer *frb = dynamic_cast<ForeignRawBuffer *>(obj);
+
     /* object type check */
-    if (self->isNotInstanceOf(ForeignCStringTypeObject))
+    if (frb == nullptr)
     {
         throw Exceptions::TypeError(Utils::Strings::format(
-            "Argument must be a string buffer, not \"%s\"",
+            "Argument must be a buffer, not \"%s\"",
             self->type()->name()
         ));
     }
 
     /* set it's value */
-    self.as<ForeignStringBuffer>()->setAutoRelease(value->type()->objectIsTrue(value));
+    frb->setAutoRelease(value->type()->objectIsTrue(value));
     return std::move(value);
 }
+
+ForeignPointerType::ForeignPointerType(const std::string &name, Reference<ForeignType> base, bool isConst) :
+    ForeignType(name, &ffi_type_pointer), _base(base), _isConst(isConst)
+{
+    /* addr and size properties */
+    addObject("addr", ProxyObject::newReadOnly(NativeFunctionObject::newBinary("__get__", &foreignPointerAddrGetter)));
+    addObject("size", ProxyObject::newReadOnly(NativeFunctionObject::newBinary("__get__", &foreignPointerSizeGetter)));
+
+    /* auto release property */
+    addObject("auto_release", ProxyObject::newReadWrite(
+        NativeFunctionObject::newBinary("__get__", &foreignPointerAutoReleaseGetter),
+        NativeFunctionObject::newTernary("__set__", &foreignPointerAutoReleaseSetter)
+    ));
+}
+
+/** Foreign CString Type Implementations **/
 
 ForeignCStringType::ForeignCStringType(bool isConst) :
     ForeignPointerType(isConst ? "const_char_p" : "char_p", ForeignInt8TypeObject, isConst)
 {
-    addObject("auto_release", ProxyObject::newReadWrite(
-        NativeFunctionObject::newBinary("__get__", &foreignCStringAutoReleaseGetter),
-        NativeFunctionObject::newTernary("__set__", &foreignCStringAutoReleaseSetter)
-    ));
+    /* length property */
+    addObject("length", ProxyObject::newReadOnly(NativeFunctionObject::newBinary("__get__", [](ObjectRef self, ObjectRef type)
+    {
+        /* convert to raw buffer */
+        Object *obj = self.get();
+        ForeignStringBuffer *fsb = dynamic_cast<ForeignStringBuffer *>(obj);
+
+        /* object type check */
+        if (fsb == nullptr)
+        {
+            throw Exceptions::TypeError(Utils::Strings::format(
+                "Argument must be a string buffer, not \"%s\"",
+                self->type()->name()
+            ));
+        }
+
+        /* get it's length */
+        return IntObject::fromUInt(fsb->length());
+    })));
 }
 
 void ForeignCStringType::pack(void *buffer, size_t size, ObjectRef value) const
@@ -664,6 +766,12 @@ ObjectRef ForeignCStringType::unpack(const void *buffer, size_t size) const
     /* non-const string pointer, wrap as string buffer */
     else
         return Object::newObject<ForeignStringBuffer>(str);
+}
+
+std::string ForeignCStringType::nativeObjectRepr(ObjectRef self)
+{
+    auto obj = self.as<ForeignStringBuffer>()->get();
+    return Utils::Strings::format("ffi.%s(%s)", (isConst() ? "const_char_p" : "char_p"), obj->type()->objectRepr(obj));
 }
 
 /** Foreign Function Implementations **/
@@ -768,35 +876,63 @@ ObjectRef ForeignFunction::invoke(Utils::NFI::VariadicArgs args, Utils::NFI::Key
     return _rettype->unpack(_ret.data(), _ret.size());
 }
 
-/** Foreign String Buffer Implementations **/
+/** Foreign Raw Buffer Implementations **/
 
-ForeignStringBuffer::~ForeignStringBuffer()
+ForeignRawBuffer::~ForeignRawBuffer()
 {
     if (_free)
         Engine::Memory::free(_data);
 }
 
-ForeignStringBuffer::ForeignStringBuffer(char *value) : ForeignInstance(ForeignCStringTypeObject)
+ForeignRawBuffer::ForeignRawBuffer(TypeRef type, void *data, size_t size, bool autoRelease) : ForeignInstance(type)
 {
-    _size = 0;
-    _data = value;
-    _free = false;
+    /* reference only, copy the pointer */
+    if (!autoRelease)
+    {
+        _data = data;
+        _size = size;
+        _free = false;
+    }
+    else
+    {
+        _free = true;
+        _size = size;
+        _data = Engine::Memory::alloc(size);
+
+        /* copy data as needed */
+        if (data == nullptr)
+            memset(_data, 0, _size);
+        else
+            memcpy(_data, data, _size);
+    }
 }
 
-ForeignStringBuffer::ForeignStringBuffer(const std::string &value) : ForeignInstance(ForeignCStringTypeObject)
+void ForeignRawBuffer::set(ObjectRef value)
 {
-    /* string length check (though very unlikely) */
-    if (value.size() == SIZE_T_MAX)
-        throw Exceptions::ValueError("String too long");
+    /* cannot set void pointers */
+    throw Exceptions::TypeError("Cannot set value of raw pointers");
+}
 
-    /* string length and buffer */
-    _free = true;
-    _size = value.size();
-    _data = Engine::Memory::alloc<char>(_size + 1);
+ObjectRef ForeignRawBuffer::get(void) const
+{
+    /* cannot get void pointers */
+    throw Exceptions::TypeError("Cannot get value of raw pointers");
+}
 
-    /* make a copy of string */
-    _data[_size] = 0;
-    memcpy(_data, value.data(), _size);
+/** Foreign String Buffer Implementations **/
+
+ForeignStringBuffer::ForeignStringBuffer(char *value, size_t size) :
+    ForeignRawBuffer(ForeignCStringTypeObject, value, sizeChecked(size) + 1, false)
+{
+    /* clear the last character (NULL terminator) */
+    str()[size] = 0;
+}
+
+ForeignStringBuffer::ForeignStringBuffer(const std::string &value) :
+    ForeignRawBuffer(ForeignCStringTypeObject, value.data(), sizeChecked(value.size()) + 1)
+{
+    /* clear the last character (NULL terminator) */
+    str()[value.size()] = 0;
 }
 
 void ForeignStringBuffer::set(ObjectRef value)
@@ -812,20 +948,33 @@ void ForeignStringBuffer::set(ObjectRef value)
 
     /* read the string value */
     auto obj = value.as<StringObject>();
-    auto &str = obj->value();
+    auto &val = obj->value();
 
-    /* update pointer values */
-    if (_size == -1)
-        memcpy(_data, str.data(), str.size());
-    else
-        memcpy(_data, str.data(), min(str.size(), _size));
+    /* cannot set strings that length is unknown */
+    if (bufferSize() == 0)
+        throw Exceptions::RuntimeError("Cannot set value of a string with unknwon size, use slice instead");
+
+    /* check for boundary */
+    if (bufferSize() <= val.size())
+    {
+        throw Exceptions::IndexError(Utils::Strings::format(
+            "String length exceeds maximum buffer size (%zu): %zu",
+            length(),
+            val.size()
+        ));
+    }
+
+    /* overwrite the string buffer */
+    str()[val.size()] = 0;
+    memcpy(buffer(), val.data(), val.size());
 }
 
 ObjectRef ForeignStringBuffer::get(void) const
 {
-    if (_size == -1)
-        return StringObject::fromString(_data);
+    /* cannot get strings that length is unknown */
+    if (bufferSize() == 0)
+        throw Exceptions::RuntimeError("Cannot get value of a string with unknwon size, use slice instead");
     else
-        return StringObject::fromString(std::string(_data, _data + _size));
+        return StringObject::fromString(std::string(str(), str() + length()));
 }
 }

@@ -15,6 +15,7 @@
 
 #include "runtime/Object.h"
 #include "runtime/MapObject.h"
+#include "runtime/NullObject.h"
 #include "runtime/ExceptionObject.h"
 #include "runtime/NativeFunctionObject.h"
 
@@ -118,7 +119,7 @@ struct ForeignVoidType : public ForeignType
 
 public:
     virtual void pack(void *buffer, size_t size, ObjectRef value) const override;
-    virtual ObjectRef unpack(const void *buffer, size_t size) const override;
+    virtual ObjectRef unpack(const void *buffer, size_t size) const override { return NullObject; }
 
 /** Native Object Protocol **/
 
@@ -198,6 +199,10 @@ extern Reference<ForeignType> ForeignFloatTypeObject;
 extern Reference<ForeignType> ForeignDoubleTypeObject;
 extern Reference<ForeignType> ForeignLongDoubleTypeObject;
 
+/* raw pointer types */
+extern Reference<ForeignType> ForeignRawPointerTypeObject;
+extern Reference<ForeignType> ForeignConstRawPointerTypeObject;
+
 /* string types */
 extern Reference<ForeignType> ForeignCStringTypeObject;
 extern Reference<ForeignType> ForeignConstCStringTypeObject;
@@ -208,23 +213,30 @@ class ForeignPointerType : public ForeignType
     Reference<ForeignType> _base;
 
 public:
-    explicit ForeignPointerType(Reference<ForeignType> base, bool isConst) :
-        ForeignPointerType(Utils::Strings::format((isConst ? "const_%s_p" : "%s_p"), base->name()), base, isConst) {}
+    virtual ~ForeignPointerType() = default;
+    explicit ForeignPointerType(const std::string &name, Reference<ForeignType> base, bool isConst);
 
 public:
-    explicit ForeignPointerType(const std::string &name, Reference<ForeignType> base, bool isConst) :
-        ForeignType(name, &ffi_type_pointer),
-        _base(base),
-        _isConst(isConst){}
+    explicit ForeignPointerType(bool isConst) : ForeignPointerType(ForeignVoidTypeObject, isConst) {}
+    explicit ForeignPointerType(Reference<ForeignType> base, bool isConst) : ForeignPointerType(
+        Utils::Strings::format((isConst ? "const_%s_p" : "%s_p"), base->name()),
+        base,
+        isConst
+    ) {}
 
 public:
     bool isConst(void) const { return _isConst; }
     size_t baseSize(void) const { return _base->size(); }
-    Reference<ForeignType> &base(void) { return _base; }
+    Reference<ForeignType> &baseType(void) { return _base; }
 
 public:
     virtual void pack(void *buffer, size_t size, ObjectRef value) const override;
     virtual ObjectRef unpack(const void *buffer, size_t size) const override;
+
+/** Native Object Protocol **/
+
+public:
+    virtual std::string nativeObjectRepr(ObjectRef self) override;
 
 public:
     static Reference<ForeignPointerType> ref(Reference<ForeignType> base)
@@ -253,6 +265,11 @@ struct ForeignCStringType : public ForeignPointerType
 public:
     virtual void pack(void *buffer, size_t size, ObjectRef value) const override;
     virtual ObjectRef unpack(const void *buffer, size_t size) const override;
+
+/** Native Object Protocol **/
+
+public:
+    virtual std::string nativeObjectRepr(ObjectRef self) override;
 
 };
 
@@ -332,24 +349,57 @@ FFI_MAKE_INSTANCE(LongDouble, long double);
 
 #undef FFI_MAKE_INSTANCE
 
-class ForeignStringBuffer : public ForeignInstance
+class ForeignRawBuffer : public ForeignInstance
 {
     bool _free;
-    char *_data;
+    void *_data;
     size_t _size;
 
 public:
-    virtual ~ForeignStringBuffer();
-    explicit ForeignStringBuffer(char *value);
-    explicit ForeignStringBuffer(const std::string &value = "");
+    virtual ~ForeignRawBuffer();
+    explicit ForeignRawBuffer(size_t size) : ForeignRawBuffer(ForeignRawPointerTypeObject, size) {}
+    explicit ForeignRawBuffer(TypeRef type, size_t size) : ForeignRawBuffer(type, nullptr, size, true) {}
 
 public:
-    char *str(void) const { return _data; }
-    size_t length(void) const { return _size; }
+    explicit ForeignRawBuffer(TypeRef type, void *data, size_t size, bool autoRelease);
+    explicit ForeignRawBuffer(TypeRef type, const void *data, size_t size) : ForeignRawBuffer(type, const_cast<void *>(data), size, true) {}
+
+public:
+    void *buffer(void) const { return _data; }
+    size_t bufferSize(void) const { return _size; }
 
 public:
     bool isAutoRelease(void) const { return _free; }
     void setAutoRelease(bool value) { _free = value; }
+
+public:
+    virtual void set(ObjectRef value) override;
+    virtual ObjectRef get(void) const override;
+
+};
+
+class ForeignStringBuffer : public ForeignRawBuffer
+{
+    static inline size_t sizeChecked(size_t size)
+    {
+        /* buffer length check (though very unlikely) */
+        if (size == SIZE_T_MAX)
+            throw Exceptions::ValueError("Buffer too large");
+        else
+            return size;
+    }
+
+public:
+    explicit ForeignStringBuffer(char *value) : ForeignRawBuffer(ForeignCStringTypeObject, value, 0, false) {}
+    explicit ForeignStringBuffer(size_t size) : ForeignRawBuffer(ForeignCStringTypeObject, sizeChecked(size) + 1) { str()[size] = 0; }
+
+public:
+    explicit ForeignStringBuffer(char *value, size_t size);
+    explicit ForeignStringBuffer(const std::string &value = "");
+
+public:
+    char *str(void) const { return reinterpret_cast<char *>(buffer()); }
+    size_t length(void) const { return bufferSize() - 1; }
 
 public:
     virtual void set(ObjectRef value) override;
