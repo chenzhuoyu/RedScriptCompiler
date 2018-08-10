@@ -39,8 +39,8 @@ static Runtime::ObjectRef ffiRef(Runtime::ObjectRef value)
 static Runtime::ObjectRef ffiStringAt(Runtime::ObjectRef addr, Runtime::ObjectRef size)
 {
     /* string buffer address and length */
-    void *buffer = nullptr;
-    size_t length = SIZE_T_MAX;
+    void *buffer;
+    size_t length;
 
     /* address may also be an integer */
     if (addr->isInstanceOf(Runtime::IntTypeObject))
@@ -60,6 +60,7 @@ static Runtime::ObjectRef ffiStringAt(Runtime::ObjectRef addr, Runtime::ObjectRe
         }
 
         /* convert to pointer */
+        length = SIZE_T_MAX;
         buffer = reinterpret_cast<void *>(vbuffer);
     }
 
@@ -110,7 +111,7 @@ static Runtime::ObjectRef ffiStringAt(Runtime::ObjectRef addr, Runtime::ObjectRe
             ));
         }
 
-        /* check for length rage */
+        /* check for length range */
         if ((length = value.toUInt()) >= SIZE_T_MAX)
         {
             throw Runtime::Exceptions::ValueError(Utils::Strings::format(
