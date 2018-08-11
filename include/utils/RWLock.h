@@ -47,7 +47,7 @@ public:
 
 public:
     inline void readUnlock(void) { _writes.fetch_add(1, ACQ_REL); }
-    inline void writeUnlock(void) { _access.store((_reads.load(ACQUIRE) + 1u) | ((_writes.load(ACQUIRE) + 1u) << 16u), RELEASE); }
+    inline void writeUnlock(void) { _access.store((_reads.load(ACQUIRE) + 1ul) | ((_writes.load(ACQUIRE) + 1ul) << 32ul), RELEASE); }
 
 public:
     class Read
