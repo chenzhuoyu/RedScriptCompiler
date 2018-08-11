@@ -1,42 +1,18 @@
 #!/usr/bin/env redscript
 
-native "C" class test()
+native "C" class test(ldflags = '-L/usr/local/lib -lev')
 {
-    int printf(const char *fmt, ...);
-    long strlen(const char *s);
+extern void *ev_loop_new(unsigned int flags);
 
-    int foo(int *x);
-    long bar(const char **xp);
-
-    int foo(int *x) {
-        printf("x is %p\n", x);
-        printf("*x is %d\n", *x);
-        *x += 1;
-        printf("now *x is %d\n", *x);
-        return *x * *x;
-    }
-
-    long bar(const char **xp) {
-        printf("xp is %p\n", xp);
-        printf("*xp is %p\n", *xp);
-        *xp = "hello, world";
-        printf("now *xp is %p\n", *xp);
-        return strlen(*xp);
-    }
+enum foo_t {
+    A,
+    B = 555,
+    C,
+};
 }
 
-import ffi
-x = ffi.int32_t(123)
-print(test.foo)
-print(x)
-print(ffi.ref(x))
-print(test.foo(ffi.ref(x)))
-print(x)
-print('***********')
-a = ffi.char_p()
-print(a)
-n = test.bar(ffi.ref(a))
-print(n)
-print(a)
-print('***********')
-print(repr(ffi.string_at(a, n)))
+print(dir(test))
+print(dir(test.foo_t))
+print(test.foo_t.A)
+print(test.foo_t.B)
+print(test.foo_t.C)

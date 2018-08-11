@@ -78,6 +78,9 @@ public:
 
 public:
     void addObject(const char *name, ObjectRef value) { _attrs.emplace(name, std::move(value)); }
+    void addObject(const std::string &name, ObjectRef value) { _attrs.emplace(name, std::move(value)); }
+
+public:
     void addMethod(Reference<UnboundMethodObject> &&method);
     void addFunction(Reference<NativeFunctionObject> &&function);
 
@@ -109,6 +112,10 @@ public:
 public:
     TypeRef &super(void) { return _super; }
     std::string &name(void) { return _name; }
+
+public:
+    const TypeRef &super(void) const { return _super; }
+    const std::string &name(void) const { return _name; }
 
 public:
     virtual void typeShutdown(void);

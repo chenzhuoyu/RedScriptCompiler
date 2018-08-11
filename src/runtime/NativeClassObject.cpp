@@ -115,10 +115,11 @@ std::string NativeClassType::nativeObjectRepr(ObjectRef self)
     );
 }
 
-NativeClassObject::~NativeClassObject()
+static inline bool buildNativeSource(TCCState *tcc, const std::string &source)
 {
-    attrs().clear();
-    tcc_delete(_tcc);
+    auto size = source.size();
+    auto buffer = source.data();
+    return (tcc_compile_string_ex(tcc, "<native>", buffer, size) >= 0) && (tcc_relocate(tcc) >= 0);
 }
 
 NativeClassObject::NativeClassObject(
@@ -127,7 +128,19 @@ NativeClassObject::NativeClassObject(
     Runtime::Reference<Runtime::MapObject> &&options
 ) : Object(NativeClassTypeObject), _tcc(tcc_new()), _name(name)
 {
-    /* convert all items to pair vector */
+    /* initialize tcc */
+    tcc_set_options(_tcc, "-nostdlib");
+    tcc_set_options(_tcc, "-rdynamic");
+    tcc_set_output_type(_tcc, TCC_OUTPUT_MEMORY);
+
+    /* error output function */
+    tcc_set_error_func(_tcc, this, [](TCCState *s, int isWarning, const char *file, int line, const char *message, void *ctx)
+    {
+        NativeClassObject *self = static_cast<NativeClassObject *>(ctx);
+        self->_errors.emplace_back(file ?: "", line, (isWarning != 0), message);
+    });
+
+    /* parse options */
     options->enumerate([&](ObjectRef key, ObjectRef value)
     {
         /* key must be string */
@@ -138,31 +151,26 @@ NativeClassObject::NativeClassObject(
         if (value->isNotInstanceOf(StringTypeObject))
             throw Exceptions::InternalError("Non-string values");
 
-        /* add to options list */
-        _options.emplace_back(key.as<StringObject>()->value(), value.as<StringObject>()->value());
+        /* extract key and value strings */
+        auto &skey = key.as<StringObject>()->value();
+        auto &svalue = value.as<StringObject>()->value();
+
+        /* add CFLAGS and LDFLAGS */
+        if ((skey == "cflags") || (skey == "ldflags"))
+            tcc_set_options(_tcc, svalue.c_str());
+
+        /* continue enumerating */
         return true;
     });
 
-    /* initialize tcc */
-    tcc_set_options(_tcc, "-nostdlib");
-    tcc_set_output_type(_tcc, TCC_OUTPUT_MEMORY);
-
-    /* error output function */
-    tcc_set_error_func(_tcc, this, [](TCCState *s, int isWarning, const char *file, int line, const char *message, void *ctx)
-    {
-        NativeClassObject *self = static_cast<NativeClassObject *>(ctx);
-        self->_errors.emplace_back(file ?: "(\?\?)", line, (isWarning != 0), message);
-    });
-
-    /* compile the code */
-    if (tcc_compile_string_ex(_tcc, "<native>", code.data(), code.size()) < 0)
-        for (const auto &ctx : _errors)
-            if (!(ctx->isWarning()))
-                throw ctx;
-
-    /* link the code in memory */
-    if (tcc_relocate(_tcc) < 0)
+    /* compile the code and link the code in memory */
+    if (!(buildNativeSource(_tcc, code)))
         throw Exceptions::RuntimeError("Unable to link native object in memory");
+
+    /* handle all the errors */
+    for (const auto &ctx : _errors)
+        if (!(ctx->isWarning()))
+            throw ctx;
 
     /* add all the types */
     tcc_list_types(_tcc, [](TCCState *s, const char *name, TCCType *type, void *self) -> char
@@ -181,13 +189,23 @@ NativeClassObject::NativeClassObject(
 
 void NativeClassObject::addType(const char *name, TCCType *type)
 {
-    printf("* TYPE :: %s\n", type2str(_tcc, type, name).c_str());
+    auto ntype = makeForeignType(type);
+    addObject(ntype->name(), std::move(ntype));
 }
 
 void NativeClassObject::addFunction(const char *name, TCCFunction *func)
 {
     auto fname = name ?: tcc_function_get_name(func);
-    addObject(name, Object::newObject<ForeignFunction>(this, _tcc, fname, func));
+    addObject(fname, Object::newObject<ForeignFunction>(this, _tcc, fname, func));
+}
+
+static inline std::string makeTypeName(const char *name)
+{
+    if (name[0] && (name[0] == 'L') &&
+        name[1] && (name[1] == '.'))
+        return Utils::Strings::format("__anonymous_%s__", makeTypeName(name + 2));
+    else
+        return name;
 }
 
 Reference<ForeignType> NativeClassObject::makeForeignType(TCCType *type)
@@ -196,7 +214,34 @@ Reference<ForeignType> NativeClassObject::makeForeignType(TCCType *type)
     int id = tcc_type_get_id(type);
     decltype(_types.find(type)) iter;
 
-    /* convert types */
+    /* special case: enums */
+    if (IS_ENUM(id))
+    {
+        /* enum name */
+        auto tname = tcc_type_get_name(type);
+        auto ename = makeTypeName(tname);
+
+        /* read from cache if possible */
+        if (_enums.find(ename) == _enums.end())
+        {
+            /* create the enumeration type and object */
+            auto etype = Object::newObject<ForeignEnumType>(ename);
+            auto evalues = Object::newObject<Object>(etype);
+
+            /* add all fields into enum namespace */
+            tcc_type_list_items(_tcc, type, [](TCCState *s, TCCType *t, const char *name, long long val, void *pn) -> char
+            {
+                (*(reinterpret_cast<decltype(etype) *>(pn)))->attrs().emplace(name, IntObject::fromInt(val));
+                return 1;
+            }, &etype);
+
+            /* add to enums and objects */
+            addObject(ename, std::move(evalues));
+            _enums.emplace(ename, std::move(etype));
+        }
+    }
+
+    /* other types */
     switch (id & VT_BTYPE)
     {
         /* primitive types */
@@ -251,14 +296,14 @@ Reference<ForeignType> NativeClassObject::makeForeignType(TCCType *type)
         case VT_FUNC:
         {
             // TODO: implement VT_FUNC
-            throw Exceptions::InternalError("not implemented: VT_FUNC");
+            return ForeignConstRawPointerTypeObject;
         }
 
         /* structs */
         case VT_STRUCT:
         {
             // TODO: implement VT_STRUCT
-            throw Exceptions::InternalError("not implemented: VT_STRUCT");
+            throw Exceptions::InternalError("not implemented: VT_STRUCT :: " + type2str(_tcc, type, nullptr));
         }
 
         /* other unknown types */
@@ -891,6 +936,15 @@ ForeignFunction::ForeignFunction(NativeClassObject *self, TCCState *s, const cha
     _isVarg(tcc_function_is_variadic(func)),
     _rettype(self->makeForeignType(tcc_function_get_return_type(func)))
 {
+    /* check function address */
+    if (_func == nullptr)
+    {
+        throw Exceptions::AttributeError(Utils::Strings::format(
+            "Undefined reference to function \"%s\"",
+            _name
+        ));
+    }
+
     /* reserve spaces */
     _argsf.resize(tcc_function_get_nargs(func));
     _argsp.resize(tcc_function_get_nargs(func));

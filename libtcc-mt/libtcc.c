@@ -1674,7 +1674,7 @@ LIBTCCAPI int tcc_add_library(TCCState *s, const char *libraryname)
     const char **pp = s->static_link ? libs + 1 : libs;
 #else
     const char *libs[] = { "%s/lib%s.so", "%s/lib%s.a", NULL };
-    const char **pp = s->static_link ? libs + 1 : libs;
+    const char **pp = s->static_link ? libs + 2 : libs;
 #endif
     while (*pp) {
         if (0 == tcc_add_library_internal(s, *pp,
@@ -1725,7 +1725,7 @@ LIBTCCAPI void tcc_set_lib_path(TCCState *s, const char *path)
 #define FD_INVERT 0x0002 /* invert value before storing */
 
 typedef struct FlagDef {
-    uint16_t offset;
+    size_t offset;
     uint16_t flags;
     const char *name;
 } FlagDef;
@@ -2278,6 +2278,7 @@ reparse:
             break;
         case TCC_OPTION_l:
             args_parser_add_file(s, optarg, AFF_TYPE_LIB);
+            tcc_add_library_err(s, optarg);
             s->nb_libraries++;
             break;
         case TCC_OPTION_pthread:

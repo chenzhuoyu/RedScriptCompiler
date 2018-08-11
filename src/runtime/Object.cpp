@@ -854,8 +854,8 @@ TypeRef Type::create(const std::string &name, Reference<MapObject> dict, TypeRef
 {
     /* create a new type */
     TypeRef type = super.isNull()
-                   ? Object::newObject<ObjectType>(name)
-                   : Object::newObject<ObjectType>(name, super);
+        ? Object::newObject<ObjectType>(name)
+        : Object::newObject<ObjectType>(name, super);
 
     /* fill the type dict if any */
     if (dict.isNotNull())

@@ -47,11 +47,13 @@ class NativeClassObject : public Object
     std::string _code;
     std::string _name;
     std::vector<Exceptions::NativeSyntaxError> _errors;
-    std::vector<std::pair<std::string, std::string>> _options;
+
+private:
     std::unordered_map<TCCType *, Reference<ForeignType>> _types;
+    std::unordered_map<std::string, Reference<NativeType>> _enums;
 
 public:
-    virtual ~NativeClassObject();
+    virtual ~NativeClassObject() { tcc_delete(_tcc); }
     explicit NativeClassObject(
         const std::string &name,
         const std::string &code,
@@ -173,6 +175,26 @@ FFI_MAKE_FLOAT_TYPE(LongDouble, long_double, longdouble);
 #undef FFI_MAKE_INT_TYPE
 #undef FFI_MAKE_UINT_TYPE
 #undef FFI_MAKE_FLOAT_TYPE
+
+struct ForeignEnumType : public NativeType
+{
+    virtual ~ForeignEnumType() = default;
+    explicit ForeignEnumType(const std::string &name) : NativeType(name) {}
+
+public:
+    virtual ObjectRef nativeObjectNew(TypeRef type, Reference<TupleObject> args, Reference<MapObject> kwargs) override
+    {
+        throw Exceptions::TypeError(Utils::Strings::format(
+            "Cannot create instances of enum type \"%s\"",
+            name()
+        ));
+    }
+};
+
+struct ForeignStructType : public ForeignType
+{
+
+};
 
 /* wrapped primitive FFI types */
 extern Reference<ForeignType> ForeignVoidTypeObject;

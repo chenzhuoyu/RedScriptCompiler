@@ -30,6 +30,10 @@ add_definitions(-DONE_SOURCE=0)
 add_definitions(-DTCC_TARGET_X86_64)
 add_definitions(-DCONFIG_TRIPLET="x86_64-linux-gnu")
 
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    add_definitions(-DTCC_TARGET_MACHO)
+endif ()
+
 link_directories(
         /usr/local/lib
         ${CMAKE_SOURCE_DIR}/libbid/lib)
