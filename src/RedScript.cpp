@@ -119,6 +119,9 @@ void shutdown(void)
     Runtime::SliceObject::shutdown();
     Runtime::ProxyObject::shutdown();
     Runtime::Object::shutdown();
+
+    /* shutdown the garbage collector */
+    Engine::GarbageCollector::shutdown();
 }
 
 void initialize(size_t stack)

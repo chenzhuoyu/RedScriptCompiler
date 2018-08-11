@@ -63,6 +63,7 @@ public:
     };
 
 public:
+    static void shutdown(void);
     static size_t collect(CollectionMode mode);
 
 };

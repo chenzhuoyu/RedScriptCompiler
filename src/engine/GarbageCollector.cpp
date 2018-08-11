@@ -262,6 +262,22 @@ void *GarbageCollector::alloc(size_t size)
     return FROM_GC(Memory::construct<GCObject>(Memory::alloc(size)));
 }
 
+void GarbageCollector::shutdown(void)
+{
+    /* should have no objects left at this point */
+    for (const auto &gen : Generations)
+    {
+        if (gen.used > 0)
+        {
+            throw std::logic_error(Utils::Strings::format(
+                "Object leak found in generation %d: %zu object(s) leaked",
+                gen.name,
+                gen.used
+            ));
+        }
+    }
+}
+
 size_t GarbageCollector::collect(CollectionMode mode)
 {
     /* check the collecting flags */
