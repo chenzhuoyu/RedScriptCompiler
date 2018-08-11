@@ -44,11 +44,6 @@ static std::string type2str(TCCState *s, TCCType *t, const char *n)
 {
     int id = tcc_type_get_id(t);
     std::string name = n ?: tcc_type_get_name(t);
-    static std::unordered_set<TCCType *> ts;
-
-    if (ts.find(t) != ts.end())
-        return Utils::Strings::format("(%p...)", static_cast<void *>(t));
-    ts.insert(t);
 
     if (!n || !strcmp(n, tcc_type_get_name(t)))
     {
@@ -108,7 +103,6 @@ static std::string type2str(TCCState *s, TCCType *t, const char *n)
         name += "}";
     }
 
-    ts.erase(t);
     return Utils::Strings::format("(%p)%s", static_cast<void *>(t), name);
 }
 

@@ -2,9 +2,7 @@
 #define REDSCRIPT_UTILS_SPINLOCK_H
 
 #include <atomic>
-#include <shared_mutex>
 
-#include "engine/Thread.h"
 #include "utils/Immovable.h"
 #include "utils/NonCopyable.h"
 
@@ -12,15 +10,26 @@ namespace RedScript::Utils
 {
 class SpinLock final : public Immovable, public NonCopyable
 {
-    int _flags;
-    Engine::Thread *_owner;
+    struct
+    {
+        std::atomic_uint32_t _users;
+        std::atomic_uint32_t _ticket;
+    };
+
+private:
+    static constexpr auto ACQ_REL = std::memory_order_acq_rel;
+    static constexpr auto ACQUIRE = std::memory_order_acquire;
 
 public:
-    SpinLock() : _flags(0), _owner(nullptr) {}
+    SpinLock() : _users(0), _ticket(0) {}
 
 public:
-    bool isLocked(void) const { return _flags != 0; }
-    Engine::Thread *owner(void) const { return _owner; }
+    inline void release(void) { _ticket.fetch_add(1, ACQ_REL); }
+    inline void acquire(void)
+    {
+        auto id = _users.fetch_add(1, ACQ_REL);
+        while (id != _ticket.load(ACQUIRE));
+    }
 
 public:
     class Scope
@@ -28,18 +37,9 @@ public:
         SpinLock &_lock;
 
     public:
-       ~Scope()
-       {
-            _lock._owner = nullptr;
-            __sync_lock_release(&(_lock._flags));
-       }
+       ~Scope() { _lock.release(); }
+        Scope(SpinLock &lock) : _lock(lock) { _lock.acquire(); }
 
-    public:
-        Scope(SpinLock &lock) : _lock(lock)
-        {
-            while (__sync_lock_test_and_set(&(_lock._flags), 1));
-            _lock._owner = Engine::Thread::self();
-        }
     };
 };
 }

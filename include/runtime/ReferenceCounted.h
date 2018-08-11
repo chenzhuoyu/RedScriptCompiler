@@ -2,6 +2,7 @@
 #define REDSCRIPT_RUNTIME_REFERENCECOUNTED_H
 
 #include <new>
+#include <atomic>
 #include <cstdio>
 #include <cstdint>
 #include <climits>
@@ -193,13 +194,13 @@ private:
     inline void ref(void) const
     {
         if (_object)
-            __sync_add_and_fetch(&(_object->_refCount), 1);
+            _object->_refCount.fetch_add(1, std::memory_order_relaxed);
     }
 
 private:
     inline void unref(void)
     {
-        if (_object && !(__sync_sub_and_fetch(&(_object->_refCount), 1)))
+        if (_object && (_object->_refCount.fetch_sub(1, std::memory_order_relaxed) == 1))
         {
             T *temp = _object;
             _object = nullptr;
@@ -325,7 +326,7 @@ class ReferenceCounted : public Utils::Immovable, public Utils::NonCopyable
 
 private:
     bool _isStatic;
-    int32_t _refCount;
+    std::atomic_int32_t _refCount;
 
 protected:
     virtual ~ReferenceCounted() = default;
@@ -336,7 +337,7 @@ public:
 
 public:
     bool isStatic(void) const { return _isStatic; }
-    int32_t refCount(void) const { return _refCount; }
+    int32_t refCount(void) const { return _refCount.load(std::memory_order_relaxed); }
 
 public:
     void track(void) const;

@@ -1,3 +1,5 @@
+#include <atomic>
+
 #include "runtime/IntObject.h"
 #include "runtime/BoolObject.h"
 #include "runtime/CodeObject.h"
@@ -428,8 +430,8 @@ void CodeGenerator::visitFunction(const std::unique_ptr<AST::Function> &node)
     }
     else
     {
-        static size_t lambdaId = 0;
-        buildFunctionObject(Utils::Strings::format("<lambda-%zu>", __sync_fetch_and_add(&lambdaId, 1)), node);
+        static std::atomic_size_t lambdaId = 0;
+        buildFunctionObject(Utils::Strings::format("<lambda-%zu>", lambdaId++), node);
     }
 }
 

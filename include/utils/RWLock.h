@@ -2,9 +2,7 @@
 #define REDSCRIPT_UTILS_READWRITELOCK_H
 
 #include <atomic>
-#include <shared_mutex>
 
-#include "engine/Thread.h"
 #include "utils/Immovable.h"
 #include "utils/NonCopyable.h"
 
@@ -16,44 +14,40 @@ class RWLock final : public Immovable, public NonCopyable
     {
         struct
         {
-            uint16_t _reads;
-            uint16_t _writes;
-            uint16_t _tickets;
+            std::atomic_uint32_t _reads;
+            std::atomic_uint32_t _writes;
+            std::atomic_uint32_t _tickets;
         };
 
-        uint64_t _all;
-        uint32_t _access;
+        std::atomic_uint64_t _access;
     };
 
 private:
-    size_t _rlocks;
-    Engine::Thread *_owner;
+    static constexpr auto ACQ_REL = std::memory_order_acq_rel;
+    static constexpr auto ACQUIRE = std::memory_order_acquire;
+    static constexpr auto RELEASE = std::memory_order_release;
 
 public:
-    RWLock() : _all(0), _rlocks(0), _owner(nullptr) {}
+    RWLock() : _reads(0), _writes(0), _tickets(0) {}
 
 public:
-    size_t reads(void) const { return _rlocks; }
-    Engine::Thread *owner(void) const { return _owner; }
-
-public:
-    void readLock(void)
+    inline void readLock(void)
     {
-        auto tk = __sync_fetch_and_add(&_tickets, 1);
-        while (tk != _reads);
-        __sync_add_and_fetch(&_reads, 1);
+        auto tk = _tickets.fetch_add(1, ACQ_REL);
+        while (tk != _reads.load(ACQUIRE));
+        _reads.fetch_add(1, ACQ_REL);
     }
 
 public:
-    void writeLock(void)
+    inline void writeLock(void)
     {
-        auto tk = __sync_fetch_and_add(&_tickets, 1);
-        while (tk != _writes);
+        auto tk = _tickets.fetch_add(1, ACQ_REL);
+        while (tk != _writes.load(ACQUIRE));
     }
 
 public:
-    void readUnlock(void) { __sync_add_and_fetch(&_writes, 1); }
-    void writeUnlock(void) { _access = (_reads + 1u) | ((_writes + 1u) << 16u); }
+    inline void readUnlock(void) { _writes.fetch_add(1, ACQ_REL); }
+    inline void writeUnlock(void) { _access.store((_reads.load(ACQUIRE) + 1u) | ((_writes.load(ACQUIRE) + 1u) << 16u), RELEASE); }
 
 public:
     class Read
@@ -61,18 +55,9 @@ public:
         RWLock &_lock;
 
     public:
-        ~Read()
-        {
-            __sync_sub_and_fetch(&(_lock._rlocks), 1);
-            _lock.readUnlock();
-        }
+       ~Read() { _lock.readUnlock(); }
+        Read(RWLock &lock) : _lock(lock) { _lock.readLock(); }
 
-    public:
-        Read(RWLock &lock) : _lock(lock)
-        {
-            _lock.readLock();
-            __sync_add_and_fetch(&(_lock._rlocks), 1);
-        }
     };
 
 public:
@@ -81,18 +66,9 @@ public:
         RWLock &_lock;
 
     public:
-        ~Write()
-        {
-            _lock._owner = nullptr;
-            _lock.writeUnlock();
-        }
+       ~Write() { _lock.writeUnlock(); }
+        Write(RWLock &lock) : _lock(lock) { _lock.writeLock(); }
 
-    public:
-        Write(RWLock &lock) : _lock(lock)
-        {
-            _lock.writeLock();
-            _lock._owner = Engine::Thread::self();
-        }
     };
 };
 }

@@ -1,10 +1,11 @@
 #include <new>
-#include <mutex>
 #include <memory>
 #include <cstdlib>
 #include <stdexcept>
 
+#include "utils/Strings.h"
 #include "utils/SpinLock.h"
+
 #include "engine/Memory.h"
 #include "engine/GarbageCollector.h"
 
@@ -22,8 +23,8 @@ static_assert(
 struct Generation
 {
     size_t size;
-    size_t used;
     int32_t name;
+    std::atomic_size_t used;
 
 private:
     GCNode _head;
@@ -68,13 +69,13 @@ public:
     void addObject(GCNode *object)
     {
         attach(object);
-        __sync_add_and_fetch(&used, 1);
+        used.fetch_add(1, std::memory_order_relaxed);
     }
 
 public:
     void removeObject(GCNode *object)
     {
-        __sync_sub_and_fetch(&used, 1);
+        used.fetch_sub(1, std::memory_order_relaxed);
         detach(object);
     }
 
@@ -198,8 +199,8 @@ public:
         _head.prev = &_head;
 
         /* update the generation size */
-        size = __sync_fetch_and_and(&used, 0);
-        __sync_add_and_fetch(&(target.used), size);
+        size = used.exchange(0, std::memory_order_relaxed);
+        target.used.fetch_add(size, std::memory_order_relaxed);
         return size;
     }
 
@@ -220,8 +221,8 @@ static Generation Generations[] = {
 };
 
 /* garbage collector state */
-static int _isCollecting = 0;
 static size_t _residentObjects = 0;
+static std::atomic_flag _isCollecting = false;
 
 /*** GCObject implementations ***/
 
@@ -281,7 +282,7 @@ void GarbageCollector::shutdown(void)
 size_t GarbageCollector::collect(CollectionMode mode)
 {
     /* check the collecting flags */
-    if (__sync_lock_test_and_set(&_isCollecting, 1))
+    if (_isCollecting.test_and_set(std::memory_order_acquire))
         return 0;
 
     /* calculate generation count */
@@ -343,7 +344,7 @@ size_t GarbageCollector::collect(CollectionMode mode)
     }
 
     /* clear the collecting flags */
-    __sync_lock_release(&_isCollecting);
+    _isCollecting.clear(std::memory_order_release);
     return n;
 }
 }
