@@ -323,7 +323,7 @@ size_t GarbageCollector::collect(CollectionMode mode)
                     if (i != count)
                     {
                         n += Generations[i - 1].collect();
-                        __sync_add_and_fetch(&_residentObjects, Generations[i - 1].move(Generations[i]));
+                        _residentObjects += Generations[i - 1].move(Generations[i]);
                     }
 
                     /* too many resident objects, force a full collection */
