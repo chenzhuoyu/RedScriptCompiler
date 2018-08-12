@@ -944,6 +944,7 @@ struct TCCType {
     char **names;
     int nb_names;
     int nb_values;
+    unsigned short alignment;
 };
 
 struct TCCFunction {

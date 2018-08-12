@@ -1423,6 +1423,7 @@ ST_FUNC TCCType *tcc_resolver_add_type(TCCState *s1, CType *type)
         case VT_STRUCT: {
             Sym *sym = type->ref->next;
             vtype->name = tcc_strdup(s1, get_tok_str(s1, type->ref->v & ~SYM_STRUCT, NULL));
+            vtype->alignment = type->ref->r;
 
             if (!(ptype = (TCCType **)hashmap_lookup(s1, &s1->types, vtype->name))) {
                 vtype->t |= VT_FORWARD;
@@ -1576,6 +1577,11 @@ LIBTCCAPI TCCType *tcc_type_get_ref(TCCType *t)
 LIBTCCAPI const char *tcc_type_get_name(TCCType *t)
 {
     return t->name;
+}
+
+LIBTCCAPI unsigned short tcc_type_get_alignment(TCCType *t)
+{
+    return IS_STRUCT(t->t) ? t->alignment : (unsigned short)-1;
 }
 
 LIBTCCAPI ssize_t tcc_type_get_nkeys(TCCType *t)

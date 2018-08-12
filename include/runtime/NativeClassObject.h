@@ -84,7 +84,7 @@ class ForeignType : public NativeType
 
 public:
     virtual ~ForeignType() = default;
-    explicit ForeignType(const std::string &name, ffi_type *type);
+    explicit ForeignType(const std::string &name, ffi_type *type, bool addBuiltins = true);
 
 public:
     size_t size(void) const { return _ftype ? _ftype->size : 0; }
@@ -200,20 +200,17 @@ public:
 
 class ForeignStructType : public ForeignType
 {
+    std::vector<size_t> _fields;
     std::vector<std::string> _names;
     std::vector<Reference<ForeignType>> _types;
 
 public:
     virtual ~ForeignStructType();
-    explicit ForeignStructType(const std::string &name, size_t fields);
+    explicit ForeignStructType(const std::string &name, size_t fields, uint16_t align);
 
 public:
-    inline void addField(std::string &&name, Reference<ForeignType> &&type)
-    {
-        _names.emplace_back(std::move(name));
-        _types.emplace_back(std::move(type));
-        // TODO: add field getter and setter
-    }
+    void addField(std::string &&name, Reference<ForeignType> &&type);
+    void addProperties(void);
 
 public:
     virtual void pack(void *buffer, size_t size, ObjectRef value) const override;
@@ -223,22 +220,12 @@ public:
     virtual void referenceClear(void) override { _types.clear(); }
     virtual void referenceTraverse(VisitFunction visit) override { for (auto &type : _types) visit(type); }
 
-private:
-    static inline ffi_type *newStructType(size_t fields)
-    {
-        /* create a new FFI type */
-        size_t i = 0;
-        ffi_type *result = Engine::Memory::alloc<ffi_type>();
+/** Native Object Protocol **/
 
-        /* size and struct elements */
-        result->size = 0;
-        result->elements = Engine::Memory::alloc<ffi_type *>(fields);
+public:
+    virtual std::string nativeObjectRepr(ObjectRef self) override;
+    virtual ObjectRef nativeObjectNew(TypeRef type, Reference<TupleObject> args, Reference<MapObject> kwargs) override;
 
-        /* fields list */
-        result->type = FFI_TYPE_STRUCT;
-        result->alignment = 1;
-        return result;
-    }
 };
 
 /* wrapped primitive FFI types */
@@ -349,6 +336,9 @@ public:
 
 public:
     void *data(void) const { return _data; }
+    void *field(size_t offset) const { return reinterpret_cast<char *>(_data) + offset; }
+
+public:
     size_t size(void) const { return _size; }
     ffi_type *ftype(void) const { return _ftype->ftype(); }
 

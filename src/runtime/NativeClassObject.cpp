@@ -218,7 +218,8 @@ NativeClassObject::NativeClassObject(
 
     /* compile the code and link the code in memory */
     if (!(buildNativeSource(_tcc, code)))
-        throw Exceptions::RuntimeError("Unable to link native object in memory");
+        if (_errors.empty())
+            throw Exceptions::RuntimeError("Unable to link native object in memory");
 
     /* handle all the errors */
     for (const auto &ctx : _errors)
@@ -371,12 +372,13 @@ Reference<ForeignType> NativeClassObject::makeForeignType(TCCType *type)
             } ctx;
 
             /* type name and field count */
-            auto name = makeTypeName(tcc_type_get_name(type));
-            auto count = static_cast<size_t>(tcc_type_get_nkeys(type));
+            auto align = tcc_type_get_alignment(type);
+            auto tname = makeTypeName(tcc_type_get_name(type));
+            auto fcount = static_cast<size_t>(tcc_type_get_nkeys(type));
 
             /* add to type cache first */
             ctx.self = this;
-            ctx.result = Object::newObject<ForeignStructType>(name, count);
+            ctx.result = Object::newObject<ForeignStructType>(tname, fcount, align);
             _types.emplace(type, ctx.result);
 
             /* enumerate all fields */
@@ -387,7 +389,8 @@ Reference<ForeignType> NativeClassObject::makeForeignType(TCCType *type)
                 return 1;
             }, &ctx);
 
-            /* move to prevent copy */
+            /* add type properties */
+            ctx.result->addProperties();
             return std::move(ctx.result);
         }
 
@@ -608,7 +611,7 @@ void NativeClassObject::initialize(void)
 
 /** Abstract Foreign Type **/
 
-static inline ForeignInstance *foreignTypeCheck(ObjectRef &self)
+static inline ForeignInstance *foreignInstanceCheck(ObjectRef &self)
 {
     /* convert to root foreign instance */
     Object *obj = self.get();
@@ -621,29 +624,32 @@ static inline ForeignInstance *foreignTypeCheck(ObjectRef &self)
     /* instance type mismatch */
     throw Exceptions::TypeError(Utils::Strings::format(
         "Argument must be a foreign instance, not \"%s\"",
-        self->type()->name()
+        obj->type()->name()
     ));
 }
 
 static ObjectRef foreignTypeValueGetter(ObjectRef self, ObjectRef type)
 {
     /* read it's value */
-    return foreignTypeCheck(self)->get();
+    return foreignInstanceCheck(self)->get();
 }
 
 static ObjectRef foreignTypeValueSetter(ObjectRef self, ObjectRef type, ObjectRef value)
 {
     /* set it's value */
-    foreignTypeCheck(self)->set(value);
+    foreignInstanceCheck(self)->set(value);
     return std::move(value);
 }
 
-ForeignType::ForeignType(const std::string &name, ffi_type *type) : NativeType(name), _ftype(type)
+ForeignType::ForeignType(const std::string &name, ffi_type *type, bool addBuiltins) : NativeType(name), _ftype(type)
 {
-    addObject("value", ProxyObject::newReadWrite(
-        NativeFunctionObject::newBinary("__get__", &foreignTypeValueGetter),
-        NativeFunctionObject::newTernary("__set__", &foreignTypeValueSetter)
-    ));
+    if (addBuiltins)
+    {
+        addObject("value", ProxyObject::newReadWrite(
+            NativeFunctionObject::newBinary("__get__", &foreignTypeValueGetter),
+            NativeFunctionObject::newTernary("__set__", &foreignTypeValueSetter)
+        ));
+    }
 }
 
 std::string ForeignType::nativeObjectRepr(ObjectRef self)
@@ -823,28 +829,120 @@ ObjectRef ForeignLongDoubleType::unpack(const void *buffer, size_t size) const F
 
 /** Foreign Struct Type Implementations **/
 
+static inline ffi_type *newStructType(size_t fields, uint16_t align)
+{
+    /* create a new struct type */
+    ffi_type *result = Engine::Memory::alloc<ffi_type>();
+    ffi_type **elements =  Engine::Memory::alloc<ffi_type *>(fields);
+
+    /* initialize struct type */
+    result->size = 0;
+    result->type = FFI_TYPE_STRUCT;
+    result->elements = elements;
+    result->alignment = align;
+    return result;
+}
+
 ForeignStructType::~ForeignStructType()
 {
     Engine::Memory::free(ftype()->elements);
     Engine::Memory::free(ftype());
 }
 
-ForeignStructType::ForeignStructType(const std::string &name, size_t fields) : ForeignType(name, newStructType(fields))
+ForeignStructType::ForeignStructType(const std::string &name, size_t fields, uint16_t align) :
+    ForeignType(name, newStructType(fields, align), false)
 {
     track();
     _names.reserve(fields);
     _types.reserve(fields);
+    _fields.reserve(fields);
+}
+
+void ForeignStructType::addField(std::string &&name, Reference<ForeignType> &&type)
+{
+    /* type size cannot be zero */
+    if (type->size() == 0)
+        throw Exceptions::InternalError("Void field type");
+
+    /* size, offset and field alignment */
+    size_t size = type->size();
+    size_t offset = ftype()->size;
+    size_t alignment = ftype()->alignment;
+
+    /* align the size as needed */
+    if (alignment != 1)
+        size = ((size - 1) / alignment + 1) * alignment;
+
+    /* add to FFI type descriptor */
+    ftype()->size += size;
+    ftype()->elements[_names.size()] = type->ftype();
+
+    /* add to name and type list */
+    _names.emplace_back(std::move(name));
+    _types.emplace_back(std::move(type));
+    _fields.emplace_back(offset);
+}
+
+void ForeignStructType::addProperties(void)
+{
+    /* add each field in order */
+    for (size_t i = 0; i < _names.size(); i++)
+    {
+        /* property getter */
+        auto getter = [=](ObjectRef self, ObjectRef type) -> ObjectRef
+        {
+            return _types[i]->unpack(
+                foreignInstanceCheck(self)->field(_fields[i]),
+                _types[i]->size()
+            );
+        };
+
+        /* property setter */
+        auto setter = [=](ObjectRef self, ObjectRef type, ObjectRef value) -> ObjectRef
+        {
+            _types[i]->pack(foreignInstanceCheck(self)->field(_fields[i]), _types[i]->size(), value);
+            return std::move(value);
+        };
+
+        /* create attribute proxy */
+        addObject(_names[i], ProxyObject::newReadWrite(
+            NativeFunctionObject::newBinary("__get__", getter),
+            NativeFunctionObject::newTernary("__set__", setter)
+        ));
+    }
 }
 
 void ForeignStructType::pack(void *buffer, size_t size, ObjectRef value) const
 {
+    /* type size check */
+    if (size < this->size())
+        throw Exceptions::InternalError("Insufficient space for structs");
+
     // TODO: pack struct
+    throw Exceptions::InternalError("not implemented: pack struct");
 }
 
 ObjectRef ForeignStructType::unpack(const void *buffer, size_t size) const
 {
+    /* type size check */
+    if (size < this->size())
+        throw Exceptions::RuntimeError("EOF when unpacking structs");
+
     // TODO: unpack struct
-    return RedScript::Runtime::ObjectRef();
+    throw Exceptions::InternalError("not implemented: unpack struct");
+}
+
+std::string ForeignStructType::nativeObjectRepr(ObjectRef self)
+{
+    // TODO: struct representation
+    return ForeignType::nativeObjectRepr(self);
+}
+
+ObjectRef ForeignStructType::nativeObjectNew(TypeRef type, Reference<TupleObject> args, Reference<MapObject> kwargs)
+{
+    // TODO: handle kwargs
+    auto result = Object::newObject<ForeignInstance>(type);
+    return result;
 }
 
 /** Foreign Pointer Type Implementations **/
@@ -874,13 +972,21 @@ void ForeignPointerType::pack(void *buffer, size_t size, ObjectRef value) const
 
 ObjectRef ForeignPointerType::unpack(const void *buffer, size_t size) const
 {
+    /* null pointer check */
+    if (buffer == nullptr)
+        throw Exceptions::RuntimeError("Null-pointer dereferencing");
+
+    /* get the underlying value type */
+    auto obj = const_cast<ForeignPointerType *>(this);
+    auto type = obj->self().as<ForeignType>();
+
     /* type size check */
-    if (size < sizeof(void *))
+    if (size < obj->size())
         throw Exceptions::RuntimeError("EOF when unpacking pointers");
 
     /* wrap as raw pointer */
-    void *sp = *(reinterpret_cast<void * const *>(buffer));
-    return Object::newObject<ForeignRawBuffer>(ForeignRawPointerTypeObject, sp, 0, false);
+    auto sp = *(reinterpret_cast<void * const *>(buffer));
+    return Object::newObject<ForeignRawBuffer>(type, sp, obj->size(), false);
 }
 
 std::string ForeignPointerType::nativeObjectRepr(ObjectRef self)
@@ -961,7 +1067,9 @@ static bool foreignPointerAutoReleaseSetter(ObjectRef self, ObjectRef type, bool
 }
 
 ForeignPointerType::ForeignPointerType(const std::string &name, Reference<ForeignType> base, bool isConst) :
-    ForeignType(name, &ffi_type_pointer), _base(base), _isConst(isConst)
+    ForeignType(name, &ffi_type_pointer),
+    _base(base),
+    _isConst(isConst)
 {
     /* addr and alloc property */
     addObject("addr", ProxyObject::newReadOnly(NativeFunctionObject::fromFunction("__get__", &foreignPointerAddrGetter)));
@@ -1171,6 +1279,23 @@ ObjectRef ForeignFunction::invoke(Utils::NFI::VariadicArgs args, Utils::NFI::Key
 
 /** Foreign Raw Buffer Implementations **/
 
+static inline ForeignType *foreignTypeCheck(TypeRef &type)
+{
+    /* convert to root foreign instance */
+    Type *obj = type.get();
+    ForeignType *ftype = dynamic_cast<ForeignType *>(obj);
+
+    /* foreign type check */
+    if (ftype != nullptr)
+        return ftype;
+
+    /* instance type mismatch */
+    throw Exceptions::TypeError(Utils::Strings::format(
+        "Argument must be a foreign type, not \"%s\"",
+        obj->name()
+    ));
+}
+
 ForeignRawBuffer::~ForeignRawBuffer()
 {
     if (_free)
@@ -1207,14 +1332,14 @@ ForeignRawBuffer::ForeignRawBuffer(TypeRef type, void *data, size_t size, bool a
 
 void ForeignRawBuffer::set(ObjectRef value)
 {
-    /* cannot set void pointers */
-    throw Exceptions::TypeError("Cannot set value of raw pointers");
+    auto &type = this->type();
+    foreignTypeCheck(type)->pack(buffer(), bufferSize(), std::move(value));
 }
 
 ObjectRef ForeignRawBuffer::get(void) const
 {
-    /* cannot get void pointers */
-    throw Exceptions::TypeError("Cannot get value of raw pointers");
+    auto &type = const_cast<ForeignRawBuffer *>(this)->type();
+    return foreignTypeCheck(type)->unpack(buffer(), bufferSize());
 }
 
 /** Foreign String Buffer Implementations **/

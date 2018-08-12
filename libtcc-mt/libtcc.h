@@ -128,6 +128,7 @@ LIBTCCAPI size_t tcc_list_types(TCCState *s, tcc_type_enum_t enum_cb, void *opaq
 LIBTCCAPI int tcc_type_get_id(TCCType *t);
 LIBTCCAPI TCCType *tcc_type_get_ref(TCCType *t);
 LIBTCCAPI const char *tcc_type_get_name(TCCType *t);
+LIBTCCAPI unsigned short tcc_type_get_alignment(TCCType *t);
 
 /* return field count / enum item count */
 LIBTCCAPI ssize_t tcc_type_get_nkeys(TCCType *t);
