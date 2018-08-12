@@ -1,4 +1,4 @@
 #!/usr/bin/env redscript
 
-native "C" class stdio(ldflags = '-lz') { #include <stdio.h> }
-print(dir(stdio))
+native "C" class uv(ldflags = '-luv') { #include <uv.h> }
+print(dir(uv))

@@ -1180,15 +1180,6 @@ ForeignFunction::ForeignFunction(NativeClassObject *self, TCCState *s, const cha
     _isVarg(tcc_function_is_variadic(func)),
     _rettype(self->makeForeignType(tcc_function_get_return_type(func)))
 {
-    /* check function address */
-    if (_func == nullptr)
-    {
-        throw Exceptions::AttributeError(Utils::Strings::format(
-            "Undefined reference to function \"%s\"",
-            _name
-        ));
-    }
-
     /* reserve spaces */
     _argsf.resize(tcc_function_get_nargs(func));
     _argsp.resize(tcc_function_get_nargs(func));
@@ -1225,6 +1216,15 @@ ForeignFunction::ForeignFunction(NativeClassObject *self, TCCState *s, const cha
 
 ObjectRef ForeignFunction::invoke(Utils::NFI::VariadicArgs args, Utils::NFI::KeywordArgs kwargs)
 {
+    /* check function address */
+    if (_func == nullptr)
+    {
+        throw Exceptions::AttributeError(Utils::Strings::format(
+            "Undefined reference to function \"%s\"",
+            _name
+        ));
+    }
+
     /* check for variadic arguments */
     if (_isVarg)
     {

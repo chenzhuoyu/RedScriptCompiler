@@ -852,9 +852,16 @@ static void tcc_cleanup(TCCState *s1)
     while (s1->file)
         tcc_close(s1);
     tccpp_delete(s1);
-    /* free sym_pools */
+
+#ifndef TCC_TARGET_PE
+    for (int i = 0; i < s1->nb_dlls; i++) {
+        dlclose(s1->dlls[i]);
+        s1->dlls[i] = NULL;
+    }
+#endif
+
+    dynarray_reset(s1, &s1->dlls, &s1->nb_dlls);
     dynarray_reset(s1, &s1->sym_pools, &s1->nb_sym_pools);
-    /* reset symbol stack */
     s1->sym_free_first = NULL;
 }
 
@@ -1131,6 +1138,7 @@ LIBTCCAPI int tcc_add_sysinclude_path(TCCState *s, const char *pathname)
 ST_FUNC int tcc_add_file_internal(TCCState *s1, const char *filename, int flags)
 {
     int ret;
+    void *dll;
 
     /* open the file */
     ret = tcc_open(s1, filename);
@@ -1166,8 +1174,10 @@ ST_FUNC int tcc_add_file_internal(TCCState *s1, const char *filename, int flags)
             if (s1->output_type == TCC_OUTPUT_MEMORY) {
                 ret = 0;
 #ifdef TCC_IS_NATIVE
-                if (NULL == dlopen(filename, RTLD_GLOBAL | RTLD_LAZY))
+                if (!(dll = dlopen(filename, RTLD_LOCAL | RTLD_NOW)))
                     ret = -1;
+                else
+                    dynarray_add(s1, &s1->dlls, &s1->nb_dlls, dll);
 #endif
             } else {
                 ret = tcc_load_dll(s1, fd, filename,
@@ -1426,11 +1436,11 @@ ST_FUNC TCCType *tcc_resolver_add_type(TCCState *s1, CType *type)
             vtype->alignment = type->ref->r;
 
             if (!(ptype = (TCCType **)hashmap_lookup(s1, &s1->types, vtype->name))) {
-                vtype->t |= VT_FORWARD;
+                vtype->t |= VT_PARTIAL;
                 hashmap_insert(s1, &s1->types, vtype->name, vtype, (hashdtor_t)free_type);
 
-                if (sym)
-                    vtype->t |= VT_PARTIAL;
+                if (!sym)
+                    vtype->t |= VT_FORWARD;
             }
             else {
                 free_type(s1, vtype);
@@ -1505,9 +1515,14 @@ LIBTCCAPI void *tcc_function_get_addr(TCCState *s, TCCFunction *f)
     if (!f->addr)
         f->addr = tcc_get_symbol(s, f->name);
 
-#ifndef _WIN64
+#ifndef TCC_TARGET_PE
     if (!f->addr)
         f->addr = dlsym(RTLD_DEFAULT, f->name);
+
+    if (!f->addr)
+        for (int i = 0; i < s->nb_dlls; i++)
+            if ((f->addr = dlsym(s->dlls[i], f->name)))
+                break;
 #endif
 
     return f->addr;

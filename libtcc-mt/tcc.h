@@ -926,6 +926,8 @@ struct TCCState {
     struct TinyAlloc *tokstr_alloc;
     struct TinyAlloc *cstr_alloc;
     TokenString *macro_stack;
+    void **dlls;
+    int nb_dlls;
 
     /* types and functions */
     struct hashmap_t funcs;
