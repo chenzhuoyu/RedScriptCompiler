@@ -1,3 +1,6 @@
+
+#include <runtime/NativeClassObject.h>
+
 #include "utils/Decimal.h"
 #include "utils/Integer.h"
 #include "utils/Strings.h"
@@ -106,6 +109,56 @@ static std::string type2str(TCCState *s, TCCType *t, const char *n)
     return Utils::Strings::format("(%p)%s", static_cast<void *>(t), name);
 }
 
+void NativeClassType::addBuiltins(void)
+{
+    /* shutdown FFI types */
+    ForeignVoidTypeObject            ->typeInitialize();
+    ForeignInt8TypeObject            ->typeInitialize();
+    ForeignUInt8TypeObject           ->typeInitialize();
+    ForeignInt16TypeObject           ->typeInitialize();
+    ForeignUInt16TypeObject          ->typeInitialize();
+    ForeignInt32TypeObject           ->typeInitialize();
+    ForeignUInt32TypeObject          ->typeInitialize();
+    ForeignInt64TypeObject           ->typeInitialize();
+    ForeignUInt64TypeObject          ->typeInitialize();
+    ForeignFloatTypeObject           ->typeInitialize();
+    ForeignDoubleTypeObject          ->typeInitialize();
+    ForeignLongDoubleTypeObject      ->typeInitialize();
+
+    /* shutdown raw pointer types */
+    ForeignRawPointerTypeObject      ->typeInitialize();
+    ForeignConstRawPointerTypeObject ->typeInitialize();
+
+    /* shutdown string types */
+    ForeignCStringTypeObject         ->typeInitialize();
+    ForeignConstCStringTypeObject    ->typeInitialize();
+}
+
+void NativeClassType::clearBuiltins(void)
+{
+    /* shutdown FFI types */
+    ForeignVoidTypeObject            ->typeShutdown();
+    ForeignInt8TypeObject            ->typeShutdown();
+    ForeignUInt8TypeObject           ->typeShutdown();
+    ForeignInt16TypeObject           ->typeShutdown();
+    ForeignUInt16TypeObject          ->typeShutdown();
+    ForeignInt32TypeObject           ->typeShutdown();
+    ForeignUInt32TypeObject          ->typeShutdown();
+    ForeignInt64TypeObject           ->typeShutdown();
+    ForeignUInt64TypeObject          ->typeShutdown();
+    ForeignFloatTypeObject           ->typeShutdown();
+    ForeignDoubleTypeObject          ->typeShutdown();
+    ForeignLongDoubleTypeObject      ->typeShutdown();
+
+    /* shutdown raw pointer types */
+    ForeignRawPointerTypeObject      ->typeShutdown();
+    ForeignConstRawPointerTypeObject ->typeShutdown();
+
+    /* shutdown string types */
+    ForeignCStringTypeObject         ->typeShutdown();
+    ForeignConstCStringTypeObject    ->typeShutdown();
+}
+
 std::string NativeClassType::nativeObjectRepr(ObjectRef self)
 {
     return Utils::Strings::format(
@@ -185,6 +238,10 @@ NativeClassObject::NativeClassObject(
         static_cast<NativeClassObject *>(self)->addFunction(name, func);
         return 1;
     }, this);
+
+    /* clear the type caches */
+    _enums.clear();
+    _types.clear();
 }
 
 void NativeClassObject::addType(const char *name, TCCType *type)
@@ -302,8 +359,36 @@ Reference<ForeignType> NativeClassObject::makeForeignType(TCCType *type)
         /* structs */
         case VT_STRUCT:
         {
-            // TODO: implement VT_STRUCT
-            throw Exceptions::InternalError("not implemented: VT_STRUCT :: " + type2str(_tcc, type, nullptr));
+            /* read from cache if possible */
+            if ((iter = _types.find(type)) != _types.end())
+                return iter->second;
+
+            /* field enumeration context */
+            struct ContextType
+            {
+                NativeClassObject *self;
+                Reference<ForeignStructType> result;
+            } ctx;
+
+            /* type name and field count */
+            auto name = makeTypeName(tcc_type_get_name(type));
+            auto count = static_cast<size_t>(tcc_type_get_nkeys(type));
+
+            /* add to type cache first */
+            ctx.self = this;
+            ctx.result = Object::newObject<ForeignStructType>(name, count);
+            _types.emplace(type, ctx.result);
+
+            /* enumerate all fields */
+            tcc_type_list_fields(_tcc, type, [](TCCState *s, TCCType *t, const char *name, TCCType *type, void *pn) -> char
+            {
+                ContextType *pctx = reinterpret_cast<ContextType *>(pn);
+                pctx->result->addField(name, pctx->self->makeForeignType(type));
+                return 1;
+            }, &ctx);
+
+            /* move to prevent copy */
+            return std::move(ctx.result);
         }
 
         /* other unknown types */
@@ -477,26 +562,48 @@ void NativeClassObject::initialize(void)
     NativeClassTypeObject            = Reference<NativeClassType>::refStatic(nullType);
 
     /* wrapped primitive FFI types */
-    ForeignVoidTypeObject            = Object::newObject<ForeignVoidType>();
-    ForeignInt8TypeObject            = Object::newObject<ForeignTypeFactory<ForeignInt8Type      , ForeignInt8      , int8_t     >>();
-    ForeignUInt8TypeObject           = Object::newObject<ForeignTypeFactory<ForeignUInt8Type     , ForeignUInt8     , uint8_t    >>();
-    ForeignInt16TypeObject           = Object::newObject<ForeignTypeFactory<ForeignInt16Type     , ForeignInt16     , int16_t    >>();
-    ForeignUInt16TypeObject          = Object::newObject<ForeignTypeFactory<ForeignUInt16Type    , ForeignUInt16    , uint16_t   >>();
-    ForeignInt32TypeObject           = Object::newObject<ForeignTypeFactory<ForeignInt32Type     , ForeignInt32     , int32_t    >>();
-    ForeignUInt32TypeObject          = Object::newObject<ForeignTypeFactory<ForeignUInt32Type    , ForeignUInt32    , uint32_t   >>();
-    ForeignInt64TypeObject           = Object::newObject<ForeignTypeFactory<ForeignInt64Type     , ForeignInt64     , int64_t    >>();
-    ForeignUInt64TypeObject          = Object::newObject<ForeignTypeFactory<ForeignUInt64Type    , ForeignUInt64    , uint64_t   >>();
-    ForeignFloatTypeObject           = Object::newObject<ForeignTypeFactory<ForeignFloatType     , ForeignFloat     , float      >>();
-    ForeignDoubleTypeObject          = Object::newObject<ForeignTypeFactory<ForeignDoubleType    , ForeignDouble    , double     >>();
-    ForeignLongDoubleTypeObject      = Object::newObject<ForeignTypeFactory<ForeignLongDoubleType, ForeignLongDouble, long double>>();
+    static ForeignVoidType                                                           foreignVoidType;
+    static ForeignTypeFactory<ForeignInt8Type      , ForeignInt8      , int8_t     > foreignInt8Type;
+    static ForeignTypeFactory<ForeignUInt8Type     , ForeignUInt8     , uint8_t    > foreignUInt8Type;
+    static ForeignTypeFactory<ForeignInt16Type     , ForeignInt16     , int16_t    > foreignInt16Type;
+    static ForeignTypeFactory<ForeignUInt16Type    , ForeignUInt16    , uint16_t   > foreignUInt16Type;
+    static ForeignTypeFactory<ForeignInt32Type     , ForeignInt32     , int32_t    > foreignInt32Type;
+    static ForeignTypeFactory<ForeignUInt32Type    , ForeignUInt32    , uint32_t   > foreignUInt32Type;
+    static ForeignTypeFactory<ForeignInt64Type     , ForeignInt64     , int64_t    > foreignInt64Type;
+    static ForeignTypeFactory<ForeignUInt64Type    , ForeignUInt64    , uint64_t   > foreignUInt64Type;
+    static ForeignTypeFactory<ForeignFloatType     , ForeignFloat     , float      > foreignFloatType;
+    static ForeignTypeFactory<ForeignDoubleType    , ForeignDouble    , double     > foreignDoubleType;
+    static ForeignTypeFactory<ForeignLongDoubleType, ForeignLongDouble, long double> foreignLongDoubleType;
+
+    /* wrapped primitive FFI types */
+    ForeignVoidTypeObject            = Reference<ForeignVoidType                                                          >::refStatic(foreignVoidType      );
+    ForeignInt8TypeObject            = Reference<ForeignTypeFactory<ForeignInt8Type      , ForeignInt8      , int8_t     >>::refStatic(foreignInt8Type      );
+    ForeignUInt8TypeObject           = Reference<ForeignTypeFactory<ForeignUInt8Type     , ForeignUInt8     , uint8_t    >>::refStatic(foreignUInt8Type     );
+    ForeignInt16TypeObject           = Reference<ForeignTypeFactory<ForeignInt16Type     , ForeignInt16     , int16_t    >>::refStatic(foreignInt16Type     );
+    ForeignUInt16TypeObject          = Reference<ForeignTypeFactory<ForeignUInt16Type    , ForeignUInt16    , uint16_t   >>::refStatic(foreignUInt16Type    );
+    ForeignInt32TypeObject           = Reference<ForeignTypeFactory<ForeignInt32Type     , ForeignInt32     , int32_t    >>::refStatic(foreignInt32Type     );
+    ForeignUInt32TypeObject          = Reference<ForeignTypeFactory<ForeignUInt32Type    , ForeignUInt32    , uint32_t   >>::refStatic(foreignUInt32Type    );
+    ForeignInt64TypeObject           = Reference<ForeignTypeFactory<ForeignInt64Type     , ForeignInt64     , int64_t    >>::refStatic(foreignInt64Type     );
+    ForeignUInt64TypeObject          = Reference<ForeignTypeFactory<ForeignUInt64Type    , ForeignUInt64    , uint64_t   >>::refStatic(foreignUInt64Type    );
+    ForeignFloatTypeObject           = Reference<ForeignTypeFactory<ForeignFloatType     , ForeignFloat     , float      >>::refStatic(foreignFloatType     );
+    ForeignDoubleTypeObject          = Reference<ForeignTypeFactory<ForeignDoubleType    , ForeignDouble    , double     >>::refStatic(foreignDoubleType    );
+    ForeignLongDoubleTypeObject      = Reference<ForeignTypeFactory<ForeignLongDoubleType, ForeignLongDouble, long double>>::refStatic(foreignLongDoubleType);
 
     /* raw pointer types */
-    ForeignRawPointerTypeObject      = Object::newObject<PointerFactory>(false);
-    ForeignConstRawPointerTypeObject = Object::newObject<ForeignPointerType>(true);
+    static PointerFactory foreignPointerType(false);
+    static ForeignPointerType foreignConstPointerType(true);
+
+    /* raw pointer types */
+    ForeignRawPointerTypeObject      = Reference<PointerFactory>::refStatic(foreignPointerType);
+    ForeignConstRawPointerTypeObject = Reference<ForeignPointerType>::refStatic(foreignConstPointerType);
 
     /* string types */
-    ForeignCStringTypeObject         = Object::newObject<CStringFactory>(false);
-    ForeignConstCStringTypeObject    = Object::newObject<ForeignCStringType>(true);
+    static CStringFactory foreignCStringType(false);
+    static ForeignCStringType foreignConstCStringType(true);
+
+    /* string types */
+    ForeignCStringTypeObject         = Reference<CStringFactory>::refStatic(foreignCStringType);
+    ForeignConstCStringTypeObject    = Reference<ForeignCStringType>::refStatic(foreignConstCStringType);
 }
 
 /** Abstract Foreign Type **/
@@ -531,7 +638,7 @@ static ObjectRef foreignTypeValueSetter(ObjectRef self, ObjectRef type, ObjectRe
     return std::move(value);
 }
 
-ForeignType::ForeignType(const std::string &name, ffi_type *type) : NativeType(name), _size(type->size), _ftype(type)
+ForeignType::ForeignType(const std::string &name, ffi_type *type) : NativeType(name), _ftype(type)
 {
     addObject("value", ProxyObject::newReadWrite(
         NativeFunctionObject::newBinary("__get__", &foreignTypeValueGetter),
@@ -714,6 +821,32 @@ ObjectRef ForeignLongDoubleType::unpack(const void *buffer, size_t size) const F
 #undef FFI_UNPACK_UINT
 #undef FFI_UNPACK_FLOAT
 
+/** Foreign Struct Type Implementations **/
+
+ForeignStructType::~ForeignStructType()
+{
+    Engine::Memory::free(ftype()->elements);
+    Engine::Memory::free(ftype());
+}
+
+ForeignStructType::ForeignStructType(const std::string &name, size_t fields) : ForeignType(name, newStructType(fields))
+{
+    track();
+    _names.reserve(fields);
+    _types.reserve(fields);
+}
+
+void ForeignStructType::pack(void *buffer, size_t size, ObjectRef value) const
+{
+    // TODO: pack struct
+}
+
+ObjectRef ForeignStructType::unpack(const void *buffer, size_t size) const
+{
+    // TODO: unpack struct
+    return RedScript::Runtime::ObjectRef();
+}
+
 /** Foreign Pointer Type Implementations **/
 
 void ForeignPointerType::pack(void *buffer, size_t size, ObjectRef value) const
@@ -845,6 +978,9 @@ ForeignPointerType::ForeignPointerType(const std::string &name, Reference<Foreig
         NativeFunctionObject::fromFunction("__get__", &foreignPointerAutoReleaseGetter),
         NativeFunctionObject::fromFunction("__set__", &foreignPointerAutoReleaseSetter)
     ));
+
+    /* track the pointer */
+    track();
 }
 
 /** Foreign CString Type Implementations **/

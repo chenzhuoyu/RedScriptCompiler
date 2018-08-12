@@ -27,8 +27,8 @@ public:
     explicit NativeClassType() : NativeType("native_class") {}
 
 protected:
-    virtual void addBuiltins(void) override {}
-    virtual void clearBuiltins(void) override {}
+    virtual void addBuiltins(void) override;
+    virtual void clearBuiltins(void) override;
 
 /*** Native Object Protocol ***/
 
@@ -80,20 +80,23 @@ public:
 
 class ForeignType : public NativeType
 {
-    size_t _size;
     ffi_type *_ftype;
 
 public:
-    virtual ~ForeignType() { attrs().clear(); }
+    virtual ~ForeignType() = default;
     explicit ForeignType(const std::string &name, ffi_type *type);
 
 public:
-    size_t size(void) const { return _size; }
+    size_t size(void) const { return _ftype ? _ftype->size : 0; }
     ffi_type *ftype(void) const { return _ftype; }
 
 public:
     virtual void pack(void *buffer, size_t size, ObjectRef value) const = 0;
     virtual ObjectRef unpack(const void *buffer, size_t size) const = 0;
+
+protected:
+    virtual void addBuiltins(void) override {}
+    virtual void clearBuiltins(void) override {}
 
 /** Native Object Protocol **/
 
@@ -181,6 +184,10 @@ struct ForeignEnumType : public NativeType
     virtual ~ForeignEnumType() = default;
     explicit ForeignEnumType(const std::string &name) : NativeType(name) {}
 
+protected:
+    virtual void addBuiltins(void) override {}
+    virtual void clearBuiltins(void) override {}
+
 public:
     virtual ObjectRef nativeObjectNew(TypeRef type, Reference<TupleObject> args, Reference<MapObject> kwargs) override
     {
@@ -191,9 +198,47 @@ public:
     }
 };
 
-struct ForeignStructType : public ForeignType
+class ForeignStructType : public ForeignType
 {
+    std::vector<std::string> _names;
+    std::vector<Reference<ForeignType>> _types;
 
+public:
+    virtual ~ForeignStructType();
+    explicit ForeignStructType(const std::string &name, size_t fields);
+
+public:
+    inline void addField(std::string &&name, Reference<ForeignType> &&type)
+    {
+        _names.emplace_back(std::move(name));
+        _types.emplace_back(std::move(type));
+        // TODO: add field getter and setter
+    }
+
+public:
+    virtual void pack(void *buffer, size_t size, ObjectRef value) const override;
+    virtual ObjectRef unpack(const void *buffer, size_t size) const override;
+
+public:
+    virtual void referenceClear(void) override { _types.clear(); }
+    virtual void referenceTraverse(VisitFunction visit) override { for (auto &type : _types) visit(type); }
+
+private:
+    static inline ffi_type *newStructType(size_t fields)
+    {
+        /* create a new FFI type */
+        size_t i = 0;
+        ffi_type *result = Engine::Memory::alloc<ffi_type>();
+
+        /* size and struct elements */
+        result->size = 0;
+        result->elements = Engine::Memory::alloc<ffi_type *>(fields);
+
+        /* fields list */
+        result->type = FFI_TYPE_STRUCT;
+        result->alignment = 1;
+        return result;
+    }
 };
 
 /* wrapped primitive FFI types */
@@ -243,6 +288,10 @@ public:
 public:
     virtual void pack(void *buffer, size_t size, ObjectRef value) const override;
     virtual ObjectRef unpack(const void *buffer, size_t size) const override;
+
+public:
+    virtual void referenceClear(void) override { _base = nullptr; }
+    virtual void referenceTraverse(VisitFunction visit) override { visit(_base); }
 
 /** Native Object Protocol **/
 

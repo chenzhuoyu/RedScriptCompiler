@@ -13,6 +13,14 @@ struct Memory
     static inline void *alloc(size_t size) { return ::malloc(size ? (((size - 1) >> 4) + 1) << 4 : 0); }
     static inline void *realloc(void *ptr, size_t size) { return ::realloc(ptr, size ? (((size - 1) >> 4) + 1) << 4 : 0); }
 
+public:
+    template <typename T>
+    static inline T *alloc(size_t count = 1)
+    {
+        return reinterpret_cast<T *>(alloc(sizeof(T) * count));
+        static_assert(std::is_trivial_v<T>, "Not a trivial type");
+    }
+
 /*** Object Construction and Destruction ***/
 
 public:

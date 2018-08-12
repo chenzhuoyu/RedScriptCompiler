@@ -171,28 +171,32 @@ private:
     }
 
 public:
-    size_t move(Generation &target)
+    size_t move(Generation *dest)
     {
         /* check for generations */
-        if (name >= target.name)
+        if (name >= dest->name)
             throw std::logic_error("move to younger generation is not allowed");
 
         /* lock both generations */
         size_t size;
         GCNode *tail;
         Utils::SpinLock::Scope self(_spin);
-        Utils::SpinLock::Scope other(target._spin);
+        Utils::SpinLock::Scope other(dest->_spin);
 
         /* empty list, nothing to move */
         if (_head.next == &_head)
             return 0;
 
+        /* update generations */
+        for (GCNode *p = _head.next; p != &_head; p = p->next)
+            p->gen = dest->name;
+
         /* merge the two lists */
-        tail = target._head.prev;
+        tail = dest->_head.prev;
         tail->next = _head.next;
         tail->next->prev = tail;
-        target._head.prev = _head.prev;
-        target._head.prev->next = &(target._head);
+        dest->_head.prev = _head.prev;
+        dest->_head.prev->next = &(dest->_head);
 
         /* clear the current generation */
         _head.next = &_head;
@@ -200,7 +204,7 @@ public:
 
         /* update the generation size */
         size = used.exchange(0, std::memory_order_relaxed);
-        target.used.fetch_add(size, std::memory_order_relaxed);
+        dest->used.fetch_add(size, std::memory_order_relaxed);
         return size;
     }
 
@@ -223,6 +227,7 @@ static Generation Generations[] = {
 /* garbage collector state */
 static size_t _residentObjects = 0;
 static std::atomic_flag _isCollecting = false;
+static std::atomic_size_t _objectCounter = 0;
 
 /*** GCObject implementations ***/
 
@@ -253,19 +258,20 @@ void GCObject::untrack(void)
 
 void GarbageCollector::free(void *obj)
 {
+    _objectCounter.fetch_sub(1, std::memory_order_relaxed);
     Memory::destroy(TO_GC(obj));
     Memory::free(TO_GC(obj));
 }
 
 void *GarbageCollector::alloc(size_t size)
 {
-    size += sizeof(GCObject);
-    return FROM_GC(Memory::construct<GCObject>(Memory::alloc(size)));
+    _objectCounter.fetch_add(1, std::memory_order_relaxed);
+    return FROM_GC(Memory::construct<GCObject>(Memory::alloc(size + sizeof(GCObject))));
 }
 
 void GarbageCollector::shutdown(void)
 {
-    /* should have no objects left at this point */
+    /* should have no tracked objects left at this point */
     for (const auto &gen : Generations)
     {
         if (gen.used > 0)
@@ -276,6 +282,15 @@ void GarbageCollector::shutdown(void)
                 gen.used
             ));
         }
+    }
+
+    /* also should have no untracked objects left */
+    if (_objectCounter.load())
+    {
+        throw std::logic_error(Utils::Strings::format(
+            "Untracked object leak detected: %zu object(s) leaked",
+            _objectCounter.load()
+        ));
     }
 }
 
@@ -302,7 +317,7 @@ size_t GarbageCollector::collect(CollectionMode mode)
 
                 /* move objects to next generation if needed */
                 if (i < count - 1)
-                    Generations[i].move(Generations[i + 1]);
+                    Generations[i].move(&(Generations[i + 1]));
             }
 
             /* reset resident object counter */
@@ -324,7 +339,7 @@ size_t GarbageCollector::collect(CollectionMode mode)
                     if (i != count)
                     {
                         n += Generations[i - 1].collect();
-                        _residentObjects += Generations[i - 1].move(Generations[i]);
+                        _residentObjects += Generations[i - 1].move(&(Generations[i]));
                     }
 
                     /* too many resident objects, force a full collection */
