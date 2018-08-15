@@ -760,7 +760,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                 if (_stack.size() < 3)
                     throw Runtime::Exceptions::InternalError("Stack underflow");
 
-                /* get the top two elements */
+                /* get the top three elements */
                 Runtime::ObjectRef a = std::move(*(_stack.end() - 1));
                 Runtime::ObjectRef b = std::move(*(_stack.end() - 2));
                 Runtime::ObjectRef c = std::move(*(_stack.end() - 3));
