@@ -660,7 +660,7 @@ Runtime::ObjectRef Interpreter::eval(void)
                         _stack.pop_back();
                     }
 
-                    /* have arguments */
+                    /* have positional arguments */
                     if (flags & FI_ARGS)
                     {
                         /* check for stack */

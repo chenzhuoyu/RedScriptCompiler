@@ -110,7 +110,7 @@ enum class OpCode : uint8_t
 /* opcode flags */
 static const uint32_t OP_V          = 0x00000001;    /* has first operand */
 static const uint32_t OP_V2         = 0x00000002;    /* has second operand */
-static const uint32_t OP_REL1       = 0x00000004;    /* operand 1 is relative to PC */
+static const uint32_t OP_REL        = 0x00000004;    /* operand 1 is relative to PC */
 static const uint32_t OP_REL2       = 0x00000008;    /* operand 2 is relative to PC */
 
 /* slicing flags */
@@ -119,9 +119,9 @@ static const uint32_t SL_END        = 0x00000002;    /* have ending expression *
 static const uint32_t SL_STEP       = 0x00000004;    /* have stepping expression */
 
 /* function invocation flags */
-static const uint32_t FI_ARGS       = 0x00000001;    /* have arguments */
+static const uint32_t FI_ARGS       = 0x00000001;    /* have positional arguments */
 static const uint32_t FI_NAMED      = 0x00000002;    /* have named arguments */
-static const uint32_t FI_VARGS      = 0x00000004;    /* have variable arguments */
+static const uint32_t FI_VARGS      = 0x00000004;    /* have variadic arguments */
 static const uint32_t FI_KWARGS     = 0x00000008;    /* have keyword arguments */
 static const uint32_t FI_DECORATOR  = 0x00000010;    /* decorator invocation, exclusive flag */
 
@@ -216,23 +216,23 @@ static const uint32_t OpCodeFlags[256] = {
     0,
     0,
 
-    OP_V | OP_REL1,                     /* 0x4a :: BR            */
-    OP_V | OP_REL1,                     /* 0x4b :: BRP_TRUE      */
-    OP_V | OP_REL1,                     /* 0x4c :: BRP_FALSE     */
-    OP_V | OP_REL1,                     /* 0x4d :: BRCP_TRUE     */
-    OP_V | OP_REL1,                     /* 0x4e :: BRCP_FALSE    */
-    OP_V | OP_REL1,                     /* 0x4f :: BRNP_TRUE     */
-    OP_V | OP_REL1,                     /* 0x50 :: BRNP_FALSE    */
+    OP_V | OP_REL,                     /* 0x4a :: BR            */
+    OP_V | OP_REL,                     /* 0x4b :: BRP_TRUE      */
+    OP_V | OP_REL,                     /* 0x4c :: BRP_FALSE     */
+    OP_V | OP_REL,                     /* 0x4d :: BRCP_TRUE     */
+    OP_V | OP_REL,                     /* 0x4e :: BRCP_FALSE    */
+    OP_V | OP_REL,                     /* 0x4f :: BRNP_TRUE     */
+    OP_V | OP_REL,                     /* 0x50 :: BRNP_FALSE    */
 
 
     0,                                  /* 0x51 :: RAISE         */
-    OP_V | OP_REL1,                     /* 0x52 :: EXC_MATCH     */
-    OP_V | OP_REL1 | OP_V2,             /* 0x53 :: EXC_STORE     */
-    OP_V | OP_REL1 | OP_V2 | OP_REL2,   /* 0x54 :: SETUP_BLOCK   */
+    OP_V | OP_REL,                      /* 0x52 :: EXC_MATCH     */
+    OP_V | OP_REL | OP_V2,              /* 0x53 :: EXC_STORE     */
+    OP_V | OP_REL | OP_V2 | OP_REL2,    /* 0x54 :: SETUP_BLOCK   */
     0,                                  /* 0x55 :: END_EXCEPT    */
     0,                                  /* 0x56 :: END_FINALLY   */
 
-    OP_V | OP_REL1,                     /* 0x57 :: ITER_NEXT     */
+    OP_V | OP_REL,                      /* 0x57 :: ITER_NEXT     */
     OP_V,                               /* 0x58 :: EXPAND_SEQ    */
     OP_V,                               /* 0x59 :: IMPORT_ALIAS  */
 

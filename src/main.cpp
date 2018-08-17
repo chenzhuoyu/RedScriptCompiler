@@ -69,7 +69,7 @@ static void dis(RedScript::Runtime::Reference<RedScript::Runtime::CodeObject> co
         if (RedScript::Engine::OpCodeFlags[op] & RedScript::Engine::OP_V)
         {
             int32_t opv = *(int32_t *)p;
-            if (!(RedScript::Engine::OpCodeFlags[op] & RedScript::Engine::OP_REL1))
+            if (!(RedScript::Engine::OpCodeFlags[op] & RedScript::Engine::OP_REL))
                 printf("    %d", opv);
             else
                 printf("    %d -> %#lx", opv, p - s + opv - 1);
